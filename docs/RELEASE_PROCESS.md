@@ -1,4 +1,4 @@
-# JX3 Loot Forge 发版流程
+# 剑网3掉落工坊发版流程
 
 本文是项目后续正式发版的统一操作标准。每次发版都应按本文执行；如果某一步无法完成，先记录原因并处理，不在未验证的状态下创建正式版本标签。
 
@@ -127,7 +127,7 @@ git status
 每个正式版本至少保留以下信息和文件：
 
 ```text
-JX3-Loot-Forge-v0.1.0/
+剑网3掉落工坊-vMAJOR.MINOR.PATCH/
 ├─ index.html
 ├─ CHANGELOG.md
 ├─ README.md

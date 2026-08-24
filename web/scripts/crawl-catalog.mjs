@@ -60,7 +60,7 @@ async function fetchJson(path, attempt = 0) {
   let response;
   try {
     response = await fetch(`${BASE_URL}${path}`, {
-      headers: { accept: 'application/json', 'user-agent': 'JX3-Loot-Forge/0.1.0' },
+      headers: { accept: 'application/json', 'user-agent': 'JX3-Loot-Forge/0.1.1' },
       signal: AbortSignal.timeout(20_000),
     });
   } catch (error) {

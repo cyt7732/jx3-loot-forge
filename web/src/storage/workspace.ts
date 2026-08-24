@@ -34,7 +34,7 @@ export function exportWorkspaceBackup(workspace: Workspace): string {
 export function importWorkspaceBackup(text: string, catalogVersion: string): Workspace {
   if (new TextEncoder().encode(text).byteLength > MAX_BACKUP_BYTES) throw new Error('工作区备份超过 5 MiB 限制。');
   const parsed = JSON.parse(text) as { format?: unknown; workspace?: unknown };
-  if (parsed.format !== 'jx3-loot-forge-workspace') throw new Error('不是 JX3 Loot Forge 工作区备份。');
+  if (parsed.format !== 'jx3-loot-forge-workspace') throw new Error('不是剑网3掉落工坊工作区备份。');
   return validateWorkspace(parsed.workspace, catalogVersion);
 }
 

@@ -5,6 +5,7 @@ import { buildCatalogItems, catalogSnapshot } from '../catalog';
 import { buildExportBatch } from '../config/exporter';
 import { parseManagedConfig, previewImport, validateItemName } from '../config/importer';
 import {
+  APP_NAME,
   APP_VERSION,
   CATEGORY_LABELS,
   DEFAULT_PROTECTED_ITEMS,
@@ -633,8 +634,8 @@ export function LootForgeApp() {
         <div className="brand-block">
           <div className="brand-mark" aria-hidden="true">铸</div>
           <div>
-            <div className="brand-line"><h1>JX3 Loot Forge</h1><span className="version-pill">v{APP_VERSION}</span></div>
-            <p>剑网3副本掉落配置锻造台 · by 凌千羽·龙争虎斗</p>
+            <div className="brand-line"><h1>{APP_NAME}</h1><span className="version-pill">v{APP_VERSION}</span></div>
+            <p>{APP_NAME} · 剑网3副本掉落配置 · by 凌千羽·龙争虎斗</p>
           </div>
         </div>
         <div className="header-actions">
@@ -793,7 +794,7 @@ export function LootForgeApp() {
 
         {dialog === 'workspace' && <Modal title="本地工作区" eyebrow="LOCAL WORKSPACE" onClose={() => setDialog(null)}>
           <div className="workspace-actions-list">
-            <button type="button" onClick={() => downloadText(`JX3-Loot-Forge-工作区_${shanghaiDateStamp()}.json`, exportWorkspaceBackup(workspace))}><strong>导出工作区备份</strong><small>保存全部状态、自定义物品、范围和筛选偏好</small></button>
+            <button type="button" onClick={() => downloadText(`剑网3掉落工坊-工作区_${shanghaiDateStamp()}.json`, exportWorkspaceBackup(workspace))}><strong>导出工作区备份</strong><small>保存全部状态、自定义物品、范围和筛选偏好</small></button>
             <button type="button" onClick={() => backupInputRef.current?.click()}><strong>导入工作区备份</strong><small>跨域名或移动离线文件后恢复上次状态</small></button>
             <button type="button" onClick={() => void checkCatalogUpdate()}><strong>检查数据更新</strong><small>在线版读取项目 manifest；离线版不会自动联网</small></button>
             <button type="button" onClick={() => dataPackInputRef.current?.click()}><strong>导入数据包</strong><small>校验 SHA-256 和完整性后保存到本机 IndexedDB</small></button>

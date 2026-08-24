@@ -2,19 +2,19 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'JX3 Loot Forge｜剑网3掉落配置锻造台',
+  title: '剑网3掉落工坊｜剑网3副本掉落配置',
   description: '离线整理剑网3副本掉落，一键生成跳过拾取、自动出售与保护不出售配置。',
   icons: { icon: '/favicon.svg' },
   openGraph: {
-    title: 'JX3 Loot Forge｜剑网3掉落配置锻造台',
+    title: '剑网3掉落工坊｜剑网3副本掉落配置',
     description: '离线整理剑网3副本掉落，一键生成跳过拾取、自动出售与保护不出售配置。',
     type: 'website',
     locale: 'zh_CN',
-    images: [{ url: '/og.png', width: 1600, height: 900, alt: 'JX3 Loot Forge 剑网3掉落配置锻造台' }],
+    images: [{ url: '/og.png', width: 1600, height: 900, alt: '剑网3掉落工坊｜剑网3副本掉落配置' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'JX3 Loot Forge｜剑网3掉落配置锻造台',
+    title: '剑网3掉落工坊｜剑网3副本掉落配置',
     description: '离线整理剑网3副本掉落，一键生成跳过拾取、自动出售与保护不出售配置。',
     images: ['/og.png'],
   },
