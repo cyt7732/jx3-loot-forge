@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "client": "std",
+  "catalogVersion": "20260823-47ec717b1065",
+  "generatedAt": "2026-08-23T15:35:53.820Z",
+  "contentHash": "47ec717b106507ad036ea79bc6c7b609fb28d6b82cf13cb338e359b6df94ea2a",
+  "stats": {
+    "maps": 254,
+    "bosses": 981,
+    "drops": 43033,
+    "uniqueItems": 16571
+  },
+  "completeness": {
+    "status": "complete",
+    "expectedMapCount": 254,
+    "fetchedMapCount": 254,
+    "metadataMissing": 24,
+    "metadataMismatch": 6,
+    "failures": []
+  },
+  "source": "https://node.jx3box.com/fb/info?client=std",
+  "hashAlgorithm": "sha256-json-v1-excluding-generatedAt-catalogVersion-contentHash",
+  "snapshotUrl": "./catalog.std.json"
+}

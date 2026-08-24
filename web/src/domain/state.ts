@@ -1,0 +1,157 @@
+import {
+  APP_VERSION,
+  CATEGORY_LABELS,
+  DEFAULT_FILTERS,
+  DEFAULT_PROTECTED_ITEMS,
+  EMPTY_ITEM_STATE,
+} from './constants';
+import type {
+  BulkPreview,
+  BulkRuleSet,
+  CatalogItem,
+  ItemCategory,
+  ItemState,
+  RuleDirective,
+  StateChange,
+  StateField,
+  Workspace,
+} from './types';
+
+export function normalizeItemName(name: string): string {
+  return name.normalize('NFC');
+}
+
+export function cloneState(state: ItemState | undefined): ItemState {
+  return state ? { ...state } : { ...EMPTY_ITEM_STATE };
+}
+
+export function assertValidState(state: ItemState): void {
+  if (typeof state.skipLoot !== 'boolean' || typeof state.autoSell !== 'boolean' || typeof state.protect !== 'boolean') {
+    throw new Error('物品状态格式无效。');
+  }
+  if (state.autoSell && state.protect) {
+    throw new Error('“自动出售”和“保护不出售”不能同时开启。');
+  }
+}
+
+export function setStateField(state: ItemState, field: StateField, enabled: boolean): ItemState {
+  const next = { ...state, [field]: enabled };
+  if (field === 'autoSell' && enabled) next.protect = false;
+  if (field === 'protect' && enabled) next.autoSell = false;
+  assertValidState(next);
+  return next;
+}
+
+export function createInitialWorkspace(catalogVersion: string, now = new Date()): Workspace {
+  const timestamp = now.toISOString();
+  const itemStates: Array<[string, ItemState]> = DEFAULT_PROTECTED_ITEMS.map((name) => [
+    normalizeItemName(name),
+    { skipLoot: false, autoSell: false, protect: true },
+  ]);
+
+  return {
+    schemaVersion: 1,
+    appVersion: APP_VERSION,
+    catalogVersion,
+    initializedAt: timestamp,
+    updatedAt: timestamp,
+    itemStates,
+    customItems: [],
+    customOverrides: [],
+    selectedMapIds: [],
+    selectedBossKeys: [],
+    expandedGroups: [],
+    favoriteScopes: [],
+    filters: { ...DEFAULT_FILTERS },
+    ui: { bulkPanelOpen: true, sidebarCollapsed: false },
+  };
+}
+
+export function stateMapFromWorkspace(workspace: Workspace): Map<string, ItemState> {
+  const map = new Map<string, ItemState>();
+  for (const [id, state] of workspace.itemStates) {
+    const normalized = normalizeItemName(id);
+    const cloned = cloneState(state);
+    assertValidState(cloned);
+    map.set(normalized, cloned);
+  }
+  return map;
+}
+
+export function workspaceWithStateMap(workspace: Workspace, map: Map<string, ItemState>): Workspace {
+  const itemStates = [...map.entries()]
+    .filter(([, state]) => state.skipLoot || state.autoSell || state.protect)
+    .sort(([a], [b]) => compareCodePoints(a, b))
+    .map(([id, state]) => [id, cloneState(state)] as [string, ItemState]);
+  return { ...workspace, itemStates, updatedAt: new Date().toISOString() };
+}
+
+export function compareCodePoints(a: string, b: string): number {
+  const aPoints = [...a].map((value) => value.codePointAt(0) ?? 0);
+  const bPoints = [...b].map((value) => value.codePointAt(0) ?? 0);
+  const length = Math.min(aPoints.length, bPoints.length);
+  for (let index = 0; index < length; index += 1) {
+    if (aPoints[index] !== bPoints[index]) return aPoints[index] - bPoints[index];
+  }
+  return aPoints.length - bPoints.length;
+}
+
+export function createEmptyBulkRules(): BulkRuleSet {
+  const categories = Object.keys(CATEGORY_LABELS) as ItemCategory[];
+  return Object.fromEntries(categories.map((category) => [category, {
+    skipLoot: 'unchanged',
+    autoSell: 'unchanged',
+    protect: 'unchanged',
+  }])) as BulkRuleSet;
+}
+
+function applyDirective(state: ItemState, field: StateField, directive: RuleDirective): ItemState {
+  if (directive === 'unchanged') return state;
+  return setStateField(state, field, directive === 'enable');
+}
+
+export function previewBulkRules(
+  items: CatalogItem[],
+  currentStates: Map<string, ItemState>,
+  customOverrides: Set<string>,
+  rules: BulkRuleSet,
+): BulkPreview {
+  const changes: StateChange[] = [];
+  let excludedCustom = 0;
+  let conflictsResolved = 0;
+
+  for (const item of items) {
+    if (customOverrides.has(item.id)) {
+      excludedCustom += 1;
+      continue;
+    }
+    const before = cloneState(currentStates.get(item.id));
+    const directives = rules[item.category];
+    let after = before;
+    const reasons: string[] = [];
+
+    for (const field of ['skipLoot', 'autoSell', 'protect'] as StateField[]) {
+      const directive = directives[field];
+      if (directive === 'unchanged') continue;
+      const previousOther = field === 'autoSell' ? after.protect : field === 'protect' ? after.autoSell : false;
+      after = applyDirective(after, field, directive);
+      if (previousOther && directive === 'enable' && (field === 'autoSell' || field === 'protect')) conflictsResolved += 1;
+      reasons.push(`${CATEGORY_LABELS[item.category]}：${field}=${directive}`);
+    }
+
+    if (before.skipLoot !== after.skipLoot || before.autoSell !== after.autoSell || before.protect !== after.protect) {
+      changes.push({ id: item.id, name: item.name, before, after, reasons });
+    }
+  }
+
+  return { changes, excludedCustom, conflictsResolved };
+}
+
+export function applyChanges(current: Map<string, ItemState>, changes: StateChange[]): Map<string, ItemState> {
+  const next = new Map(current);
+  for (const change of changes) {
+    assertValidState(change.after);
+    next.set(change.id, cloneState(change.after));
+  }
+  return next;
+}

@@ -1,0 +1,21 @@
+# Local references and generated review artifacts
+/.learnings/
+/artifacts/
+/exports/
+/output/
+/.playwright-cli/
+/data/raw/*.us.jx3dat
+
+# Web build and local tooling
+/web/node_modules/
+/web/.next/
+/web/.vinext/
+/web/dist/
+/web/.wrangler/
+/web/tsconfig.tsbuildinfo
+
+# Environment and operating-system files
+.env*
+.DS_Store
+Thumbs.db
+*.log
