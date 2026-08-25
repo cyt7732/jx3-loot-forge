@@ -122,31 +122,47 @@ git status
 
 创建 tag 前必须确认版本提交和工作区状态正确。后续版本将命令中的版本号替换为实际版本；tag 创建后不得移动或覆盖。
 
-### 4.6 准备发布产物
+### 4.6 准备发布产物与压缩包打包规范
 
-每个正式版本至少保留以下信息和文件：
+每个正式版本必须准备规范的产物目录与离线分发压缩包：
 
-```text
-剑网3掉落工坊-vMAJOR.MINOR.PATCH/
-├─ index.html
-├─ CHANGELOG.md
-├─ README.md
-├─ LICENSE
-└─ VERSION.json
-```
+1. **产物目录结构**：
+   在 `artifacts/` 下建立带产品名与版本号的顶层目录，例如 `artifacts/剑网3掉落工坊-vMAJOR.MINOR.PATCH/`，放入以下 6 个文件：
 
-离线包应来自通过验收的构建产物。产物目录名与 tag 使用同一产品版本；`VERSION.json` 同时记录目录版本，便于定位数据快照。若构建输出还有必要的配套数据包，应在发布说明中列出，不把开发目录或个人配置打入产物。
+   ```text
+   剑网3掉落工坊-vMAJOR.MINOR.PATCH/
+   ├─ index.html
+   ├─ CHANGELOG.md
+   ├─ README.md
+   ├─ LICENSE
+   ├─ VERSION.json
+   └─ RELEASE_NOTES.md
+   ```
 
-### 4.7 推送与发布记录
+2. **压缩包打包规范**：
+   * **全英文命名**：分发压缩包统一命名为 `jx3-loot-forge-vMAJOR.MINOR.PATCH-offline.zip`（例如 `jx3-loot-forge-v0.2.1-offline.zip`）。**禁止使用中文文件名作为压缩包或 Release 附件名**，防止在跨系统、浏览器下载或 GitHub API / CLI 上传时发生编码截断与乱码。
+   * **包含顶层文件夹**：压缩包**最外层必须包含该目录本身**，确保用户解压后是一个完整的 `剑网3掉落工坊-vMAJOR.MINOR.PATCH` 文件夹，避免解压时散落一地文件。
+   * **打包命令示例**（PowerShell）：
+     ```powershell
+     Compress-Archive -Path 'artifacts/剑网3掉落工坊-v0.2.1' -DestinationPath 'artifacts/jx3-loot-forge-v0.2.1-offline.zip' -Force
+     ```
 
-配置远程仓库后，推送正式提交和 tag：
+### 4.7 推送与发布 GitHub Release
 
-```powershell
-git push origin main
-git push origin v0.1.0
-```
+1. **推送代码与标签**：
+   ```powershell
+   git push origin main
+   git push origin v0.2.1
+   ```
 
-如果默认分支不是 `main`，使用仓库实际默认分支。推送后在发布平台或分发渠道登记版本号、发布日期、目录版本、产物和 `CHANGELOG.md`；不改写已公开的 tag 或发布记录。
+2. **创建 GitHub Release 并上传附件**：
+   使用 GitHub CLI 创建正式 Release，并只上传单一的标准英文命名离线压缩包：
+   ```powershell
+   gh release create v0.2.1 artifacts/jx3-loot-forge-v0.2.1-offline.zip --title "剑网3掉落工坊 v0.2.1" --notes-file "artifacts/剑网3掉落工坊-v0.2.1/RELEASE_NOTES.md"
+   ```
+
+3. **检查发布资产**：
+   Release 资产列表中应只包含该单一离线 zip 包，不重复上传多份或中文名称附件。发布后在项目平台登记版本号、发布日期与目录快照版本。
 
 ## 5. 首次无历史仓库的特殊处理
 
