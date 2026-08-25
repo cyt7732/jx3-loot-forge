@@ -4,6 +4,9 @@
 /exports/
 /output/
 /.playwright-cli/
+/.tmp*/
+.tmp*
+*.xlsx
 /data/raw/*.us.jx3dat
 
 # Web build and local tooling

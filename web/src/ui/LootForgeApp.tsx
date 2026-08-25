@@ -812,7 +812,6 @@ export function LootForgeApp() {
           <div className="brand-mark" aria-hidden="true">铸</div>
           <div>
             <div className="brand-line"><h1>{APP_NAME}</h1><span className="version-pill">v{APP_VERSION}</span></div>
-            <p>{APP_NAME} · 剑网3副本掉落配置 · by 凌千羽·龙争虎斗</p>
           </div>
         </div>
         <div className="header-actions">
@@ -865,7 +864,7 @@ export function LootForgeApp() {
                                 <details className="map-node" key={map.mapId}>
                                   <summary className={mapState.full || mapState.partial ? 'active' : ''}>
                                     <button className={`tree-check ${mapState.full ? 'checked' : mapState.partial ? 'partial' : ''}`} type="button" aria-pressed={mapState.full} aria-label={`切换${map.name}${map.difficulty}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMap(map.mapId); }}>{mapState.full ? '✓' : mapState.partial ? '−' : ''}</button>
-                                    <span><strong>{map.name}</strong><em>{map.expansion} · {map.difficulty}</em></span><small>{map.bossNames.length} Boss</small><b>⌄</b>
+                                    <span><strong>{map.name}</strong><em>{map.difficulty}</em></span><small>{map.bossNames.length} Boss</small><b>⌄</b>
                                   </summary>
                                   <div className="boss-list">
                                     {map.bossNames.map((boss) => {

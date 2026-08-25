@@ -111,4 +111,23 @@ describe('catalog level and difficulty grouping', () => {
       '25人普通秘境', '25人英雄秘境', '25人挑战秘境', '其他秘境',
     ]);
   });
+
+  it('sorts 10/25-person maps by descending MapID while preserving five-person and other input order', () => {
+    const maps = [
+      mapFixture(101, '丝路风语', '10人普通'),
+      mapFixture(303, '丝路风语', '10人普通'),
+      mapFixture(202, '丝路风语', '25人英雄'),
+      mapFixture(404, '丝路风语', '25人英雄'),
+      mapFixture(505, '丝路风语', '5人普通'),
+      mapFixture(606, '丝路风语', '5人普通'),
+      mapFixture(707, '丝路风语', '2人副本'),
+      mapFixture(808, '丝路风语', '2人副本'),
+    ];
+    const groups = groupMapsByDifficulty(maps);
+
+    expect(groups.find((group) => group.id === '10-normal')?.maps.map((map) => map.mapId)).toEqual([303, 101]);
+    expect(groups.find((group) => group.id === '25-hero')?.maps.map((map) => map.mapId)).toEqual([404, 202]);
+    expect(groups.find((group) => group.id === 'five')?.maps.map((map) => map.mapId)).toEqual([505, 606]);
+    expect(groups.find((group) => group.id === 'other')?.maps.map((map) => map.mapId)).toEqual([707, 808]);
+  });
 });

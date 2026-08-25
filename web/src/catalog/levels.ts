@@ -154,12 +154,19 @@ export function getDifficultyGroup(difficulty: string | null | undefined): Catal
 
 export const findDifficultyGroup = getDifficultyGroup;
 
-export type MapsByDifficulty<TMap extends Pick<CatalogMap, 'difficulty'>> = CatalogDifficultyGroup & {
+export type MapsByDifficulty<TMap extends Pick<CatalogMap, 'difficulty' | 'mapId'>> = CatalogDifficultyGroup & {
   maps: TMap[];
 };
 
+function sortMapsByMapIdDescending<TMap extends Pick<CatalogMap, 'mapId'>>(maps: readonly TMap[]): TMap[] {
+  return maps
+    .map((map, index) => ({ map, index }))
+    .sort((left, right) => right.map.mapId - left.map.mapId || left.index - right.index)
+    .map(({ map }) => map);
+}
+
 /** Group maps in the fixed difficulty order, preserving empty buckets. */
-export function groupMapsByDifficulty<TMap extends Pick<CatalogMap, 'difficulty'>>(
+export function groupMapsByDifficulty<TMap extends Pick<CatalogMap, 'difficulty' | 'mapId'>>(
   maps: readonly TMap[],
 ): MapsByDifficulty<TMap>[] {
   const buckets = new Map<CatalogDifficultyGroupId, TMap[]>();
@@ -170,6 +177,8 @@ export function groupMapsByDifficulty<TMap extends Pick<CatalogMap, 'difficulty'
   return DIFFICULTY_GROUPS.map((group) => ({
     ...group,
     difficulties: [...group.difficulties],
-    maps: buckets.get(group.id) ?? [],
+    maps: group.id === 'five' || group.id === 'other'
+      ? buckets.get(group.id) ?? []
+      : sortMapsByMapIdDescending(buckets.get(group.id) ?? []),
   }));
 }
