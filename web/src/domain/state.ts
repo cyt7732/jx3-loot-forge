@@ -4,7 +4,6 @@ import {
   DEFAULT_FILTERS,
   DEFAULT_PROTECTED_ITEMS,
   DEFAULT_SELL_ITEMS,
-  DEFAULT_SKIP_LOOT_ITEMS,
   EMPTY_ITEM_STATE,
 } from './constants';
 import type {
@@ -58,13 +57,6 @@ export function createInitialWorkspace(catalogVersion: string, now = new Date())
     const key = normalizeItemName(name);
     const existing = stateMap.get(key) ?? { skipLoot: false, autoSell: false, protect: false };
     stateMap.set(key, { ...existing, autoSell: true, protect: false });
-  }
-
-  // 3. 插件默认跳过拾取物品（金叶子）
-  for (const name of DEFAULT_SKIP_LOOT_ITEMS) {
-    const key = normalizeItemName(name);
-    const existing = stateMap.get(key) ?? { skipLoot: false, autoSell: false, protect: false };
-    stateMap.set(key, { ...existing, skipLoot: true });
   }
 
   const itemStates: Array<[string, ItemState]> = Array.from(stateMap.entries());

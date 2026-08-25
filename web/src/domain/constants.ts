@@ -2,10 +2,13 @@ import type { ItemCategory, ItemState, WorkspaceFilters } from './types';
 
 export const APP_NAME = '剑网3掉落工坊';
 export const APP_NAME_EN = 'JX3 Loot Forge';
-export const APP_VERSION = '1.0.1';
+export const APP_VERSION = '1.0.2';
 export const AUTHOR = '凌千羽·龙争虎斗';
 export const CLIENT = 'std' as const;
 export const WORKSPACE_STORAGE_KEY = 'jx3-loot-forge:workspace:v1';
+export const CATALOG_MANIFEST_URL = '/data/manifest.json';
+export const CATALOG_DB_NAME = 'jx3-loot-forge';
+export const CATALOG_STORE_NAME = 'catalog-snapshots';
 
 export const EMPTY_ITEM_STATE: ItemState = Object.freeze({
   skipLoot: false,
@@ -88,9 +91,7 @@ export const DEFAULT_SELL_ITEMS = [
   '金块',
 ] as const;
 
-export const DEFAULT_SKIP_LOOT_ITEMS = [
-  '金叶子',
-] as const;
+export const DEFAULT_SKIP_LOOT_ITEMS: readonly string[] = [];
 
 export const MANAGED_PATHS = {
   skipLoot: 'MY_GKPLoot.tAutoPickupFilters',

@@ -33,9 +33,10 @@ describe('three-state domain model', () => {
     expect(DEFAULT_SELL_ITEMS).toHaveLength(19);
     for (const name of DEFAULT_SELL_ITEMS) {
       expect(states.get(name)?.autoSell).toBe(true);
+      expect(states.get(name)?.skipLoot).toBe(false);
     }
-    expect(DEFAULT_SKIP_LOOT_ITEMS).toContain('金叶子');
-    expect(states.get('金叶子')).toEqual({ skipLoot: true, autoSell: true, protect: false });
+    expect(DEFAULT_SKIP_LOOT_ITEMS).toHaveLength(0);
+    expect(states.get('金叶子')).toEqual({ skipLoot: false, autoSell: true, protect: false });
   });
 
   it('does not rewrite the workspace modification time while loading valid saved state', () => {
