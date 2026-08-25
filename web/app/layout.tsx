@@ -4,7 +4,7 @@ import './globals.css';
 export const metadata: Metadata = {
   title: '剑网3掉落工坊｜剑网3副本掉落配置',
   description: '离线整理剑网3副本掉落，一键生成跳过拾取、自动出售与保护不出售配置。',
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: '/logo.jpg' },
   openGraph: {
     title: '剑网3掉落工坊｜剑网3副本掉落配置',
     description: '离线整理剑网3副本掉落，一键生成跳过拾取、自动出售与保护不出售配置。',

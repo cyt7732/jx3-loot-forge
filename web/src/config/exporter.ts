@@ -10,11 +10,13 @@ type ExportFile = { filename: string; bytes: Uint8Array; text: string };
 export type ExportBatch = {
   fingerprint: string;
   timestamp: string;
+  combined: ExportFile;
   pickup: ExportFile;
   sell: ExportFile;
 };
 
 const PICKUP_SETTINGS: Array<{ path: string; value: string }> = [
+  { path: MANAGED_PATHS.skipLoot, value: '__TARGET__' },
   { path: 'MY_GKPDoodad.bCustom', value: 'true' },
   { path: 'MY_GKPDoodad.bOpenLoot', value: 'true' },
   { path: 'MY_GKPDoodad.fNameScale', value: '1.1' },
@@ -22,7 +24,6 @@ const PICKUP_SETTINGS: Array<{ path: string; value: string }> = [
   { path: 'MY_GKPLoot.anchor', value: '{y=360.26452636719,x=189.7861328125,s="TOPLEFT",r="TOPCENTER"}' },
   { path: 'MY_GKPDoodad.bOpenLootEvenFight', value: 'true' },
   { path: 'MY_GKPLoot.bAutoPickupFilterBookRead', value: 'false' },
-  { path: MANAGED_PATHS.skipLoot, value: '__TARGET__' },
   { path: 'MY_GKPDoodad.bQuestDoodad', value: 'true' },
   { path: 'MY_GKPDoodad.bShowName', value: 'true' },
   { path: 'MY_GKPLoot.bOn', value: 'true' },
@@ -85,14 +86,28 @@ export function buildExportBatch(namedStates: NamedState[], now = new Date()): E
   ));
   const pickupText = `return {${pickupEntries.join(',')}}`;
   const sellText = `return {${[
-    wrap(MANAGED_PATHS.protect, serializeMap(protect)),
     wrap(MANAGED_PATHS.autoSell, serializeMap(autoSell, fingerprint)),
+    wrap(MANAGED_PATHS.protect, serializeMap(protect)),
     wrap('MY_AutoSell.bEnable', 'true'),
   ].join(',')}}`;
+
+  const combinedEntries = [
+    wrap(MANAGED_PATHS.skipLoot, serializeMap(skipLoot, fingerprint)),
+    wrap(MANAGED_PATHS.autoSell, serializeMap(autoSell, fingerprint)),
+    wrap(MANAGED_PATHS.protect, serializeMap(protect)),
+    wrap('MY_AutoSell.bEnable', 'true'),
+    ...PICKUP_SETTINGS.filter((setting) => setting.path !== MANAGED_PATHS.skipLoot).map((setting) => wrap(setting.path, setting.value)),
+  ];
+  const combinedText = `return {${combinedEntries.join(',')}}`;
 
   return {
     fingerprint,
     timestamp: markerTimestamp,
+    combined: {
+      filename: `掉落工坊_合一配置_${filenameTimestamp}.us.jx3dat`,
+      text: combinedText,
+      bytes: encodeGbk(combinedText),
+    },
     pickup: {
       filename: `跳过拾取_${filenameTimestamp}.us.jx3dat`,
       text: pickupText,

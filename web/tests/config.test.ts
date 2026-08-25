@@ -13,9 +13,9 @@ const EXPECTED_PROTECTED_ITEMS = [
 ];
 
 const EXPECTED_PICKUP_PATHS = [
-  'MY_GKPDoodad.bCustom', 'MY_GKPDoodad.bOpenLoot', 'MY_GKPDoodad.fNameScale',
+  'MY_GKPLoot.tAutoPickupFilters', 'MY_GKPDoodad.bCustom', 'MY_GKPDoodad.bOpenLoot', 'MY_GKPDoodad.fNameScale',
   'MY_GKPDoodad.bReadInscriptionDoodad', 'MY_GKPLoot.anchor', 'MY_GKPDoodad.bOpenLootEvenFight',
-  'MY_GKPLoot.bAutoPickupFilterBookRead', 'MY_GKPLoot.tAutoPickupFilters', 'MY_GKPDoodad.bQuestDoodad',
+  'MY_GKPLoot.bAutoPickupFilterBookRead', 'MY_GKPDoodad.bQuestDoodad',
   'MY_GKPDoodad.bShowName', 'MY_GKPLoot.bOn', 'MY_GKPLoot.bAutoPickupBook', 'MY_GKPLoot.bInBattlefield',
   'MY_GKPLoot.bAutoPickupFilterBookHave', 'MY_GKPLoot.bInRaidDungeon', 'MY_GKPDoodad.bUnreadInscriptionDoodad',
   'MY_GKPDoodad.bMiniFlag', 'MY_GKPLoot.bInTeamDungeon', 'MY_GKPDoodad.bAllDoodad', 'MY_GKPDoodad.szCustom',
@@ -30,14 +30,19 @@ describe('GBK config export', () => {
       { name: '水长生 ·雪银莲', state: { skipLoot: false, autoSell: false, protect: true } },
     ], new Date('2026-08-23T12:15:42Z'));
     expect(batch.fingerprint).toBe(`『剑网3掉落工坊』 v${APP_VERSION} by 凌千羽·龙争虎斗 <20260823_201542>`);
+    expect(batch.combined.filename.endsWith('.us.jx3dat')).toBe(true);
     expect(batch.pickup.filename.endsWith('.us.jx3dat')).toBe(true);
     expect(batch.sell.filename.endsWith('.us.jx3dat')).toBe(true);
+    expect(batch.combined.text.includes('\n')).toBe(false);
     expect(batch.pickup.text.includes('\n')).toBe(false);
     expect(batch.sell.text.includes('\n')).toBe(false);
+    expect(batch.combined.text).toContain(batch.fingerprint);
     expect(batch.pickup.text).toContain(batch.fingerprint);
     expect(batch.sell.text).toContain(batch.fingerprint);
+    expect(batch.combined.text).toContain('水长生 ·雪银莲');
     expect(batch.sell.text).toContain('水长生 ·雪银莲');
     expect(Array.from(batch.pickup.bytes.slice(0, 3))).not.toEqual([0xef, 0xbb, 0xbf]);
+    expect(decodeGbk(batch.combined.bytes)).toBe(batch.combined.text);
     expect(decodeGbk(batch.pickup.bytes)).toBe(batch.pickup.text);
     expect(decodeGbk(batch.sell.bytes)).toBe(batch.sell.text);
     expect(Array.from(batch.sell.bytes.slice(0, 3))).not.toEqual([0xef, 0xbb, 0xbf]);
@@ -47,13 +52,20 @@ describe('GBK config export', () => {
     const batch = buildExportBatch([], new Date('2026-08-23T12:15:42Z'));
     const table = parseLuaChunk(batch.pickup.text);
     expect(table.fields.map((field) => field.key)).toEqual(EXPECTED_PICKUP_PATHS);
-    expect(table.fields[7].key).toBe('MY_GKPLoot.tAutoPickupFilters');
+    expect(table.fields[0].key).toBe('MY_GKPLoot.tAutoPickupFilters');
   });
 
   it('emits marker-only main tables and an explicit empty protection table', () => {
     const batch = buildExportBatch([], new Date('2026-08-23T12:15:42Z'));
+    const parsedCombined = parseManagedConfig(batch.combined.text);
     const parsedPickup = parseManagedConfig(batch.pickup.text);
     const parsedSell = parseManagedConfig(batch.sell.text);
+    expect(parsedCombined.skipLoot).toEqual([]);
+    expect(parsedCombined.autoSell).toEqual([]);
+    expect(parsedCombined.protect).toEqual([]);
+    expect(parsedCombined.declared.has('skipLoot')).toBe(true);
+    expect(parsedCombined.declared.has('autoSell')).toBe(true);
+    expect(parsedCombined.declared.has('protect')).toBe(true);
     expect(parsedPickup.skipLoot).toEqual([]);
     expect(parsedSell.autoSell).toEqual([]);
     expect(parsedSell.protect).toEqual([]);

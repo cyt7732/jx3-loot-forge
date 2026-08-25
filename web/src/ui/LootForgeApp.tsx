@@ -14,7 +14,9 @@ import { buildExportBatch } from '../config/exporter';
 import { parseManagedConfig, previewImport, validateItemName } from '../config/importer';
 import {
   APP_NAME,
+  APP_NAME_EN,
   APP_VERSION,
+  AUTHOR,
   CATEGORY_LABELS,
   DEFAULT_PROTECTED_ITEMS,
 } from '../domain/constants';
@@ -30,7 +32,6 @@ import {
   workspaceWithStateMap,
 } from '../domain/state';
 import type {
-  BulkPreview,
   BulkRuleSet,
   CatalogItem,
   CatalogMap,
@@ -40,7 +41,6 @@ import type {
   ItemCategory,
   ItemState,
   ParsedManagedConfig,
-  RuleDirective,
   StateField,
   Workspace,
 } from '../domain/types';
@@ -59,7 +59,10 @@ import {
   resetWorkspace,
   saveWorkspace,
 } from '../storage/workspace';
+import logoImg from '../assets/logo.jpg';
 import { downloadBytes, downloadText } from '../utils/download';
+
+const CUSTOM_SCOPE_ID = -1;
 
 type ViewItem = CatalogItem & {
   isCustom: boolean;
@@ -75,54 +78,41 @@ type ImportDraft = {
   preview: ImportPreview;
 };
 
-type DialogName = 'custom' | 'workspace' | 'import' | 'bulk' | null;
+type DialogName = 'custom' | 'workspace' | 'import' | null;
 type Toast = { tone: 'success' | 'warning' | 'error'; message: string } | null;
 type ItemDisposition = 'none' | 'autoSell' | 'protect';
-type BulkDisposition = 'unchanged' | ItemDisposition;
-type BulkPreviewContext = { label: string; targetCount: number; resetRules: boolean } | null;
+type BatchActionType = 'autoSell' | 'protect' | 'none' | 'skipLoot' | 'unskipLoot' | 'clearAll';
 
-const PAGE_SIZE = 100;
 const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS) as ItemCategory[];
-const QUALITY_OPTIONS = [1, 2, 3, 4, 5] as const;
-const QUALITY_LABELS: Record<number, string> = {
-  1: '白',
-  2: '绿',
-  3: '蓝',
-  4: '紫',
-  5: '橙',
-};
-const SLOT_LABELS: Record<string, string> = {
-  weapon: '武器',
-  ranged: '暗器',
-  head: '帽子',
-  chest: '上衣',
-  wrists: '护腕',
-  belt: '腰带',
-  legs: '下装',
-  feet: '鞋子',
-  necklace: '项链',
-  pendant: '腰坠',
-  ring: '戒指',
-  waist_ornament: '腰部挂件',
-  back_ornament: '背部挂件',
-  unknown: '其他部位',
+const CATEGORY_ICONS: Record<ItemCategory, string> = {
+  equipment: '⚔️',
+  equipmentExchange: '🎫',
+  material: '🪵',
+  specialDrop: '💎',
+  recipe: '📜',
+  furniture: '🪑',
+  smallIron: '⛏️',
+  bigIron: '🔥',
+  smallEnchant: '✨',
+  bigEnchant: '🌟',
+  pet: '🐾',
+  unknown: '📦',
+  consumable: '🧪',
+  task: '📜',
+  currency: '🪙',
+  other: '📦',
 };
 const STATE_LABELS: Record<StateField, string> = {
   skipLoot: '跳过拾取',
   autoSell: '自动出售',
   protect: '保护不出售',
 };
-const DIRECTIVE_LABELS: Record<RuleDirective, string> = {
-  unchanged: '保持',
-  enable: '开启',
-  disable: '关闭',
-};
 function sourceKey(mapId: number, bossName: string): string {
   return `${mapId}:${encodeURIComponent(bossName)}`;
 }
 
 function stateSummary(state: ItemState): string {
-  const labels = [state.skipLoot && '跳过', state.autoSell && '出售', state.protect && '保护'].filter(Boolean);
+  const labels = [state.skipLoot && '跳过拾取', state.autoSell && '自动出售', state.protect && '保护不出售'].filter(Boolean);
   return labels.length ? labels.join('、') : '未配置';
 }
 
@@ -147,11 +137,44 @@ function createEquipmentBulkRules(disposition: Exclude<ItemDisposition, 'none'> 
   return rules;
 }
 
+function createCategoryActionRules(category: ItemCategory | 'all', action: BatchActionType): BulkRuleSet {
+  const rules = createEmptyBulkRules();
+  const targetCategories = category === 'all' ? CATEGORY_ORDER : [category];
+  for (const cat of targetCategories) {
+    if (action === 'autoSell') {
+      rules[cat].autoSell = 'enable';
+      rules[cat].protect = 'disable';
+    } else if (action === 'protect') {
+      rules[cat].autoSell = 'disable';
+      rules[cat].protect = 'enable';
+    } else if (action === 'none') {
+      rules[cat].autoSell = 'disable';
+      rules[cat].protect = 'disable';
+    } else if (action === 'skipLoot') {
+      rules[cat].skipLoot = 'enable';
+    } else if (action === 'unskipLoot') {
+      rules[cat].skipLoot = 'disable';
+    } else if (action === 'clearAll') {
+      rules[cat].autoSell = 'disable';
+      rules[cat].protect = 'disable';
+      rules[cat].skipLoot = 'disable';
+    }
+  }
+  return rules;
+}
+
 function shanghaiDateStamp(now = new Date()): string {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
   }).formatToParts(now).map((part) => [part.type, part.value]));
   return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function formatCatalogVersion(version: string): string {
+  if (!version || version === 'loading') return 'Data.载入中…';
+  const match = /^(?:20)?(\d{2})(\d{2})(\d{2})/u.exec(version);
+  const dateSuffix = match ? `${match[1]}${match[2]}${match[3]}` : version.slice(0, 6);
+  return `Data.丝路风雨-${dateSuffix}`;
 }
 
 function downloadBatchFile(file: { filename: string; bytes: Uint8Array }): void {
@@ -167,16 +190,29 @@ export function LootForgeApp() {
   const [scopeQuery, setScopeQuery] = useState('');
   const [dialog, setDialog] = useState<DialogName>(null);
   const [toast, setToast] = useState<Toast>(null);
-  const [bulkRules, setBulkRules] = useState<BulkRuleSet>(() => createEmptyBulkRules());
-  const [bulkPreview, setBulkPreview] = useState<BulkPreview | null>(null);
-  const [bulkPreviewContext, setBulkPreviewContext] = useState<BulkPreviewContext>(null);
   const [importDraft, setImportDraft] = useState<ImportDraft | null>(null);
   const [customInput, setCustomInput] = useState('');
-  const [page, setPage] = useState(1);
   const [undoWorkspace, setUndoWorkspace] = useState<Workspace | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<ItemCategory | null>(null);
+  const [drawerQuery, setDrawerQuery] = useState('');
+  const [drawerStateView, setDrawerStateView] = useState<'all' | 'configured' | 'unconfigured' | 'protected'>('all');
+  const [drawerPage, setDrawerPage] = useState(1);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const configInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const dataPackInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [exportMenuOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -365,46 +401,32 @@ export function LootForgeApp() {
       .filter((group) => group.maps.length > 0);
   }, [activeSnapshot.maps, scopeQuery]);
 
-  const availableSlots = useMemo(() => {
-    const slots = new Set<string>();
-    for (const item of activeCatalogItems) {
-      for (const slot of item.slots ?? (item.slot ? [item.slot] : [])) slots.add(slot);
-    }
-    return [...slots].sort((left, right) => (SLOT_LABELS[left] ?? left).localeCompare(SLOT_LABELS[right] ?? right, 'zh-CN'));
-  }, [activeCatalogItems]);
+  const customCount = useMemo(() => {
+    return allItems.filter((item) => item.isCustom || item.customOverride || item.historical).length;
+  }, [allItems]);
 
   const sourceMatchesScope = (item: ViewItem): boolean => {
-    if (!hasScope || item.isCustom || item.systemSeed || item.historical) return true;
-    return item.sources.some((source) => selectedMaps.has(source.mapId) || selectedBosses.has(sourceKey(source.mapId, source.bossName)));
+    const isCustomItem = Boolean(item.isCustom || item.customOverride || item.historical);
+    if (!hasScope) return isCustomItem;
+    const matchesCustom = selectedMaps.has(CUSTOM_SCOPE_ID) && isCustomItem;
+    const matchesSource = item.sources.some((source) => selectedMaps.has(source.mapId) || selectedBosses.has(sourceKey(source.mapId, source.bossName)));
+    return matchesCustom || matchesSource;
   };
 
-  const filteredItems = useMemo(() => {
-    const query = workspace.filters.query.normalize('NFC');
-    return allItems.filter((item) => {
-      if (!sourceMatchesScope(item)) return false;
-      if (query && !item.name.normalize('NFC').includes(query) && !item.sources.some((source) => `${source.expansion}${source.mapName}${source.bossName}`.includes(query))) return false;
-      if (workspace.filters.categories.length > 0 && !workspace.filters.categories.includes(item.category)) return false;
-      const qualityMin = item.qualityMin ?? item.quality;
-      const qualityMax = item.qualityMax ?? item.quality;
-      if (workspace.filters.qualities.length > 0 && !workspace.filters.qualities.some((quality) => qualityMin !== undefined && qualityMax !== undefined && quality >= qualityMin && quality <= qualityMax)) return false;
-      const itemSlots = item.slots ?? (item.slot ? [item.slot] : []);
-      if (workspace.filters.slots.length > 0 && !workspace.filters.slots.some((slot) => itemSlots.includes(slot))) return false;
-      const levelMin = item.itemLevelMin ?? item.itemLevel;
-      const levelMax = item.itemLevelMax ?? item.itemLevel;
-      if (workspace.filters.itemLevelMin !== null && (levelMax === undefined || levelMax < workspace.filters.itemLevelMin)) return false;
-      if (workspace.filters.itemLevelMax !== null && (levelMin === undefined || levelMin > workspace.filters.itemLevelMax)) return false;
-      const state = cloneState(stateMap.get(item.id));
-      if (workspace.filters.stateView === 'configured' && !state.skipLoot && !state.autoSell && !state.protect) return false;
-      if (workspace.filters.stateView === 'unconfigured' && (state.skipLoot || state.autoSell || state.protect)) return false;
-      if (workspace.filters.stateView === 'protected' && !state.protect) return false;
-      return true;
-    });
+  const availableCategories = useMemo(() => {
+    const counts = Object.fromEntries(CATEGORY_ORDER.map((category) => [category, 0])) as Record<ItemCategory, number>;
+    for (const item of allItems) {
+      if (!sourceMatchesScope(item)) continue;
+      counts[item.category] += 1;
+    }
+    return CATEGORY_ORDER.filter((category) => counts[category] > 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allItems, hasScope, selectedMaps, selectedBosses, workspace.filters, stateMap]);
+  }, [allItems, hasScope, selectedMaps, selectedBosses]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const visibleItems = filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const scopedItems = useMemo(() => {
+    return allItems.filter((item) => sourceMatchesScope(item));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allItems, hasScope, selectedMaps, selectedBosses]);
 
   const scopeStats = useMemo(() => {
     let skipLoot = 0;
@@ -412,7 +434,7 @@ export function LootForgeApp() {
     let protect = 0;
     let sourceLinks = 0;
     let repeatedNames = 0;
-    for (const item of filteredItems) {
+    for (const item of scopedItems) {
       const state = stateMap.get(item.id);
       if (state?.skipLoot) skipLoot += 1;
       if (state?.autoSell) autoSell += 1;
@@ -421,15 +443,29 @@ export function LootForgeApp() {
       if (item.sources.length > 1) repeatedNames += 1;
     }
     return { skipLoot, autoSell, protect, sourceLinks, repeatedNames };
-  }, [filteredItems, stateMap]);
+  }, [scopedItems, stateMap]);
 
-  const categoryCounts = useMemo(() => {
-    const counts = Object.fromEntries(CATEGORY_ORDER.map((category) => [category, 0])) as Record<ItemCategory, number>;
-    for (const item of filteredItems) {
-      if (!item.customOverride && !item.systemSeed && !item.historical) counts[item.category] += 1;
-    }
-    return counts;
-  }, [filteredItems]);
+  const DRAWER_PAGE_SIZE = 20;
+
+  const drawerItems = useMemo(() => {
+    if (!expandedCategory) return [];
+    const query = drawerQuery.trim().normalize('NFC');
+    return allItems.filter((item) => {
+      if (item.category !== expandedCategory) return false;
+      if (!sourceMatchesScope(item)) return false;
+      if (query && !item.name.normalize('NFC').includes(query) && !item.sources.some((source) => `${source.expansion}${source.mapName}${source.bossName}`.includes(query))) return false;
+      const state = cloneState(stateMap.get(item.id));
+      if (drawerStateView === 'configured' && !state.skipLoot && !state.autoSell && !state.protect) return false;
+      if (drawerStateView === 'unconfigured' && (state.skipLoot || state.autoSell || state.protect)) return false;
+      if (drawerStateView === 'protected' && !state.protect) return false;
+      return true;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedCategory, drawerQuery, drawerStateView, allItems, stateMap, hasScope, selectedMaps, selectedBosses]);
+
+  const drawerTotalPages = Math.max(1, Math.ceil(drawerItems.length / DRAWER_PAGE_SIZE));
+  const currentDrawerPage = Math.min(drawerPage, drawerTotalPages);
+  const visibleDrawerItems = drawerItems.slice((currentDrawerPage - 1) * DRAWER_PAGE_SIZE, currentDrawerPage * DRAWER_PAGE_SIZE);
 
   const commitStateMap = (nextMap: Map<string, ItemState>, keepUndo = true) => {
     if (keepUndo) setUndoWorkspace(workspace);
@@ -507,97 +543,141 @@ export function LootForgeApp() {
     });
   };
 
-  const updateFilter = <K extends keyof Workspace['filters']>(key: K, value: Workspace['filters'][K]) => {
-    setPage(1);
-    setWorkspace((current) => ({ ...current, filters: { ...current.filters, [key]: value }, updatedAt: new Date().toISOString() }));
-  };
+  const currentScopeLabel = useMemo(() => {
+    if (!hasScope) return '尚未选择范围';
+    const parts: string[] = [];
+    if (selectedMaps.has(CUSTOM_SCOPE_ID)) parts.push('✨ 用户自定义');
+    const officialMaps = [...selectedMaps].filter((id) => id !== CUSTOM_SCOPE_ID);
+    if (officialMaps.length > 0) parts.push(`${officialMaps.length} 个副本`);
+    if (selectedBosses.size > 0) parts.push(`${selectedBosses.size} 个 Boss`);
+    if (parts.length === 0) return '尚未选择范围';
+    return parts.join(' + ');
+  }, [hasScope, selectedBosses.size, selectedMaps]);
 
-  const toggleCategoryFilter = (category: ItemCategory) => {
-    const selected = new Set(workspace.filters.categories);
-    if (selected.has(category)) selected.delete(category); else selected.add(category);
-    updateFilter('categories', [...selected]);
-  };
+  const categoryWorkbenchSummaries = useMemo(() => {
+    const summaryMap = new Map<ItemCategory, {
+      category: ItemCategory;
+      total: number;
+      skipLootCount: number;
+      autoSellCount: number;
+      protectCount: number;
+      noneCount: number;
+    }>();
 
-  const toggleQualityFilter = (quality: number) => {
-    const selected = new Set(workspace.filters.qualities);
-    if (selected.has(quality)) selected.delete(quality); else selected.add(quality);
-    updateFilter('qualities', [...selected]);
-  };
+    for (const cat of availableCategories) {
+      summaryMap.set(cat, {
+        category: cat,
+        total: 0,
+        skipLootCount: 0,
+        autoSellCount: 0,
+        protectCount: 0,
+        noneCount: 0,
+      });
+    }
 
-  const cycleRule = (category: ItemCategory, field: StateField) => {
-    const order: RuleDirective[] = ['unchanged', 'enable', 'disable'];
-    setBulkRules((current) => {
-      const directive = current[category][field];
-      return { ...current, [category]: { ...current[category], [field]: order[(order.indexOf(directive) + 1) % order.length] } };
-    });
-  };
+    for (const item of allItems) {
+      if (!sourceMatchesScope(item)) continue;
+      const entry = summaryMap.get(item.category);
+      if (!entry) continue;
+      entry.total += 1;
+      const state = stateMap.get(item.id);
+      if (state?.skipLoot) entry.skipLootCount += 1;
+      if (state?.autoSell) entry.autoSellCount += 1;
+      else if (state?.protect) entry.protectCount += 1;
+      else entry.noneCount += 1;
+    }
 
-  const bulkDisposition = (category: ItemCategory): BulkDisposition => {
-    const rules = bulkRules[category];
-    if (rules.autoSell === 'unchanged' && rules.protect === 'unchanged') return 'unchanged';
-    if (rules.autoSell === 'enable' && rules.protect !== 'enable') return 'autoSell';
-    if (rules.protect === 'enable' && rules.autoSell !== 'enable') return 'protect';
-    if (rules.autoSell === 'disable' && rules.protect === 'disable') return 'none';
-    return 'unchanged';
-  };
+    return availableCategories.map((cat) => summaryMap.get(cat)!).filter((s) => s && s.total > 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allItems, availableCategories, hasScope, selectedMaps, selectedBosses, stateMap]);
 
-  const setBulkDisposition = (category: ItemCategory, disposition: BulkDisposition) => {
-    setBulkRules((current) => {
-      const next = { ...current[category] };
-      if (disposition === 'unchanged') {
-        next.autoSell = 'unchanged';
-        next.protect = 'unchanged';
-      } else if (disposition === 'autoSell') {
-        next.autoSell = 'enable';
-        next.protect = 'disable';
-      } else if (disposition === 'protect') {
-        next.autoSell = 'disable';
-        next.protect = 'enable';
-      } else {
-        next.autoSell = 'disable';
-        next.protect = 'disable';
-      }
-      return { ...current, [category]: next };
-    });
-  };
-
-  const openPreviewFor = (items: ViewItem[], rules: BulkRuleSet, label: string, resetRules = false) => {
-    const preview = previewBulkRules(items, stateMap, customOverrides, rules);
-    setBulkPreview(preview);
-    setBulkPreviewContext({ label, targetCount: items.length, resetRules });
-    setDialog('bulk');
-  };
-
-  const openBulkPreview = () => {
-    const scopedItems = filteredItems.filter((item) => !item.systemSeed && !item.historical);
-    openPreviewFor(scopedItems, bulkRules, '按类型批量规则', true);
-  };
-
-  const openQuickBulkPreview = (kind: 'lowerLevels' | 'scopeAutoSell' | 'scopeProtect' | 'scopeNone') => {
-    const officialEquipment = allItems.filter((item) => item.category === 'equipment' && !item.customOverride && !item.systemSeed && !item.historical);
-    const scopedEquipment = officialEquipment.filter(sourceMatchesScope);
-    const maxLevel = Math.max(...CATALOG_LEVEL_GROUPS.map((group) => group.level ?? Number.NEGATIVE_INFINITY));
-    const lowerLevelEquipment = officialEquipment.filter((item) => {
-      const sourceLevels = item.sources.map((source) => getLevelGroup(source.expansion).level).filter((level): level is number => level !== null);
-      return sourceLevels.length > 0 && Math.max(...sourceLevels) < maxLevel;
-    });
-    const presets: Record<typeof kind, { items: ViewItem[]; disposition: ItemDisposition; label: string }> = {
-      lowerLevels: { items: lowerLevelEquipment, disposition: 'autoSell', label: '除当前最高等级外的所有等级装备 → 自动出售' },
-      scopeAutoSell: { items: scopedEquipment, disposition: 'autoSell', label: '当前选择范围的装备 → 自动出售' },
-      scopeProtect: { items: scopedEquipment, disposition: 'protect', label: '当前选择范围的装备 → 保护不出售' },
-      scopeNone: { items: scopedEquipment, disposition: 'none', label: '当前选择范围的装备 → 不做特殊处理' },
+  const applyCategoryDirectAction = (category: ItemCategory, action: BatchActionType) => {
+    const scopedCategoryOfficial = allItems.filter((item) => (
+      item.category === category
+      && !item.customOverride
+      && !item.systemSeed
+      && !item.historical
+      && sourceMatchesScope(item)
+    ));
+    const rules = createCategoryActionRules(category, action);
+    const preview = previewBulkRules(scopedCategoryOfficial, stateMap, customOverrides, rules);
+    if (preview.changes.length === 0) {
+      setToast({ tone: 'warning', message: `【${CATEGORY_LABELS[category]}】已处于目标策略状态，无需更改。` });
+      return;
+    }
+    const actionLabel: Record<BatchActionType, string> = {
+      autoSell: '设为自动出售',
+      protect: '设为保护不出售',
+      none: '清除出售策略',
+      skipLoot: '设为跳过拾取',
+      unskipLoot: '恢复正常拾取',
+      clearAll: '清除全部策略',
     };
-    const preset = presets[kind];
-    openPreviewFor(preset.items, createEquipmentBulkRules(preset.disposition), preset.label);
+    commitStateMap(applyChanges(stateMap, preview.changes));
+    setToast({ tone: 'success', message: `已将【${CATEGORY_LABELS[category]}】(${preview.changes.length}项) ${actionLabel[action]}，可随时撤销。` });
   };
 
-  const applyBulkPreview = () => {
-    if (!bulkPreview) return;
-    commitStateMap(applyChanges(stateMap, bulkPreview.changes));
-    if (bulkPreviewContext?.resetRules) setBulkRules(createEmptyBulkRules());
-    setBulkPreviewContext(null);
-    setDialog(null);
-    setToast({ tone: 'success', message: `已应用 ${bulkPreview.changes.length} 项变更，并保留一步撤销。` });
+  const applyScopePreset = (kind: 'farming' | 'clear' | 'lowerLevels') => {
+    if (!hasScope && kind !== 'lowerLevels') {
+      setToast({ tone: 'warning', message: '请先在左侧勾选要配置的副本或版本范围。' });
+      return;
+    }
+    const scopedAllOfficial = allItems.filter((item) => (
+      !item.customOverride
+      && !item.systemSeed
+      && !item.historical
+      && sourceMatchesScope(item)
+    ));
+
+    if (kind === 'lowerLevels') {
+      const officialEquipment = allItems.filter((item) => item.category === 'equipment' && !item.customOverride && !item.systemSeed && !item.historical);
+      const maxLevel = Math.max(...CATALOG_LEVEL_GROUPS.map((group) => group.level ?? Number.NEGATIVE_INFINITY));
+      const lowerLevelEquipment = officialEquipment.filter((item) => {
+        const sourceLevels = item.sources.map((source) => getLevelGroup(source.expansion).level).filter((level): level is number => level !== null);
+        return sourceLevels.length > 0 && Math.max(...sourceLevels) < maxLevel;
+      });
+      const preview = previewBulkRules(lowerLevelEquipment, stateMap, customOverrides, createEquipmentBulkRules('autoSell'));
+      if (preview.changes.length === 0) {
+        setToast({ tone: 'warning', message: '所有历史低等级装备已处于自动出售状态。' });
+        return;
+      }
+      commitStateMap(applyChanges(stateMap, preview.changes));
+      setToast({ tone: 'success', message: `已将 ${preview.changes.length} 项历史旧版本装备设为自动出售，可随时撤销。` });
+      return;
+    }
+
+    let rules: BulkRuleSet;
+    let desc = '';
+    if (kind === 'farming') {
+      rules = createEmptyBulkRules();
+      rules.equipment.autoSell = 'enable';
+      rules.equipment.protect = 'disable';
+      rules.equipmentExchange.skipLoot = 'enable';
+      rules.specialDrop.protect = 'enable';
+      rules.specialDrop.autoSell = 'disable';
+      rules.pet.protect = 'enable';
+      rules.pet.autoSell = 'disable';
+      rules.bigIron.protect = 'enable';
+      rules.bigIron.autoSell = 'disable';
+      rules.furniture.protect = 'enable';
+      rules.furniture.autoSell = 'disable';
+      desc = '推荐预设 (旧装备全卖 + 牌子跳过 + 珍稀保护)';
+    } else {
+      rules = createEmptyBulkRules();
+      for (const cat of CATEGORY_ORDER) {
+        rules[cat].autoSell = 'disable';
+        rules[cat].protect = 'disable';
+        rules[cat].skipLoot = 'disable';
+      }
+      desc = '清空当前范围策略';
+    }
+    const preview = previewBulkRules(scopedAllOfficial, stateMap, customOverrides, rules);
+    if (preview.changes.length === 0) {
+      setToast({ tone: 'warning', message: `当前范围已符合【${desc}】，无变更项。` });
+      return;
+    }
+    commitStateMap(applyChanges(stateMap, preview.changes));
+    setToast({ tone: 'success', message: `已在当前范围应用【${desc}】(${preview.changes.length}项变更)，可随时撤销。` });
   };
 
   const addCustomItems = () => {
@@ -652,13 +732,17 @@ export function LootForgeApp() {
     return [...stateMap.entries()].map(([id, state]) => ({ name: names.get(id) ?? id, state }));
   };
 
-  const exportFiles = (kind: 'pickup' | 'sell' | 'both') => {
+  const exportFiles = (kind: 'combined' | 'pickup' | 'sell' = 'combined') => {
     try {
       if (!catalogIndexed) throw new Error('数据目录仍在建立索引，请稍候再导出。');
       const batch = buildExportBatch(createNamedStates());
-      if (kind === 'pickup' || kind === 'both') downloadBatchFile(batch.pickup);
-      if (kind === 'sell') downloadBatchFile(batch.sell);
-      if (kind === 'both') downloadBatchFile(batch.sell);
+      if (kind === 'combined') {
+        downloadBatchFile(batch.combined);
+      } else if (kind === 'pickup') {
+        downloadBatchFile(batch.pickup);
+      } else if (kind === 'sell') {
+        downloadBatchFile(batch.sell);
+      }
       setToast({ tone: 'success', message: `配置已生成：${batch.fingerprint}` });
     } catch (error) {
       setToast({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
@@ -811,16 +895,104 @@ export function LootForgeApp() {
 
       <header className="topbar">
         <div className="brand-block">
-          <div className="brand-mark" aria-hidden="true">铸</div>
-          <div>
-            <div className="brand-line"><h1>{APP_NAME}</h1><span className="version-pill">v{APP_VERSION}</span></div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="brand-logo" src={typeof logoImg === 'string' ? logoImg : logoImg.src} alt={APP_NAME} />
+          <div className="brand-meta">
+            <div className="brand-line">
+              <h1>{APP_NAME}</h1>
+              <span className="version-pill" title={`工坊软件版本：v${APP_VERSION}`}>v{APP_VERSION}</span>
+              <span className="data-version-pill" title={`副本数据库版本：${activeSnapshot.catalogVersion}（共 ${activeSnapshot.stats.maps} 个副本 · ${activeSnapshot.stats.uniqueItems.toLocaleString('zh-CN')} 件物品）`}>
+                {formatCatalogVersion(activeSnapshot.catalogVersion)}
+              </span>
+            </div>
+            <div className="brand-sub">
+              <span className="brand-en">{APP_NAME_EN}</span>
+              <span className="brand-dot">·</span>
+              <span className="brand-author" title={`开发者/作者：${AUTHOR}`}>by {AUTHOR}</span>
+              <span className="brand-dot">·</span>
+              <span className="brand-tagline">全副本掉落智能管理与配置工坊</span>
+            </div>
           </div>
         </div>
         <div className="header-actions">
           <span className="data-badge" title={activeSnapshot.contentHash}><i /> {catalogIndexed ? `旗舰端 · ${activeSnapshot.stats.uniqueItems.toLocaleString('zh-CN')} 项` : '目录载入中…'}</span>
+          {undoWorkspace && (
+            <button
+              className="button ghost undo-btn"
+              type="button"
+              title="撤销最近一次批量或单项变更"
+              onClick={() => {
+                setWorkspace(undoWorkspace);
+                setUndoWorkspace(null);
+                setToast({ tone: 'success', message: '已撤销最近一次变更。' });
+              }}
+            >
+              ↶ 撤销变更
+            </button>
+          )}
+          <button className="button ghost" type="button" onClick={() => setDialog('custom')}>＋ 自定义物品</button>
           <button className="button ghost" type="button" onClick={() => setDialog('workspace')}>工作区</button>
           <button className="button ghost" type="button" onClick={() => configInputRef.current?.click()}>导入配置</button>
-          <button className="button primary" type="button" disabled={!catalogIndexed} onClick={() => exportFiles('both')}>导出文件</button>
+
+          <div className="export-split-group" ref={exportMenuRef}>
+            <button
+              className="button primary export-main-btn"
+              type="button"
+              disabled={!catalogIndexed}
+              title="一键生成同时包含跳过拾取与自动出售的合一配置文件（游戏内一键导入，全部生效）"
+              onClick={() => exportFiles('combined')}
+            >
+              ⚡ 导出合一配置
+            </button>
+            <button
+              className={`button primary export-dropdown-btn ${exportMenuOpen ? 'open' : ''}`}
+              type="button"
+              disabled={!catalogIndexed}
+              aria-label="展开更多导出选项"
+              title="更多导出选项"
+              onClick={() => setExportMenuOpen((open) => !open)}
+            >
+              ▾
+            </button>
+            {exportMenuOpen && (
+              <div className="export-menu-popover" role="menu">
+                <button
+                  type="button"
+                  className="export-menu-item featured"
+                  onClick={() => { exportFiles('combined'); setExportMenuOpen(false); }}
+                >
+                  <span className="menu-icon">⚡</span>
+                  <div>
+                    <strong>导出合一配置 (推荐)</strong>
+                    <small>跳过拾取 + 自动出售合为 1 个文件，游戏内一键导入</small>
+                  </div>
+                </button>
+                <div className="export-menu-divider" />
+                <button
+                  type="button"
+                  className="export-menu-item"
+                  onClick={() => { exportFiles('pickup'); setExportMenuOpen(false); }}
+                >
+                  <span className="menu-icon">📥</span>
+                  <div>
+                    <strong>仅导出跳过拾取</strong>
+                    <small>仅生成 MY_GKPLoot 插件配置</small>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className="export-menu-item"
+                  onClick={() => { exportFiles('sell'); setExportMenuOpen(false); }}
+                >
+                  <span className="menu-icon">💰</span>
+                  <div>
+                    <strong>仅导出自动出售</strong>
+                    <small>仅生成 MY_AutoSell 插件配置</small>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -842,6 +1014,31 @@ export function LootForgeApp() {
             <button type="button" title="清除左侧的副本和 Boss 选择，主区显示完整目录" aria-label="清除范围并查看全部副本" onClick={() => setWorkspace((current) => ({ ...current, selectedMapIds: [], selectedBossKeys: [] }))}>清除范围</button>
           </div>
           <nav className="dungeon-tree" aria-label="副本范围">
+            <div className={`tree-group custom-scope-group ${selectedMaps.has(CUSTOM_SCOPE_ID) ? 'active' : ''}`}>
+              <div
+                className="custom-scope-row"
+                onClick={() => toggleMap(CUSTOM_SCOPE_ID)}
+                role="button"
+                tabIndex={0}
+                title="选择所有用户手动添加、自定义覆盖及导入的历史条目"
+              >
+                <button
+                  className={`tree-check ${selectedMaps.has(CUSTOM_SCOPE_ID) ? 'checked' : ''}`}
+                  type="button"
+                  aria-pressed={selectedMaps.has(CUSTOM_SCOPE_ID)}
+                  aria-label="切换用户自定义范围"
+                  onClick={(e) => { e.stopPropagation(); toggleMap(CUSTOM_SCOPE_ID); }}
+                >
+                  {selectedMaps.has(CUSTOM_SCOPE_ID) ? '✓' : ''}
+                </button>
+                <div className="custom-scope-meta">
+                  <strong>✨ 用户自定义</strong>
+                  <small>手动添加 / 外部导入 / 历史条目</small>
+                </div>
+                <span className="custom-scope-badge">{customCount} 项</span>
+              </div>
+            </div>
+
             {levelGroups.map((levelGroup) => {
               const levelSelection = mapsSelection(levelGroup.maps);
               return (
@@ -886,153 +1083,307 @@ export function LootForgeApp() {
               );
             })}
           </nav>
-          <div className="sidebar-footnote">
-            <span>数据快照</span><strong>{activeSnapshot.catalogVersion}</strong>
-            <small>{hasScope ? `${selectedMaps.size} 副本 · ${selectedBosses.size} Boss 精选` : '当前查看全部副本'}</small>
-          </div>
         </aside>
 
         <section className="main-column">
           <div className="summary-grid">
-            <article className="summary-card glass-panel gold"><span>当前筛选</span><strong>{filteredItems.length.toLocaleString('zh-CN')}</strong><small>{scopeStats.sourceLinks.toLocaleString('zh-CN')} 个来源关联 · {scopeStats.repeatedNames.toLocaleString('zh-CN')} 个多来源同名</small></article>
-            <article className="summary-card glass-panel blue"><span>跳过拾取</span><strong>{scopeStats.skipLoot}</strong><small>生成拾取过滤</small></article>
-            <article className="summary-card glass-panel red"><span>自动出售</span><strong>{scopeStats.autoSell}</strong><small>与保护严格互斥</small></article>
-            <article className="summary-card glass-panel green"><span>保护不出售</span><strong>{scopeStats.protect}</strong><small>首次基线可编辑</small></article>
+            <article className="summary-card glass-panel gold">
+              <span>当前匹配物品</span>
+              <strong>{scopedItems.length.toLocaleString('zh-CN')}</strong>
+              <small>{hasScope ? `${scopeStats.sourceLinks.toLocaleString('zh-CN')} 处掉落来源 · ${scopeStats.repeatedNames.toLocaleString('zh-CN')} 个同名物品` : '请在左侧勾选副本范围以开始配置'}</small>
+            </article>
+            <article className="summary-card glass-panel blue">
+              <span>跳过拾取</span>
+              <strong>{scopeStats.skipLoot}</strong>
+              <small>独立过滤 · 掉落不拾取</small>
+            </article>
+            <article className="summary-card glass-panel split-sell">
+              <span>出售策略</span>
+              <div className="split-numbers">
+                <span className="sell-stat"><b className="status-dot red" /> 出售 <strong>{scopeStats.autoSell}</strong></span>
+                <span className="protect-stat"><b className="status-dot green" /> 保护 <strong>{scopeStats.protect}</strong></span>
+              </div>
+              <small>互斥单选 · 游戏内自动处理</small>
+            </article>
           </div>
 
-          <section className="filter-panel glass-panel">
-            <div className="filter-line">
-              <label className="item-search wide"><span>⌕</span><input value={workspace.filters.query} onChange={(event) => updateFilter('query', event.target.value)} placeholder="搜索物品、版本、副本或 Boss" /></label>
-              <select value={workspace.filters.stateView} onChange={(event) => updateFilter('stateView', event.target.value as Workspace['filters']['stateView'])}>
-                <option value="all">全部状态</option><option value="configured">只看已配置</option><option value="unconfigured">只看未配置</option><option value="protected">只看已保护</option>
-              </select>
-              <button className="button ghost compact" type="button" onClick={() => setDialog('custom')}>＋ 自定义物品</button>
-            </div>
-            <div className="filter-chips">
-              {CATEGORY_ORDER.map((category) => <button className={workspace.filters.categories.includes(category) ? 'active' : ''} type="button" key={category} onClick={() => toggleCategoryFilter(category)}>{CATEGORY_LABELS[category]}</button>)}
-              <span className="filter-divider" />
-              {QUALITY_OPTIONS.map((quality) => <button className={`quality-filter quality-${quality} ${workspace.filters.qualities.includes(quality) ? 'active' : ''}`} type="button" key={quality} onClick={() => toggleQualityFilter(quality)}>{QUALITY_LABELS[quality]}色</button>)}
-              <select className="slot-filter" value={workspace.filters.slots[0] ?? ''} onChange={(event) => updateFilter('slots', event.target.value ? [event.target.value] : [])} aria-label="按装备部位筛选">
-                <option value="">全部部位</option>
-                {availableSlots.map((slot) => <option value={slot} key={slot}>{SLOT_LABELS[slot] ?? slot}</option>)}
-              </select>
-              <span className="filter-divider" />
-              <label>装等 ≥ <input type="number" min="0" value={workspace.filters.itemLevelMin ?? ''} onChange={(event) => updateFilter('itemLevelMin', event.target.value ? Number(event.target.value) : null)} /></label>
-              <label>≤ <input type="number" min="0" value={workspace.filters.itemLevelMax ?? ''} onChange={(event) => updateFilter('itemLevelMax', event.target.value ? Number(event.target.value) : null)} /></label>
-            </div>
-          </section>
-
-          <section className="rules-panel glass-panel">
-            <div className="section-heading">
-              <div><span className="eyebrow">BULK RULES</span><h2>按类型快速设置</h2><p>作用于当前范围与筛选；自定义物品和系统基线项始终排除。</p></div>
-              <div className="section-actions"><button className="button ghost compact" type="button" onClick={() => setBulkRules(createEmptyBulkRules())}>重置规则</button><button className="button primary compact" type="button" onClick={openBulkPreview}>预览并应用</button></div>
-            </div>
-            <div className="rule-matrix" role="table" aria-label="物品类型批量规则">
-              <div className="matrix-row matrix-head" role="row"><span>物品类型</span><span>跳过拾取</span><span>出售策略</span></div>
-              {CATEGORY_ORDER.map((category) => (
-                <div className="matrix-row" role="row" key={category}>
-                  <strong>{CATEGORY_LABELS[category]}<small>{categoryCounts[category]} 项</small></strong>
-                  {(() => {
-                    const directive = bulkRules[category].skipLoot;
-                    return <button className={`rule-directive ${directive} skipLoot`} type="button" aria-label={`${CATEGORY_LABELS[category]}跳过拾取：${DIRECTIVE_LABELS[directive]}`} onClick={() => cycleRule(category, 'skipLoot')}>{DIRECTIVE_LABELS[directive]}</button>;
-                  })()}
-                  <div className="segmented bulk-strategy" role="group" aria-label={`${CATEGORY_LABELS[category]}出售策略`}>
-                    {([
-                      ['unchanged', '保持现状'],
-                      ['none', '未处理'],
-                      ['autoSell', '自动出售'],
-                      ['protect', '保护不出售'],
-                    ] as const).map(([disposition, label]) => (
-                      <button className={`bulk-strategy-option ${bulkDisposition(category) === disposition ? 'on' : ''} ${disposition}`} type="button" key={disposition} aria-pressed={bulkDisposition(category) === disposition} onClick={() => setBulkDisposition(category, disposition)}>{label}</button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <details className="quick-config">
-              <summary><span><strong>快速配置</strong><small>先生成差异预览，确认后原子应用，可撤销</small></span><b>⌄</b></summary>
-              <div className="quick-config-grid">
-                <button type="button" onClick={() => openQuickBulkPreview('lowerLevels')}><strong>低等级装备</strong><span>除当前最高等级外的所有等级 → 自动出售</span></button>
-                <button type="button" onClick={() => openQuickBulkPreview('scopeAutoSell')}><strong>当前范围</strong><span>当前选择范围的装备 → 自动出售</span></button>
-                <button type="button" onClick={() => openQuickBulkPreview('scopeProtect')}><strong>当前范围</strong><span>当前选择范围的装备 → 保护不出售</span></button>
-                <button type="button" onClick={() => openQuickBulkPreview('scopeNone')}><strong>清除策略</strong><span>当前选择范围的装备 → 不做特殊处理</span></button>
+          <section className="workbench-panel glass-panel">
+            <div className="section-heading workbench-heading">
+              <div>
+                <span className="eyebrow">CATEGORY STRATEGY</span>
+                <h2>已选范围 · 分类策略直选</h2>
+                <p>为当前范围（<strong>{currentScopeLabel}</strong>）下的各类物品一键设置拾取与出售策略；点击分类名称可展开物品明细。</p>
               </div>
-            </details>
-            <div className="rule-note"><span>!</span> 新目录物品不会自动继承批量规则；“开启自动出售/保护”会原子关闭其互斥状态。</div>
-          </section>
+              {hasScope && (
+                <div className="workbench-quick-presets">
+                  <button className="button primary compact" type="button" onClick={() => applyScopePreset('farming')} title="将当前范围的所有装备设为自动出售、装备兑换牌设为跳过拾取、珍稀特殊物品设为保护">
+                    ⚡ 推荐预设 (旧装备全卖 + 牌子跳过 + 珍稀保护)
+                  </button>
+                  <button className="button ghost compact danger-btn" type="button" onClick={() => applyScopePreset('clear')} title="清除当前范围下所有物品的出售与拾取策略，恢复未处理状态">
+                    🧹 清空当前范围策略
+                  </button>
+                </div>
+              )}
+            </div>
 
-          <section className="items-panel glass-panel">
-            <div className="section-heading item-heading">
-              <div><span className="eyebrow">ITEM STATES</span><h2>物品状态</h2><p>游戏配置按精确名称全局生效；跨副本同名仅保存一份状态。</p></div>
-              <span className="range-count">{filteredItems.length ? `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, filteredItems.length)}` : '0'} / {filteredItems.length}</span>
-            </div>
-            <div className="item-table" role="table" aria-label="物品状态列表">
-              <div className="item-row item-head" role="row"><span>物品与来源</span><span>类型 / 品质</span><span>跳过拾取</span><span>出售策略</span></div>
-              {visibleItems.map((item) => {
-                const state = cloneState(stateMap.get(item.id));
-                const source = item.sources[0];
-                return (
-                  <div className={`item-row ${item.customOverride ? 'custom-row' : ''} ${item.historical ? 'historical-row' : ''}`} role="row" key={item.id}>
-                    <div className="item-name">
-                      <strong>{item.name}{item.systemSeed && <span className="seed-badge">保护基线</span>}{item.customOverride && <span className="custom-badge">自定义</span>}{item.historical && <span className="history-badge">历史</span>}</strong>
-                      <small title={item.sources.map((entry) => `${entry.expansion} / ${entry.mapName} / ${entry.bossName}`).join('\n')}>{source ? `${source.expansion} · ${source.mapName} · ${source.bossName}${item.sources.length > 1 ? ` 等 ${item.sources.length} 个来源` : ''}` : item.subtype ?? '手动维护'}</small>
-                      {item.customOverride && <button className="text-action" type="button" onClick={() => removeCustomOverride(item.id)}>{catalogIdSet.has(item.id) ? '恢复官方批量管理' : '移出自定义库'}</button>}
-                      {item.historical && <button className="text-action" type="button" onClick={() => removeHistoricalState(item.id)}>清除历史状态并停止导出</button>}
+            {!hasScope ? (
+              <div className="empty-workbench-guide">
+                <span className="guide-icon">👈</span>
+                <div>
+                  <strong>请在左侧勾选副本或版本范围</strong>
+                  <p>在左侧选择要配置的历史版本或具体副本（支持多选，或直接点击左侧上方的“全选副本”）；勾选后，此处将即时呈现对应范围内的所有物品分类供您一键快速配置策略。</p>
+                </div>
+              </div>
+            ) : (
+              <div className="category-strategy-table" role="table" aria-label="分类策略控制列表">
+                <div className="cat-strat-row cat-strat-head" role="row">
+                  <div className="col-cat">物品分类</div>
+                  <div className="col-skip">拾取过滤</div>
+                  <div className="col-sell">出售策略</div>
+                </div>
+                {categoryWorkbenchSummaries.map((catSummary) => {
+                  const { category, total, skipLootCount, autoSellCount, protectCount, noneCount } = catSummary;
+                  const allAutoSell = total > 0 && autoSellCount === total;
+                  const partialAutoSell = autoSellCount > 0 && autoSellCount < total;
+                  const allProtect = total > 0 && protectCount === total;
+                  const partialProtect = protectCount > 0 && protectCount < total;
+                  const allNone = total > 0 && noneCount === total;
+                  const partialNone = noneCount > 0 && noneCount < total;
+                  const allSkip = total > 0 && skipLootCount === total;
+                  const partialSkip = skipLootCount > 0 && skipLootCount < total;
+                  const allUnskip = total > 0 && skipLootCount === 0;
+                  const partialUnskip = total - skipLootCount > 0 && total - skipLootCount < total;
+                  const isExpanded = expandedCategory === category;
+
+                  return (
+                    <div className={`cat-strat-group ${isExpanded ? 'is-expanded' : ''}`} key={category}>
+                      <div className="cat-strat-row" role="row">
+                        <div
+                          className="col-cat cat-info-cell"
+                          onClick={() => {
+                            setExpandedCategory((curr) => (curr === category ? null : category));
+                            setDrawerQuery('');
+                            setDrawerPage(1);
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          title="点击展开/收起该分类下的物品明细"
+                        >
+                          <span className="cat-icon">{CATEGORY_ICONS[category]}</span>
+                          <div className="cat-name-box">
+                            <strong>{CATEGORY_LABELS[category]}</strong>
+                            <span className="cat-count-badge">{total} 项</span>
+                          </div>
+                          <span className={`drawer-toggle-arrow ${isExpanded ? 'open' : ''}`}>
+                            {isExpanded ? '▴ 收起' : '▾ 明细'}
+                          </span>
+                        </div>
+
+                        <div className="col-skip">
+                          <div className="seg-control skip-seg" role="group" aria-label="拾取策略">
+                            <button
+                              type="button"
+                              className={`seg-btn skipLoot ${allSkip ? 'active' : ''}`}
+                              onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'skipLoot'); }}
+                              title={`一键将当前范围全部 ${total} 项【${CATEGORY_LABELS[category]}】设为跳过拾取`}
+                            >
+                              跳过拾取{partialSkip ? <small>({skipLootCount})</small> : ''}
+                            </button>
+                            <button
+                              type="button"
+                              className={`seg-btn unskip ${allUnskip ? 'active' : ''}`}
+                              onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'unskipLoot'); }}
+                              title={`清除当前范围【${CATEGORY_LABELS[category]}】的跳过标记，恢复正常拾取`}
+                            >
+                              正常拾取{partialUnskip ? <small>({total - skipLootCount})</small> : ''}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="col-sell">
+                          <div className="seg-control sell-seg" role="group" aria-label="出售策略">
+                            <button
+                              type="button"
+                              className={`seg-btn autoSell ${allAutoSell ? 'active' : ''}`}
+                              onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'autoSell'); }}
+                              title={`一键将当前范围全部 ${total} 项【${CATEGORY_LABELS[category]}】设为自动出售`}
+                            >
+                              自动出售{partialAutoSell ? <small>({autoSellCount})</small> : ''}
+                            </button>
+                            <button
+                              type="button"
+                              className={`seg-btn protect ${allProtect ? 'active' : ''}`}
+                              onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'protect'); }}
+                              title={`一键将当前范围全部 ${total} 项【${CATEGORY_LABELS[category]}】设为保护不出售`}
+                            >
+                              保护不出售{partialProtect ? <small>({protectCount})</small> : ''}
+                            </button>
+                            <button
+                              type="button"
+                              className={`seg-btn none ${allNone ? 'active' : ''}`}
+                              onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'none'); }}
+                              title={`清除当前范围【${CATEGORY_LABELS[category]}】的出售/保护策略`}
+                            >
+                              未处理{partialNone ? <small>({noneCount})</small> : ''}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {isExpanded && (
+                        <div className="cat-drawer-container">
+                          <div className="cat-drawer-sticky-header">
+                            <div className="cat-drawer-toolbar">
+                              <label className="drawer-search-box">
+                                <span>⌕</span>
+                                <input
+                                  value={drawerQuery}
+                                  onChange={(e) => { setDrawerQuery(e.target.value); setDrawerPage(1); }}
+                                  placeholder={`在【${CATEGORY_LABELS[category]}】中搜索物品名称或 Boss...`}
+                                />
+                                {drawerQuery && <button type="button" className="drawer-clear-btn" onClick={() => { setDrawerQuery(''); setDrawerPage(1); }}>×</button>}
+                              </label>
+                              <select
+                                className="drawer-select"
+                                value={drawerStateView}
+                                onChange={(e) => { setDrawerStateView(e.target.value as 'all' | 'configured' | 'unconfigured' | 'protected'); setDrawerPage(1); }}
+                              >
+                                <option value="all">全部状态</option>
+                                <option value="configured">只看已配置</option>
+                                <option value="unconfigured">只看未配置</option>
+                                <option value="protected">只看已保护</option>
+                              </select>
+                              <span className="drawer-count-info">
+                                {drawerItems.length > 0 ? `${(currentDrawerPage - 1) * DRAWER_PAGE_SIZE + 1}–${Math.min(currentDrawerPage * DRAWER_PAGE_SIZE, drawerItems.length)} / 共 ${drawerItems.length} 项` : '0 项'}
+                              </span>
+                              <button
+                                type="button"
+                                className="button ghost compact"
+                                onClick={() => setExpandedCategory(null)}
+                              >
+                                收起 ▴
+                              </button>
+                            </div>
+
+                            <div className="item-row item-head" role="row">
+                              <span>物品与来源</span>
+                              <span>品质 / 装等</span>
+                              <span>跳过拾取</span>
+                              <span>出售策略</span>
+                            </div>
+                          </div>
+
+                          <div className="drawer-item-list" role="table" aria-label={`${CATEGORY_LABELS[category]}物品列表`}>
+                            {visibleDrawerItems.map((item) => {
+                              const state = cloneState(stateMap.get(item.id));
+                              const source = item.sources[0];
+                              return (
+                                <div className={`item-row ${item.customOverride ? 'custom-row' : ''} ${item.historical ? 'historical-row' : ''}`} role="row" key={item.id}>
+                                  <div className="item-name">
+                                    <strong>
+                                      {item.name}
+                                      {item.systemSeed && <span className="seed-badge">推荐保护</span>}
+                                      {item.customOverride && <span className="custom-badge">自定义</span>}
+                                      {item.historical && <span className="history-badge">历史</span>}
+                                    </strong>
+                                    <small title={item.sources.map((entry) => `${entry.expansion} / ${entry.mapName} / ${entry.bossName}`).join('\n')}>
+                                      {source ? `${source.expansion} · ${source.mapName} · ${source.bossName}${item.sources.length > 1 ? ` 等 ${item.sources.length} 个来源` : ''}` : item.subtype ?? '手动维护'}
+                                    </small>
+                                    {item.customOverride && <button className="text-action" type="button" onClick={() => removeCustomOverride(item.id)}>{catalogIdSet.has(item.id) ? '恢复官方批量管理' : '移出自定义库'}</button>}
+                                    {item.historical && <button className="text-action" type="button" onClick={() => removeHistoricalState(item.id)}>清除历史状态并停止导出</button>}
+                                  </div>
+                                  <span className={`category-pill quality-${item.qualityMax ?? item.quality ?? 0}`}>
+                                    {item.subtype ? `${item.subtype} · ` : ''}{item.itemLevelMax ? `${item.itemLevelMin === item.itemLevelMax ? item.itemLevelMax : `${item.itemLevelMin}–${item.itemLevelMax}`}品` : `品质 ${item.qualityMax ?? item.quality ?? 0}`}
+                                  </span>
+                                  <StateButton state={state} onClick={() => toggleItemState(item, 'skipLoot')} />
+                                  <DispositionSelector disposition={itemDisposition(state)} onChange={(disposition) => setItemDisposition(item, disposition)} />
+                                </div>
+                              );
+                            })}
+                            {visibleDrawerItems.length === 0 && (
+                              <div className="empty-state compact">
+                                <strong>没有匹配的物品</strong>
+                                <p>请尝试调整搜索关键词或状态筛选。</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {drawerTotalPages > 1 && (
+                            <div className="pagination">
+                              <button type="button" disabled={currentDrawerPage <= 1} onClick={() => setDrawerPage((v) => Math.max(1, v - 1))}>上一页</button>
+                              <span>第 {currentDrawerPage} / {drawerTotalPages} 页</span>
+                              <button type="button" disabled={currentDrawerPage >= drawerTotalPages} onClick={() => setDrawerPage((v) => Math.min(drawerTotalPages, v + 1))}>下一页</button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <span className={`category-pill quality-${item.qualityMax ?? item.quality ?? 0}`}>{CATEGORY_LABELS[item.category]}{item.subtype ? ` · ${item.subtype}` : ''}{item.itemLevelMax ? ` · ${item.itemLevelMin === item.itemLevelMax ? item.itemLevelMax : `${item.itemLevelMin}–${item.itemLevelMax}`}` : ''}</span>
-                    <StateButton field="skipLoot" state={state} onClick={() => toggleItemState(item, 'skipLoot')} />
-                    <DispositionSelector disposition={itemDisposition(state)} onChange={(disposition) => setItemDisposition(item, disposition)} />
-                  </div>
-                );
-              })}
-              {visibleItems.length === 0 && <div className="empty-state"><strong>没有匹配的物品</strong><p>调整副本范围或筛选条件后再试。</p></div>}
-            </div>
-            {totalPages > 1 && <div className="pagination"><button type="button" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>上一页</button><span>第 {currentPage} / {totalPages} 页</span><button type="button" disabled={currentPage >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>下一页</button></div>}
+                  );
+                })}
+              </div>
+            )}
           </section>
         </section>
       </div>
 
-      <footer className="export-dock glass-panel">
-        <div><span className="fingerprint-dot" /><p><strong>{!catalogIndexed ? '正在建立目录索引…' : hydrated ? '配置已自动保存在本地' : '正在恢复本地工作区…'}</strong><small>{undoWorkspace ? '最近一次变更可以撤销' : '同一批导出共享指纹与时间戳'}</small></p>{undoWorkspace && <button className="text-button" type="button" onClick={() => { setWorkspace(undoWorkspace); setUndoWorkspace(null); setToast({ tone: 'success', message: '已撤销最近一次变更。' }); }}>撤销</button>}</div>
-        <div className="dock-actions"><button className="button ghost" type="button" disabled={!catalogIndexed} onClick={() => exportFiles('pickup')}>下载跳过拾取</button><button className="button ghost" type="button" disabled={!catalogIndexed} onClick={() => exportFiles('sell')}>下载自动出售</button><button className="button primary" type="button" disabled={!catalogIndexed} onClick={() => exportFiles('both')}>两个都下载</button></div>
-      </footer>
-
       {dialog && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDialog(null); }}>
-        {dialog === 'custom' && <Modal title="添加自定义物品" eyebrow="CUSTOM ITEMS" onClose={() => setDialog(null)}>
-          <p className="modal-copy">每行一个精确物品名称。自定义物品不分类，永远不受任何批量规则影响，三个状态需要在物品表中逐项设置。</p>
-          <textarea className="custom-textarea" value={customInput} onChange={(event) => setCustomInput(event.target.value)} rows={9} placeholder={'例如：\n水长生 ·雪银莲\n我的自定义物品'} autoFocus />
+        {dialog === 'custom' && <Modal title="添加自定义物品" eyebrow="自定义物品库" onClose={() => setDialog(null)}>
+          <p className="modal-copy">输入您想自定义管理的物品名称（每行一个）。添加后可在左侧【✨ 用户自定义】范围中单独配置其拾取与出售策略。</p>
+          <textarea className="custom-textarea" value={customInput} onChange={(event) => setCustomInput(event.target.value)} rows={9} placeholder={'例如：\n水长生 ·雪银莲\n特殊装备\n金缕衣'} autoFocus />
           <div className="modal-actions"><button className="button ghost" type="button" onClick={() => setDialog(null)}>取消</button><button className="button primary" type="button" onClick={addCustomItems}>添加到物品库</button></div>
         </Modal>}
 
-        {dialog === 'workspace' && <Modal title="本地工作区" eyebrow="LOCAL WORKSPACE" onClose={() => setDialog(null)}>
+        {dialog === 'workspace' && <Modal title="本地设置与数据" eyebrow="设置与数据管理" onClose={() => setDialog(null)}>
           <div className="workspace-actions-list">
-            <button type="button" onClick={() => downloadText(`剑网3掉落工坊-工作区_${shanghaiDateStamp()}.json`, exportWorkspaceBackup(workspace))}><strong>导出工作区备份</strong><small>保存全部状态、自定义物品、范围和筛选偏好</small></button>
-            <button type="button" onClick={() => backupInputRef.current?.click()}><strong>导入工作区备份</strong><small>跨域名或移动离线文件后恢复上次状态</small></button>
-            <button type="button" onClick={() => void checkCatalogUpdate()}><strong>检查数据更新</strong><small>在线版读取项目 manifest；离线版不会自动联网</small></button>
-            <button type="button" onClick={() => dataPackInputRef.current?.click()}><strong>导入数据包</strong><small>校验 SHA-256 和完整性后保存到本机 IndexedDB</small></button>
-            {embeddedSnapshot && activeSnapshot.contentHash !== embeddedSnapshot.contentHash && <button type="button" onClick={() => void restoreEmbeddedCatalog()}><strong>恢复内置数据目录</strong><small>保留物品选择，只切回随当前版本附带的快照</small></button>}
-            <button className="danger-row" type="button" onClick={doResetWorkspace}><strong>重置工作区</strong><small>恢复 21 项首次保护基线，清除其他本地选择</small></button>
+            <button type="button" onClick={() => downloadText(`剑网3掉落工坊-设置备份_${shanghaiDateStamp()}.json`, exportWorkspaceBackup(workspace))}>
+              <strong>导出全部设置备份</strong>
+              <small>将当前的拾取/出售策略、自定义物品及副本收藏保存为本地备份文件 (.json)</small>
+            </button>
+            <button type="button" onClick={() => backupInputRef.current?.click()}>
+              <strong>导入设置备份</strong>
+              <small>换电脑、换浏览器或移动文件后，一键还原之前的全部设置与自定义库</small>
+            </button>
+            <button type="button" onClick={() => void checkCatalogUpdate()}>
+              <strong>检查副本掉落库更新</strong>
+              <small>连接网络检查是否有最新版本的官方副本掉落数据</small>
+            </button>
+            <button type="button" onClick={() => dataPackInputRef.current?.click()}>
+              <strong>导入离线数据包</strong>
+              <small>手动载入官方最新的副本掉落数据库文件（适合无网络环境）</small>
+            </button>
+            {embeddedSnapshot && activeSnapshot.contentHash !== embeddedSnapshot.contentHash && (
+              <button type="button" onClick={() => void restoreEmbeddedCatalog()}>
+                <strong>恢复初始副本数据</strong>
+                <small>保留当前个性化设置，仅将副本掉落库还原为本程序自带的默认版本</small>
+              </button>
+            )}
+            <button className="danger-row" type="button" onClick={doResetWorkspace}>
+              <strong>清空并恢复默认设置</strong>
+              <small>清除所有个性化配置与自选记录，恢复系统推荐的默认珍品保护规则</small>
+            </button>
           </div>
-          <p className="storage-note">清除浏览器 HTTP 缓存通常不会删除这里的数据；只有清除站点数据或主动重置才会移除。不同域名和不同 file:// 路径不会自动共享工作区。</p>
+          <p className="storage-note">💡 提示：您的所有设置都会实时自动保存在当前浏览器中，关闭页面不会丢失。建议在配置满意后导出备份文件，方便随时在其他设备一键恢复。</p>
         </Modal>}
 
-        {dialog === 'bulk' && bulkPreview && <Modal title="确认批量变更" eyebrow="DIFF PREVIEW" onClose={() => setDialog(null)}>
-          {bulkPreviewContext && <p className="modal-copy"><strong>{bulkPreviewContext.label}</strong> · 目标 {bulkPreviewContext.targetCount.toLocaleString('zh-CN')} 项；确认后保留一步撤销。</p>}
-          <div className="preview-stats"><span><strong>{bulkPreview.changes.length}</strong> 项改变</span><span><strong>{bulkPreview.excludedCustom}</strong> 项自定义排除</span><span><strong>{bulkPreview.conflictsResolved}</strong> 个互斥处理</span></div>
-          <div className="diff-list">
-            {bulkPreview.changes.slice(0, 120).map((change) => <div key={change.id}><strong>{change.name}</strong><span>{stateSummary(change.before)} → {stateSummary(change.after)}</span></div>)}
-            {bulkPreview.changes.length > 120 && <p>另有 {bulkPreview.changes.length - 120} 项变更未展开显示。</p>}
-            {bulkPreview.changes.length === 0 && <div className="empty-state compact"><strong>没有状态需要改变</strong></div>}
+        {dialog === 'import' && importDraft && <Modal title="导入游戏配置文件" eyebrow="配置导入" onClose={() => setDialog(null)}>
+          <p className="modal-copy"><strong>{importDraft.filename}</strong> · 已识别策略：{importDraft.preview.declared.map((field) => STATE_LABELS[field]).join('、')}</p>
+          <div className="mode-switch">
+            <button className={importDraft.mode === 'merge' ? 'active' : ''} type="button" onClick={() => changeImportMode('merge')}>
+              <strong>合并模式 (推荐)</strong>
+              <small>保留现有设置，仅叠加导入文件中的新规则</small>
+            </button>
+            <button className={importDraft.mode === 'replace' ? 'active' : ''} type="button" onClick={() => changeImportMode('replace')}>
+              <strong>覆盖模式</strong>
+              <small>清空现有的拾取/出售规则，完全以该文件为准</small>
+            </button>
           </div>
-          <div className="modal-actions"><button className="button ghost" type="button" onClick={() => setDialog(null)}>返回修改</button><button className="button primary" type="button" onClick={applyBulkPreview} disabled={bulkPreview.changes.length === 0}>确认应用</button></div>
-        </Modal>}
-
-        {dialog === 'import' && importDraft && <Modal title="导入配置预览" eyebrow="SAFE IMPORT" onClose={() => setDialog(null)}>
-          <p className="modal-copy"><strong>{importDraft.filename}</strong> · 已识别 {importDraft.preview.declared.map((field) => STATE_LABELS[field]).join('、')}</p>
-          <div className="mode-switch"><button className={importDraft.mode === 'merge' ? 'active' : ''} type="button" onClick={() => changeImportMode('merge')}><strong>合并</strong><small>文件未出现的名称保持不变</small></button><button className={importDraft.mode === 'replace' ? 'active' : ''} type="button" onClick={() => changeImportMode('replace')}><strong>替换</strong><small>清空文件已声明的目标表后应用</small></button></div>
-          <div className="preview-stats"><span><strong>{importDraft.preview.changes.length}</strong> 项改变</span><span><strong>{importDraft.preview.unknownNames.length}</strong> 项进入自定义库</span><span><strong>{importDraft.preview.conflictsResolved}</strong> 个保护优先冲突</span></div>
+          <div className="preview-stats">
+            <span><strong>{importDraft.preview.changes.length}</strong> 项规则变更</span>
+            <span><strong>{importDraft.preview.unknownNames.length}</strong> 项加入自定义库</span>
+            <span><strong>{importDraft.preview.conflictsResolved}</strong> 项自动处理保护冲突</span>
+          </div>
           <div className="diff-list">{importDraft.preview.changes.slice(0, 100).map((change) => <div key={change.id}><strong>{change.name}</strong><span>{stateSummary(change.before)} → {stateSummary(change.after)}</span></div>)}</div>
-          <div className="modal-actions"><button className="button ghost" type="button" onClick={() => setDialog(null)}>取消</button><button className="button primary" type="button" onClick={applyImport}>确认导入</button></div>
+          <div className="modal-actions"><button className="button ghost" type="button" onClick={() => setDialog(null)}>取消</button><button className="button primary" type="button" onClick={applyImport}>确认应用到工坊</button></div>
         </Modal>}
       </div>}
 
@@ -1041,23 +1392,42 @@ export function LootForgeApp() {
   );
 }
 
-function StateButton({ field, state, onClick }: { field: StateField; state: ItemState; onClick: () => void }) {
-  const enabled = state[field];
-  const inactiveLabels: Record<StateField, string> = { skipLoot: '不跳过', autoSell: '不出售', protect: '未保护' };
-  const activeLabels: Record<StateField, string> = { skipLoot: '已跳过', autoSell: '自动卖', protect: '已保护' };
-  return <button className={`state-toggle ${field} ${enabled ? 'checked' : ''}`} aria-pressed={enabled} aria-label={`${STATE_LABELS[field]}：${enabled ? '开启' : '关闭'}`} onClick={onClick} type="button"><i />{enabled ? activeLabels[field] : inactiveLabels[field]}</button>;
+function StateButton({ state, onClick }: { state: ItemState; onClick: () => void }) {
+  const enabled = state.skipLoot;
+  return (
+    <button
+      className={`state-toggle skipLoot ${enabled ? 'checked' : ''}`}
+      aria-pressed={enabled}
+      aria-label={`跳过拾取：${enabled ? '已开启' : '未开启'}`}
+      onClick={onClick}
+      type="button"
+      title={enabled ? '已加入跳过拾取名单（掉落时不拾取）' : '未跳过（掉落时正常拾取）'}
+    >
+      <i />
+      <span>{enabled ? '已跳过' : '正常拾取'}</span>
+    </button>
+  );
 }
 
 function DispositionSelector({ disposition, onChange }: { disposition: ItemDisposition; onChange: (disposition: ItemDisposition) => void }) {
-  const options: Array<[ItemDisposition, string]> = [
-    ['none', '未处理'],
-    ['autoSell', '自动出售'],
-    ['protect', '保护不出售'],
+  const options: Array<[ItemDisposition, string, string]> = [
+    ['none', '未处理', '不自动出售，也不加入保护名单'],
+    ['autoSell', '自动出售', '加入自动出售名单 (MY_AutoSell.tSellItem)'],
+    ['protect', '保护不出售', '加入保护名单，防止被误卖 (MY_AutoSell.tProtectItem)'],
   ];
   return (
     <div className="segmented disposition-selector" role="group" aria-label="出售策略">
-      {options.map(([value, label]) => (
-        <button className={`disposition-option ${value} ${disposition === value ? 'on' : ''}`} type="button" key={value} aria-pressed={disposition === value} title={`出售策略：${label}`} onClick={() => onChange(value)}>{label}</button>
+      {options.map(([value, label, desc]) => (
+        <button
+          className={`disposition-option ${value} ${disposition === value ? 'on' : ''}`}
+          type="button"
+          key={value}
+          aria-pressed={disposition === value}
+          title={`出售策略：${label}（${desc}）`}
+          onClick={() => onChange(value)}
+        >
+          {label}
+        </button>
       ))}
     </div>
   );

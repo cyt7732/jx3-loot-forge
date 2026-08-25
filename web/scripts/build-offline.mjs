@@ -33,6 +33,9 @@ const javascript = await readFile(localAssetPath(scriptMatch[1]), 'utf8');
 // that legitimately occur inside minified JavaScript. Return the payload from
 // a function so the bundle is inserted byte-for-byte instead of being mutated.
 html = html.replace(scriptMatch[0], () => `<script type="module">${javascript.replace(/<\/script/giu, '<\\/script')}</script>`);
+const logoBuffer = await readFile(resolve(PROJECT_DIR, 'src/assets/logo.jpg'));
+const logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
+html = html.replace(/<link rel="icon"[^>]*>/u, `<link rel="icon" type="image/jpeg" href="${logoBase64}" />`);
 if (/<(?:script|link)[^>]+(?:src|href)="(?:\.\/|\/)?assets\//u.test(html)) throw new Error('Offline HTML still references external build assets.');
 const catalog = await readFile(CATALOG_PATH, 'utf8');
 const catalogScript = `<script id="jx3-catalog-data" type="application/json">${catalog.replace(/</gu, '\\u003c')}</script>`;
@@ -45,9 +48,13 @@ const inlineJavaScript = html.slice(inlineStart + inlineMarker.length, inlineEnd
 new Script(inlineJavaScript, { filename: 'offline-inline.js' });
 if (!html.includes('<div id="root"></div>')) throw new Error('Offline HTML is missing its root element.');
 
+const ROOT_HTML = resolve(PROJECT_DIR, '../剑网3掉落工坊.html');
+
 await rm(FINAL_DIR, { recursive: true, force: true });
 await rename(TEMP_DIR, FINAL_DIR);
 await writeFile(FINAL_HTML, html, 'utf8');
+await writeFile(ROOT_HTML, html, 'utf8');
 await rm(resolve(FINAL_DIR, 'assets'), { recursive: true, force: true });
 await rm(resolve(FINAL_DIR, 'offline'), { recursive: true, force: true });
 process.stdout.write(`${FINAL_HTML} (${Buffer.byteLength(html).toLocaleString('en-US')} bytes)\n`);
+process.stdout.write(`${ROOT_HTML} (Root single-file offline copy synced)\n`);

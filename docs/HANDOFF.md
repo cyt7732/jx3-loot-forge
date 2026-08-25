@@ -8,9 +8,9 @@
 
 ## 0. 快速接管说明
 
-1. 确认当前产品版本为 `v0.3.0`，目录版本为 `20260823-011b26367022`。
+1. 确认当前产品版本为 `v1.0.0`，目录版本为 `20260823-011b26367022`。
 2. 阅读本文、`docs/RELEASE_PROCESS.md`、`README.md`、`CHANGELOG.md` 和 `VERSION.json`。
-3. 执行 `git log --oneline --decorate -10` 和 `git tag -n`，确认 `v0.3.0` tag 与 release commit。
+3. 执行 `git log --oneline --decorate -10` 和 `git tag -n`，确认 `v1.0.0` tag 与 release commit。
 4. 进入 `web/`，确认 Node.js 版本不低于 22.13；依赖缺失时使用 `npm ci`，已有依赖时不要无原因升级依赖或改写 lockfile。
 5. 执行 `npm run check`。已知正确基线是：类型检查、Lint、76 项测试、在线构建、离线构建全部通过。
 6. 分类调整涉及三条执行链：`web/src/catalog/type-label-rules.json`、`web/src/catalog/classification.ts`、`web/scripts/crawl-catalog.mjs` 和 `web/scripts/reclassify-catalog.mjs`。任何分类调整必须同步三条执行链并补测试。
@@ -21,9 +21,9 @@
 | 项目 | 当前事实 |
 | --- | --- |
 | 产品名 | 剑网3掉落工坊 |
-| 已发布产品版本 | `v0.3.0` |
-| 发布 commit | `release: v0.3.0` |
-| annotated tag | `v0.3.0` |
+| 已发布产品版本 | `v1.0.0` |
+| 发布 commit | `release: v1.0.0` |
+| annotated tag | `v1.0.0` |
 | `VERSION.json` 目录版本 | `20260823-011b26367022` |
 | 当前分支 | `main` |
 
@@ -39,7 +39,8 @@
 | 2026-08-25 10:33 | `f98222f` | `release: v0.2.0`，第二版交互与性能优化 |
 | 2026-08-25 16:30 | `e4ba9cb` | `release: v0.2.1`，团队秘境排序与响应式补丁 |
 | 2026-08-25 16:38 | `68d7514` | 完善压缩包命名、顶层目录与 Release 附件规范 |
-| 2026-08-25 19:16 | `release: v0.3.0` | `release: v0.3.0`，TypeLabel 分类重构与缓存优化 |
+| 2026-08-25 19:16 | `14fef13` | `release: v0.3.0`，TypeLabel 分类重构与缓存优化 |
+| 2026-08-25 23:00 | `release: v1.0.0` | `release: v1.0.0`，合一配置、顶栏操作中心与正式版品牌上线 |
 
 本地 annotated tags：
 
@@ -48,7 +49,8 @@ v0.1.0 -> cbb053c
 v0.1.1 -> 630f49d
 v0.2.0 -> f98222f
 v0.2.1 -> e4ba9cb
-v0.3.0
+v0.3.0 -> 14fef13
+v1.0.0
 ```
 
 已发布 tag 只读：不移动、不覆盖、不删除。发现发布问题时递增 PATCH 版本处理。
