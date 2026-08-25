@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "client": "std",
-  "catalogVersion": "20260823-47ec717b1065",
+  "catalogVersion": "20260823-011b26367022",
   "generatedAt": "2026-08-23T15:35:53.820Z",
-  "contentHash": "47ec717b106507ad036ea79bc6c7b609fb28d6b82cf13cb338e359b6df94ea2a",
+  "contentHash": "011b26367022797495297bdf09b943d29acb5f6cd6b480b95128757ac25edce1",
   "stats": {
     "maps": 254,
     "bosses": 981,

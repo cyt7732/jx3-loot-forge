@@ -2,10 +2,19 @@ export type Client = 'std';
 
 export type ItemCategory =
   | 'equipment'
+  | 'equipmentExchange'
   | 'material'
+  | 'specialDrop'
   | 'recipe'
+  | 'furniture'
+  | 'smallIron'
+  | 'bigIron'
+  | 'smallEnchant'
+  | 'bigEnchant'
   | 'consumable'
+  | 'task'
   | 'currency'
+  | 'pet'
   | 'other'
   | 'unknown';
 
@@ -31,6 +40,7 @@ export type CatalogItem = {
   name: string;
   category: ItemCategory;
   subtype?: string;
+  typeLabels?: string[];
   quality?: number;
   qualityMin?: number;
   qualityMax?: number;
@@ -39,7 +49,7 @@ export type CatalogItem = {
   itemLevelMax?: number;
   slot?: string;
   slots?: string[];
-  classification?: 'metadata' | 'name-fallback' | 'unknown';
+  classification?: 'metadata' | 'name-fallback' | 'type-label' | 'type-label-other-rule' | 'type-label-missing-fallback' | 'unknown';
   sources: CatalogSource[];
 };
 

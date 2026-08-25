@@ -51,7 +51,10 @@ export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
 
   if (typeof window === 'undefined') throw new Error('只能在浏览器中加载数据目录。');
   const url = new URL('./data/catalog.std.json', window.location.href);
-  const response = await fetch(url, { cache: 'default' });
+  // The filename is intentionally stable, so the browser must not reuse an
+  // older response after a new catalog is shipped. Offline builds never reach
+  // this branch because their snapshot is embedded in the HTML above.
+  const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) throw new Error(`数据目录请求失败（HTTP ${response.status}）。`);
   return parseCatalogPayload(await response.text());
 }

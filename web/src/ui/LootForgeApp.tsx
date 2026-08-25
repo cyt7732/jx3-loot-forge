@@ -50,6 +50,7 @@ import {
   loadCatalogOverride,
   parseCatalogDataPack,
   saveCatalogOverride,
+  selectCatalogSnapshot,
 } from '../storage/catalog';
 import {
   exportWorkspaceBackup,
@@ -187,11 +188,12 @@ export function LootForgeApp() {
           loadCatalogOverride().catch(() => null),
         ]);
         if (cancelled) return;
+        const selection = selectCatalogSnapshot(embedded, override);
         setEmbeddedSnapshot(embedded);
-        setActiveSnapshot(override ?? embedded);
-        const restoredWorkspace = loadWorkspace(embedded.catalogVersion);
-        setWorkspace(override
-          ? { ...restoredWorkspace, catalogVersion: override.catalogVersion, updatedAt: new Date().toISOString() }
+        setActiveSnapshot(selection.snapshot);
+        const restoredWorkspace = loadWorkspace(selection.snapshot.catalogVersion);
+        setWorkspace(selection.usedOverride
+          ? { ...restoredWorkspace, catalogVersion: selection.snapshot.catalogVersion, updatedAt: new Date().toISOString() }
           : restoredWorkspace);
         setHydrated(true);
 

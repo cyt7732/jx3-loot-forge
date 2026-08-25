@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, rename, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,25 +9,11 @@ const OUTPUT_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.std.json');
 const TEMP_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.std.json.tmp');
 const PUBLIC_SNAPSHOT_PATH = resolve(PROJECT_DIR, 'public/data/catalog.std.json');
 const PUBLIC_MANIFEST_PATH = resolve(PROJECT_DIR, 'public/data/manifest.json');
+const TYPE_LABEL_RULES_PATH = resolve(PROJECT_DIR, 'src/catalog/type-label-rules.json');
 const BASE_URL = 'https://node.jx3box.com';
 const CONCURRENCY = 4;
 
-const MATERIAL_GENRES = new Set([10, 13, 14, 15]);
-const RECIPE_GENRES = new Set([7, 8, 12]);
-const CONSUMABLE_GENRES = new Set([9]);
-const OTHER_GENRES = new Set([-1, 5, 6, 16, 20, 21]);
-const MATERIAL_LABELS = new Set(['材料', '物品强化', '帮会产物', '瑰石', '宝石', '五行石', '五彩石']);
-const RECIPE_LABELS = new Set([
-  '秘笈', '通用秘笈', '五毒秘笈', '唐门秘笈', '明教秘笈', '丐帮秘笈', '天策秘笈', '藏剑秘笈',
-  '纯阳秘笈', '七秀秘笈', '少林秘笈', '万花秘笈', '苍云秘笈', '长歌秘笈', '霸刀秘笈',
-  '蓬莱秘笈', '凌雪阁秘笈', '衍天宗秘笈', '北天药宗秘笈', '配方', '铸造配方', '缝纫配方',
-  '烹饪配方', '医术配方', '杂集', '道学', '佛学',
-]);
-const CONSUMABLE_LABELS = new Set(['消耗品', '食物', '药品', '礼品', '草料', '兵鉴']);
-const OTHER_LABELS = new Set([
-  '任务物品', '景观', '家具', '收集', '建筑', '坐骑', '奇趣坐骑', '坐骑头饰', '坐骑胸饰',
-  '坐骑足饰', '坐骑鞍饰', '坐骑幼崽', '背包', '宝箱', '钥匙', '垃圾', '其他',
-]);
+const TYPE_LABEL_RULES = JSON.parse(await readFile(TYPE_LABEL_RULES_PATH, 'utf8'));
 
 const SLOT_LABELS = new Map([
   ['上衣', 'chest'], ['帽子', 'head'], ['腰带', 'belt'], ['下装', 'legs'], ['鞋子', 'feet'], ['护腕', 'wrists'],
@@ -108,21 +94,70 @@ function variantKey(drop) {
   return drop.ItemExtID ? `${drop.ItemType}_${drop.ItemID}_${drop.ItemExtID}` : `${drop.ItemType}_${drop.ItemID}`;
 }
 
-function classify(meta) {
-  if (!meta || typeof meta !== 'object') return 'unknown';
-  if (meta.IsEquip === true) return 'equipment';
-  if (meta.IsEquip !== false) return 'unknown';
-  const genre = typeof meta.AucGenre === 'number' ? meta.AucGenre : null;
-  if (MATERIAL_GENRES.has(genre)) return 'material';
-  if (RECIPE_GENRES.has(genre)) return 'recipe';
-  if (CONSUMABLE_GENRES.has(genre)) return 'consumable';
-  if (OTHER_GENRES.has(genre)) return 'other';
-  const label = normalizeLabel(meta.TypeLabel);
-  if (MATERIAL_LABELS.has(label)) return 'material';
-  if (RECIPE_LABELS.has(label) || /(?:秘笈|配方)$/u.test(label)) return 'recipe';
-  if (CONSUMABLE_LABELS.has(label)) return 'consumable';
-  if (OTHER_LABELS.has(label)) return 'other';
-  return 'unknown';
+function hasExplicitSlot(slot) {
+  if (typeof slot !== 'string') return false;
+  const normalized = slot.trim().toLocaleLowerCase();
+  const unknownValues = new Set((TYPE_LABEL_RULES.secondaryRules.unknownSlotValues ?? []).map((value) => String(value).toLocaleLowerCase()));
+  return normalized.length > 0 && !unknownValues.has(normalized);
+}
+
+function endsWithEquipmentPart(value) {
+  const tokens = [...TYPE_LABEL_RULES.secondaryRules.equipmentPartTokens]
+    .sort((left, right) => right.length - left.length);
+  return tokens.find((token) => value.endsWith(token));
+}
+
+function isSetAndSchoolName(name) {
+  const parts = name.split('·');
+  if (parts.length < 2) return false;
+  const school = parts.at(-1);
+  if (!school || !TYPE_LABEL_RULES.secondaryRules.schools.includes(school)) return false;
+  const setAndPart = parts.slice(0, -1).join('·');
+  return setAndPart.length > 0 && endsWithEquipmentPart(setAndPart) !== undefined;
+}
+
+function hasEquipmentPartSegment(name) {
+  return name.split('·').some((part) => endsWithEquipmentPart(part) !== undefined);
+}
+
+function classifyFromTypeLabel(meta, retrieval = 'metadata', itemName = '') {
+  const metadata = meta && typeof meta === 'object' ? meta : {};
+  const typeLabel = normalizeLabel(metadata.TypeLabel);
+  const typeLabels = typeLabel ? [typeLabel] : [];
+  const name = normalizeLabel(metadata.Name, itemName);
+
+  for (const [category, labels] of Object.entries(TYPE_LABEL_RULES.primaryTypeLabels)) {
+    if (typeLabel && labels?.includes(typeLabel)) {
+      return { category, classification: 'type-label', typeLabels };
+    }
+  }
+
+  const isExactlyOther = typeLabels.length === 1 && typeLabel === TYPE_LABEL_RULES.otherTypeLabel;
+  const isMissingTypeLabel = typeLabel.length === 0;
+  if (isExactlyOther || isMissingTypeLabel) {
+    const rules = TYPE_LABEL_RULES.secondaryRules;
+    const classification = isExactlyOther ? 'type-label-other-rule' : 'type-label-missing-fallback';
+    // Keep this priority aligned with web/src/catalog/classification.ts.
+    if (rules.petWhenEquipWithoutExplicitSlot && metadata.IsEquip === true && !hasExplicitSlot(slotFor(metadata))) {
+      return { category: 'pet', classification, typeLabels };
+    }
+    if (name.endsWith(rules.nameSuffixes.bigIron)) {
+      return { category: 'bigIron', classification, typeLabels };
+    }
+    if (name.endsWith(rules.nameSuffixes.smallIron)) {
+      return { category: 'smallIron', classification, typeLabels };
+    }
+    if (rules.equipmentExchangePrefixes.some((prefix) => name.startsWith(prefix))) {
+      return { category: 'equipmentExchange', classification, typeLabels };
+    }
+    if (isSetAndSchoolName(name) || hasEquipmentPartSegment(name)) {
+      return { category: 'equipmentExchange', classification, typeLabels };
+    }
+    if (isExactlyOther) return { category: 'specialDrop', classification, typeLabels };
+    return { category: 'unknown', classification, typeLabels };
+  }
+
+  return { category: 'unknown', classification: retrieval === 'name-fallback' ? 'name-fallback' : 'unknown', typeLabels };
 }
 
 function slotFor(meta) {
@@ -251,7 +286,8 @@ async function main() {
       const directMeta = metadata.byKey.get(key);
       const fallbackMeta = !directMeta ? metadata.fallbackByName.get(name) : undefined;
       const meta = directMeta ?? fallbackMeta;
-      const category = classify(meta);
+      const classificationResult = classifyFromTypeLabel(meta, fallbackMeta ? 'name-fallback' : 'metadata', name);
+      const category = classificationResult.category;
       const slot = slotFor(meta);
       const quality = Number.isFinite(drop.ItemQuality) ? drop.ItemQuality : Number.isFinite(meta?.Quality) ? meta.Quality : undefined;
       const level = category === 'equipment' && Number.isFinite(meta?.Level) ? meta.Level : undefined;
@@ -263,14 +299,17 @@ async function main() {
         bossName: normalizeLabel(drop.BossName, '未知 Boss'),
       };
       const current = itemsById.get(id) ?? {
-        id, name, categories: new Set(), subtypes: new Set(), qualities: [], levels: [], slots: new Set(), classifications: new Set(), sources: new Map(),
+        id, name, categories: new Set(), subtypes: new Set(), typeLabels: new Set(), qualities: [], levels: [], slots: new Set(), classifications: new Set(), sources: new Map(),
       };
       current.categories.add(category);
-      if (normalizeLabel(meta?.TypeLabel)) current.subtypes.add(normalizeLabel(meta.TypeLabel));
+      for (const typeLabel of classificationResult.typeLabels) {
+        current.typeLabels.add(typeLabel);
+        current.subtypes.add(typeLabel);
+      }
       if (quality !== undefined) current.qualities.push(quality);
       if (level !== undefined) current.levels.push(level);
       if (slot) current.slots.add(slot);
-      current.classifications.add(directMeta ? 'metadata' : fallbackMeta ? 'name-fallback' : 'unknown');
+      current.classifications.add(classificationResult.classification);
       current.sources.set(`${source.mapId}\u0000${source.bossName}`, source);
       itemsById.set(id, current);
       itemIds.add(id);
@@ -285,6 +324,7 @@ async function main() {
     const qualities = item.qualities;
     const levels = item.levels;
     const slots = [...item.slots].sort(compareText);
+    const typeLabels = [...item.typeLabels].sort(compareText);
     const sources = [...item.sources.values()].sort((left, right) => (
       left.mapId - right.mapId
       || compareText(left.bossName, right.bossName)
@@ -295,6 +335,7 @@ async function main() {
       id: item.id,
       name: item.name,
       category,
+      typeLabels,
       ...(item.subtypes.size === 1 ? { subtype: [...item.subtypes][0] } : {}),
       ...(qualities.length ? { qualityMin: Math.min(...qualities), qualityMax: Math.max(...qualities) } : {}),
       ...(levels.length ? { itemLevelMin: Math.min(...levels), itemLevelMax: Math.max(...levels) } : {}),

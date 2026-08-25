@@ -7,7 +7,7 @@ import {
   groupMapsByDifficulty,
   groupMapsByLevel,
 } from '../src/catalog';
-import { validateCatalogSnapshot } from '../src/storage/catalog';
+import { selectCatalogSnapshot, validateCatalogSnapshot } from '../src/storage/catalog';
 import type { CatalogMap, CatalogSnapshot } from '../src/domain/types';
 
 async function catalogFixture(overrides: Partial<CatalogSnapshot> = {}): Promise<CatalogSnapshot> {
@@ -53,6 +53,44 @@ describe('catalog data-pack validation', () => {
       maps: [{ mapId: 1, name: '副本', expansion: '版本', difficulty: '难度', bossNames: ['首领'], itemIds: ['不存在'] }],
     });
     await expect(validateCatalogSnapshot(dangling)).rejects.toThrow('不存在的物品');
+  });
+});
+
+describe('catalog startup selection', () => {
+  it('uses the embedded catalog when there is no override', async () => {
+    const embedded = await catalogFixture();
+    expect(selectCatalogSnapshot(embedded, null)).toEqual({ snapshot: embedded, usedOverride: false });
+  });
+
+  it('keeps an override with the same content hash', async () => {
+    const embedded = await catalogFixture();
+    const override = await catalogFixture({ generatedAt: 'invalid-date' });
+    expect(override.contentHash).toBe(embedded.contentHash);
+    expect(selectCatalogSnapshot(embedded, override)).toEqual({ snapshot: override, usedOverride: true });
+  });
+
+  it('rejects older or equally dated overrides with different content', async () => {
+    const embedded = await catalogFixture({ generatedAt: '2026-08-24T00:00:00.000Z' });
+    const older = await catalogFixture({ generatedAt: '2026-08-23T00:00:00.000Z', items: [{ id: '物品', name: '旧物品', category: 'equipment', sources: [{ mapId: 1, mapName: '副本', expansion: '版本', difficulty: '难度', bossName: '首领' }] }] });
+    const sameTime = await catalogFixture({ generatedAt: embedded.generatedAt, items: [{ id: '物品', name: '同日物品', category: 'equipment', sources: [{ mapId: 1, mapName: '副本', expansion: '版本', difficulty: '难度', bossName: '首领' }] }] });
+    expect(older.contentHash).not.toBe(embedded.contentHash);
+    expect(sameTime.contentHash).not.toBe(embedded.contentHash);
+    expect(selectCatalogSnapshot(embedded, older)).toEqual({ snapshot: embedded, usedOverride: false });
+    expect(selectCatalogSnapshot(embedded, sameTime)).toEqual({ snapshot: embedded, usedOverride: false });
+  });
+
+  it('keeps an override with a later generated time', async () => {
+    const embedded = await catalogFixture({ generatedAt: '2026-08-24T00:00:00.000Z' });
+    const newer = await catalogFixture({ generatedAt: '2026-08-25T00:00:00.000Z', items: [{ id: '物品', name: '新物品', category: 'equipment', sources: [{ mapId: 1, mapName: '副本', expansion: '版本', difficulty: '难度', bossName: '首领' }] }] });
+    expect(selectCatalogSnapshot(embedded, newer)).toEqual({ snapshot: newer, usedOverride: true });
+  });
+
+  it('treats missing or invalid dates as untrusted when hashes differ', async () => {
+    const embedded = await catalogFixture({ generatedAt: '2026-08-24T00:00:00.000Z' });
+    const invalid = await catalogFixture({ generatedAt: 'not-a-date', items: [{ id: '物品', name: '未知时间物品', category: 'equipment', sources: [{ mapId: 1, mapName: '副本', expansion: '版本', difficulty: '难度', bossName: '首领' }] }] });
+    const missing = await catalogFixture({ generatedAt: '', items: [{ id: '物品', name: '无时间物品', category: 'equipment', sources: [{ mapId: 1, mapName: '副本', expansion: '版本', difficulty: '难度', bossName: '首领' }] }] });
+    expect(selectCatalogSnapshot(embedded, invalid)).toEqual({ snapshot: embedded, usedOverride: false });
+    expect(selectCatalogSnapshot(embedded, missing)).toEqual({ snapshot: embedded, usedOverride: false });
   });
 });
 

@@ -1,7 +1,7 @@
 import type { ItemCategory, ItemState, WorkspaceFilters } from './types';
 
 export const APP_NAME = '剑网3掉落工坊';
-export const APP_VERSION = '0.2.1';
+export const APP_VERSION = '0.3.0';
 export const AUTHOR = '凌千羽·龙争虎斗';
 export const CLIENT = 'std' as const;
 export const WORKSPACE_STORAGE_KEY = 'jx3-loot-forge:workspace:v1';
@@ -24,10 +24,19 @@ export const DEFAULT_FILTERS: WorkspaceFilters = Object.freeze({
 
 export const CATEGORY_LABELS: Record<ItemCategory, string> = {
   equipment: '装备',
+  equipmentExchange: '装备兑换牌',
   material: '材料',
-  recipe: '秘籍',
+  specialDrop: '特殊掉落',
+  recipe: '书籍',
+  furniture: '家具',
+  smallIron: '小铁',
+  bigIron: '大铁',
+  smallEnchant: '小附魔',
+  bigEnchant: '大附魔',
   consumable: '消耗品',
+  task: '任务物品',
   currency: '货币 / 兑换',
+  pet: '宠物',
   other: '其他',
   unknown: '未分类',
 };

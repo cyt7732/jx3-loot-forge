@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "otherTypeLabel": "其他",
+  "categoryIds": [
+    "equipment",
+    "equipmentExchange",
+    "material",
+    "specialDrop",
+    "recipe",
+    "furniture",
+    "smallIron",
+    "bigIron",
+    "smallEnchant",
+    "bigEnchant",
+    "consumable",
+    "task",
+    "currency",
+    "pet",
+    "other",
+    "unknown"
+  ],
+  "primaryTypeLabels": {
+    "equipment": [
+      "傲霜刀",
+      "百草卷",
+      "棒",
+      "笔类",
+      "兵刃",
+      "虫笛类",
+      "弹药",
+      "短兵类",
+      "盾刀",
+      "弓箭",
+      "棍类",
+      "横刀",
+      "护腕",
+      "魂灯",
+      "戒指",
+      "链刃",
+      "帽子",
+      "千机匣",
+      "琴",
+      "伞",
+      "扇",
+      "上衣",
+      "双兵类",
+      "投掷",
+      "弯刀",
+      "下装",
+      "项链",
+      "鞋子",
+      "腰带",
+      "腰坠",
+      "长兵类",
+      "重兵类"
+    ],
+    "material": [
+      "背包",
+      "材料",
+      "五彩石",
+      "五行石"
+    ],
+    "specialDrop": [
+      "背部挂件",
+      "未知",
+      "腰部挂件",
+      "坐骑",
+      "坐骑鞍饰",
+      "坐骑头饰",
+      "坐骑足饰"
+    ],
+    "recipe": [
+      "道学",
+      "佛学",
+      "杂集"
+    ],
+    "furniture": [
+      "家具",
+      "建筑",
+      "景观"
+    ],
+    "smallEnchant": [
+      "武器"
+    ],
+    "bigEnchant": [
+      "物品强化"
+    ],
+    "equipmentExchange": [],
+    "smallIron": [],
+    "bigIron": [],
+    "consumable": [],
+    "task": [],
+    "currency": [],
+    "pet": [],
+    "other": [],
+    "unknown": []
+  },
+  "secondaryRules": {
+    "petWhenEquipWithoutExplicitSlot": true,
+    "unknownSlotValues": [
+      "",
+      "unknown",
+      "未知"
+    ],
+    "nameSuffixes": {
+      "bigIron": "玄晶",
+      "smallIron": "陨铁"
+    },
+    "equipmentExchangePrefixes": [
+      "秘境宝藏·",
+      "三宿",
+      "神兵玉匣·",
+      "秘境宝藏碎片·"
+    ],
+    "schools": [
+      "七秀",
+      "万花",
+      "丐帮",
+      "五毒",
+      "凌雪阁",
+      "唐门",
+      "天策",
+      "少林",
+      "明教",
+      "纯阳",
+      "苍云",
+      "藏剑",
+      "长歌",
+      "蓬莱",
+      "刀宗",
+      "霸刀"
+    ],
+    "equipmentPartTokens": [
+      "武器",
+      "首饰",
+      "饰品",
+      "防具",
+      "帽",
+      "帽子",
+      "护腕",
+      "腕",
+      "腰带",
+      "腰",
+      "上衣",
+      "上装",
+      "衣",
+      "下装",
+      "裤",
+      "鞋",
+      "鞋子",
+      "戒指",
+      "戒",
+      "环",
+      "项链",
+      "腰坠",
+      "挂件",
+      "头饰",
+      "头"
+    ]
+  }
+}

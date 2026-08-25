@@ -5,6 +5,46 @@ const STORE_NAME = 'catalog';
 const KEY = 'std';
 const MAX_DATA_PACK_BYTES = 25 * 1024 * 1024;
 
+export type CatalogSelection = {
+  snapshot: CatalogSnapshot;
+  usedOverride: boolean;
+};
+
+function parseGeneratedAt(value: string | undefined): number | null {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+/**
+ * Select the catalog that should be active at startup.
+ *
+ * An override is user data and is still allowed to win when it is demonstrably
+ * newer than the packaged catalog.  An older, equally dated, or untrusted
+ * override is not allowed to hide the catalog shipped with the current app.
+ * The old value remains in IndexedDB so that the user can still export or
+ * replace it deliberately.
+ */
+export function selectCatalogSnapshot(
+  embedded: CatalogSnapshot,
+  override: CatalogSnapshot | null,
+): CatalogSelection {
+  if (!override) return { snapshot: embedded, usedOverride: false };
+  if (override.contentHash === embedded.contentHash) return { snapshot: override, usedOverride: true };
+
+  const embeddedGeneratedAt = parseGeneratedAt(embedded.generatedAt);
+  const overrideGeneratedAt = parseGeneratedAt(override.generatedAt);
+  if (
+    embeddedGeneratedAt !== null
+    && overrideGeneratedAt !== null
+    && overrideGeneratedAt > embeddedGeneratedAt
+  ) {
+    return { snapshot: override, usedOverride: true };
+  }
+
+  return { snapshot: embedded, usedOverride: false };
+}
+
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolvePromise, reject) => {
     const request = indexedDB.open(DATABASE_NAME, 1);
