@@ -37,6 +37,8 @@ describe('three-state domain model', () => {
     }
     expect(DEFAULT_SKIP_LOOT_ITEMS).toHaveLength(0);
     expect(states.get('金叶子')).toEqual({ skipLoot: false, autoSell: true, protect: false });
+    expect(workspace.customItems).toHaveLength(40);
+    expect(workspace.customOverrides).toHaveLength(40);
   });
 
   it('does not rewrite the workspace modification time while loading valid saved state', () => {

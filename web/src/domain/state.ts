@@ -10,6 +10,7 @@ import type {
   BulkPreview,
   BulkRuleSet,
   CatalogItem,
+  CustomItem,
   ItemCategory,
   ItemState,
   RuleDirective,
@@ -61,6 +62,26 @@ export function createInitialWorkspace(catalogVersion: string, now = new Date())
 
   const itemStates: Array<[string, ItemState]> = Array.from(stateMap.entries());
 
+  // 3. 将默认保护和默认出售物品注册到用户自定义物品库中，确保在前端界面直观展示与自由管理
+  const customItems: CustomItem[] = [
+    ...DEFAULT_PROTECTED_ITEMS.map((name) => ({
+      id: normalizeItemName(name),
+      name,
+      category: 'specialDrop' as ItemCategory,
+      note: '插件推荐保护',
+      createdAt: timestamp,
+    })),
+    ...DEFAULT_SELL_ITEMS.map((name) => ({
+      id: normalizeItemName(name),
+      name,
+      category: 'other' as ItemCategory,
+      note: '插件默认出售',
+      createdAt: timestamp,
+    })),
+  ];
+
+  const customOverrides = customItems.map((item) => item.id);
+
   return {
     schemaVersion: 1,
     appVersion: APP_VERSION,
@@ -68,8 +89,8 @@ export function createInitialWorkspace(catalogVersion: string, now = new Date())
     initializedAt: timestamp,
     updatedAt: timestamp,
     itemStates,
-    customItems: [],
-    customOverrides: [],
+    customItems,
+    customOverrides,
     selectedMapIds: [],
     selectedBossKeys: [],
     expandedGroups: [],
