@@ -1,4 +1,8 @@
-import { DEFAULT_PROTECTED_ITEMS } from '../domain/constants';
+import {
+  DEFAULT_PROTECTED_ITEMS,
+  DEFAULT_SELL_ITEMS,
+  DEFAULT_SKIP_LOOT_ITEMS,
+} from '../domain/constants';
 import { normalizeItemName } from '../domain/state';
 import type { CatalogItem, CatalogSnapshot } from '../domain/types';
 
@@ -67,8 +71,32 @@ export function buildCatalogItems(snapshot: CatalogSnapshot = catalogSnapshot): 
       byId.set(id, {
         id,
         name,
-        category: 'unknown',
-        subtype: '系统保护基线',
+        category: 'other',
+        subtype: '插件推荐保护',
+        sources: [],
+      });
+    }
+  }
+  for (const name of DEFAULT_SELL_ITEMS) {
+    const id = normalizeItemName(name);
+    if (!byId.has(id)) {
+      byId.set(id, {
+        id,
+        name,
+        category: 'other',
+        subtype: '插件默认出售',
+        sources: [],
+      });
+    }
+  }
+  for (const name of DEFAULT_SKIP_LOOT_ITEMS) {
+    const id = normalizeItemName(name);
+    if (!byId.has(id)) {
+      byId.set(id, {
+        id,
+        name,
+        category: 'other',
+        subtype: '插件默认过滤',
         sources: [],
       });
     }

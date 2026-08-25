@@ -2,7 +2,7 @@ import type { ItemCategory, ItemState, WorkspaceFilters } from './types';
 
 export const APP_NAME = '剑网3掉落工坊';
 export const APP_NAME_EN = 'JX3 Loot Forge';
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.0.1';
 export const AUTHOR = '凌千羽·龙争虎斗';
 export const CLIENT = 'std' as const;
 export const WORKSPACE_STORAGE_KEY = 'jx3-loot-forge:workspace:v1';
@@ -66,10 +66,30 @@ export const DEFAULT_PROTECTED_ITEMS = [
   '溯·鸿',
 ] as const;
 
-export const LEGACY_DEFAULT_SELL_ITEMS = [
-  '下品长生丸', '下品凝神丸', '戏虎图·四', '戏虎图·三', '戏虎图·二', '戏虎图·一',
-  '剑客行·残页', '破碎的金玄玉', '大片真银叶子', '真银叶子', '银叶子·试炼之地',
-  '银叶子', '大片金叶子', '金粉末', '金叶子·美人图', '金叶子', '金条', '金砖', '金块',
+export const DEFAULT_SELL_ITEMS = [
+  '下品长生丸',
+  '下品凝神丸',
+  '戏虎图·四',
+  '戏虎图·三',
+  '戏虎图·二',
+  '戏虎图·一',
+  '剑客行·残页',
+  '破碎的金玄玉',
+  '大片真银叶子',
+  '真银叶子',
+  '银叶子·试炼之地',
+  '银叶子',
+  '大片金叶子',
+  '金粉末',
+  '金叶子·美人图',
+  '金叶子',
+  '金条',
+  '金砖',
+  '金块',
+] as const;
+
+export const DEFAULT_SKIP_LOOT_ITEMS = [
+  '金叶子',
 ] as const;
 
 export const MANAGED_PATHS = {

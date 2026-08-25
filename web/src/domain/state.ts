@@ -3,6 +3,8 @@ import {
   CATEGORY_LABELS,
   DEFAULT_FILTERS,
   DEFAULT_PROTECTED_ITEMS,
+  DEFAULT_SELL_ITEMS,
+  DEFAULT_SKIP_LOOT_ITEMS,
   EMPTY_ITEM_STATE,
 } from './constants';
 import type {
@@ -44,10 +46,28 @@ export function setStateField(state: ItemState, field: StateField, enabled: bool
 
 export function createInitialWorkspace(catalogVersion: string, now = new Date()): Workspace {
   const timestamp = now.toISOString();
-  const itemStates: Array<[string, ItemState]> = DEFAULT_PROTECTED_ITEMS.map((name) => [
-    normalizeItemName(name),
-    { skipLoot: false, autoSell: false, protect: true },
-  ]);
+  const stateMap = new Map<string, ItemState>();
+
+  // 1. 21 项默认推荐保护物品
+  for (const name of DEFAULT_PROTECTED_ITEMS) {
+    stateMap.set(normalizeItemName(name), { skipLoot: false, autoSell: false, protect: true });
+  }
+
+  // 2. 19 项插件默认自动出售物品
+  for (const name of DEFAULT_SELL_ITEMS) {
+    const key = normalizeItemName(name);
+    const existing = stateMap.get(key) ?? { skipLoot: false, autoSell: false, protect: false };
+    stateMap.set(key, { ...existing, autoSell: true, protect: false });
+  }
+
+  // 3. 插件默认跳过拾取物品（金叶子）
+  for (const name of DEFAULT_SKIP_LOOT_ITEMS) {
+    const key = normalizeItemName(name);
+    const existing = stateMap.get(key) ?? { skipLoot: false, autoSell: false, protect: false };
+    stateMap.set(key, { ...existing, skipLoot: true });
+  }
+
+  const itemStates: Array<[string, ItemState]> = Array.from(stateMap.entries());
 
   return {
     schemaVersion: 1,

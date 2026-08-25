@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PROTECTED_ITEMS, LEGACY_DEFAULT_SELL_ITEMS } from '../src/domain/constants';
+import {
+  DEFAULT_PROTECTED_ITEMS,
+  DEFAULT_SELL_ITEMS,
+  DEFAULT_SKIP_LOOT_ITEMS,
+} from '../src/domain/constants';
 import {
   createEmptyBulkRules,
   createInitialWorkspace,
@@ -20,13 +24,18 @@ describe('three-state domain model', () => {
     expect(state).toEqual({ skipLoot: true, autoSell: false, protect: true });
   });
 
-  it('initializes the exact editable 21-item protection baseline without legacy sell defaults', () => {
+  it('initializes the exact combined default configuration from plugin defaults', () => {
     const workspace = createInitialWorkspace('test', new Date('2026-08-23T00:00:00Z'));
     const states = stateMapFromWorkspace(workspace);
     expect(DEFAULT_PROTECTED_ITEMS).toHaveLength(21);
     expect(DEFAULT_PROTECTED_ITEMS).toContain('水长生 ·雪银莲');
     expect(states.get('水长生 ·雪银莲')).toEqual({ skipLoot: false, autoSell: false, protect: true });
-    for (const name of LEGACY_DEFAULT_SELL_ITEMS) expect(states.get(name)?.autoSell ?? false).toBe(false);
+    expect(DEFAULT_SELL_ITEMS).toHaveLength(19);
+    for (const name of DEFAULT_SELL_ITEMS) {
+      expect(states.get(name)?.autoSell).toBe(true);
+    }
+    expect(DEFAULT_SKIP_LOOT_ITEMS).toContain('金叶子');
+    expect(states.get('金叶子')).toEqual({ skipLoot: true, autoSell: true, protect: false });
   });
 
   it('does not rewrite the workspace modification time while loading valid saved state', () => {

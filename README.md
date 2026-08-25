@@ -6,7 +6,7 @@
 
 **全副本掉落智能管理 · 跳过拾取与自动出售一键合一配置工坊**
 
-[![Release](https://img.shields.io/badge/Release-v1.0.0-gold.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
+[![Release](https://img.shields.io/badge/Release-v1.0.1-gold.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
 [![Data Version](https://img.shields.io/badge/Data-丝路风雨--260823-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![Platform](https://img.shields.io/badge/Platform-JX3%20旗舰端-emerald.svg?style=flat-square)](https://jx3.xoyo.com)
 [![Offline Ready](https://img.shields.io/badge/Offline-100%25%20Single--File-blueviolet.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
@@ -31,6 +31,7 @@
 | 模块 | 特性说明 |
 | :--- | :--- |
 | ⚡ **合一配置导出 (独家)** | 将跳过拾取（`MY_GKPLoot`）与自动出售/保护（`MY_AutoSell`）合并为单一 `.us.jx3dat` 文件，游戏内点击一次导入全部生效。 |
+| 🎮 **默认插件配置全量对齐** | 完美内嵌茗伊默认的 21 项珍品推荐保护、19 项默认出售杂物及默认跳过拾取（金叶子），与游戏插件默认行为保持 100% 一致。 |
 | 🎯 **全量精准数据覆盖** | 覆盖 70~130 级全赛季 254 个副本，细化分类“装备”“兑换牌”“特殊掉落”“大铁”“小铁”“宠物”“家具”“附魔”等实用大类。 |
 | 📦 **100% 离线单文件运行** | 零网络依赖、零服务器需求，独立单文件 `剑网3掉落工坊.html` 双击即用，自带全部数据与水墨图标，极易发群分享。 |
 | ✨ **用户自定义物品体系** | 支持任意自定义物品录入，独立受控，绝不受任何批量规则误伤，左侧专属【✨ 用户自定义】顶层管理节点。 |
