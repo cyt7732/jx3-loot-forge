@@ -32,9 +32,20 @@ if not exist "node_modules\." (
     )
 )
 
-echo [INFO] Starting the web app...
-call npm run dev
-set "DEV_EXIT=%ERRORLEVEL%"
-echo [INFO] The web app stopped with exit code %DEV_EXIT%.
+if not exist "dist\server\index.js" (
+    echo [INFO] No production build found. Building it once for the fast launcher...
+    call npm run build
+    if errorlevel 1 (
+        echo [ERROR] Production build failed.
+        pause
+        exit /b 1
+    )
+)
+
+echo [INFO] Starting the optimized production server at http://localhost:3000/...
+echo [INFO] For development with hot reload, run: npm run dev
+call npm run start -- --hostname localhost
+set "SERVER_EXIT=%ERRORLEVEL%"
+echo [INFO] The web app stopped with exit code %SERVER_EXIT%.
 pause
-exit /b %DEV_EXIT%
+exit /b %SERVER_EXIT%

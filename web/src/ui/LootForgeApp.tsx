@@ -1,7 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildCatalogItems, catalogSnapshot } from '../catalog';
+import {
+  buildCatalogItems,
+  CATALOG_LEVEL_GROUPS,
+  catalogSnapshot,
+  groupMapsByDifficulty,
+  groupMapsByLevel,
+  getLevelGroup,
+  loadCatalogSnapshot,
+} from '../catalog';
 import { buildExportBatch } from '../config/exporter';
 import { parseManagedConfig, previewImport, validateItemName } from '../config/importer';
 import {
@@ -68,6 +76,9 @@ type ImportDraft = {
 
 type DialogName = 'custom' | 'workspace' | 'import' | 'bulk' | null;
 type Toast = { tone: 'success' | 'warning' | 'error'; message: string } | null;
+type ItemDisposition = 'none' | 'autoSell' | 'protect';
+type BulkDisposition = 'unchanged' | ItemDisposition;
+type BulkPreviewContext = { label: string; targetCount: number; resetRules: boolean } | null;
 
 const PAGE_SIZE = 100;
 const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS) as ItemCategory[];
@@ -114,6 +125,27 @@ function stateSummary(state: ItemState): string {
   return labels.length ? labels.join('、') : '未配置';
 }
 
+function itemDisposition(state: ItemState): ItemDisposition {
+  if (state.autoSell) return 'autoSell';
+  if (state.protect) return 'protect';
+  return 'none';
+}
+
+function createEquipmentBulkRules(disposition: Exclude<ItemDisposition, 'none'> | 'none'): BulkRuleSet {
+  const rules = createEmptyBulkRules();
+  if (disposition === 'autoSell') {
+    rules.equipment.autoSell = 'enable';
+    rules.equipment.protect = 'disable';
+  } else if (disposition === 'protect') {
+    rules.equipment.autoSell = 'disable';
+    rules.equipment.protect = 'enable';
+  } else {
+    rules.equipment.autoSell = 'disable';
+    rules.equipment.protect = 'disable';
+  }
+  return rules;
+}
+
 function shanghaiDateStamp(now = new Date()): string {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -127,13 +159,16 @@ function downloadBatchFile(file: { filename: string; bytes: Uint8Array }): void 
 
 export function LootForgeApp() {
   const [activeSnapshot, setActiveSnapshot] = useState(catalogSnapshot);
+  const [embeddedSnapshot, setEmbeddedSnapshot] = useState<CatalogSnapshot | null>(null);
   const [workspace, setWorkspace] = useState<Workspace>(() => createInitialWorkspace(catalogSnapshot.catalogVersion));
   const [hydrated, setHydrated] = useState(false);
+  const [catalogIndexed, setCatalogIndexed] = useState(false);
   const [scopeQuery, setScopeQuery] = useState('');
   const [dialog, setDialog] = useState<DialogName>(null);
   const [toast, setToast] = useState<Toast>(null);
   const [bulkRules, setBulkRules] = useState<BulkRuleSet>(() => createEmptyBulkRules());
   const [bulkPreview, setBulkPreview] = useState<BulkPreview | null>(null);
+  const [bulkPreviewContext, setBulkPreviewContext] = useState<BulkPreviewContext>(null);
   const [importDraft, setImportDraft] = useState<ImportDraft | null>(null);
   const [customInput, setCustomInput] = useState('');
   const [page, setPage] = useState(1);
@@ -143,25 +178,48 @@ export function LootForgeApp() {
   const dataPackInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setWorkspace(loadWorkspace(catalogSnapshot.catalogVersion));
-      setHydrated(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
     let cancelled = false;
-    void loadCatalogOverride().then((snapshot) => {
-      if (!cancelled && snapshot) {
-        setActiveSnapshot(snapshot);
-        setWorkspace((current) => ({ ...current, catalogVersion: snapshot.catalogVersion, updatedAt: new Date().toISOString() }));
+    let cancelIndexing: () => void = () => undefined;
+    const initialize = async () => {
+      try {
+        const [embedded, override] = await Promise.all([
+          loadCatalogSnapshot(),
+          loadCatalogOverride().catch(() => null),
+        ]);
+        if (cancelled) return;
+        setEmbeddedSnapshot(embedded);
+        setActiveSnapshot(override ?? embedded);
+        const restoredWorkspace = loadWorkspace(embedded.catalogVersion);
+        setWorkspace(override
+          ? { ...restoredWorkspace, catalogVersion: override.catalogVersion, updatedAt: new Date().toISOString() }
+          : restoredWorkspace);
+        setHydrated(true);
+
+        const markIndexed = () => {
+          if (!cancelled) setCatalogIndexed(true);
+        };
+        if (typeof window.requestIdleCallback === 'function') {
+          const idle = window.requestIdleCallback(markIndexed, { timeout: 150 });
+          cancelIndexing = () => window.cancelIdleCallback(idle);
+        } else {
+          const idle = window.setTimeout(markIndexed, 0);
+          cancelIndexing = () => window.clearTimeout(idle);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setHydrated(true);
+          setToast({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
+        }
       }
-    }).catch(() => undefined);
-    return () => { cancelled = true; };
+    };
+    void initialize();
+    return () => {
+      cancelled = true;
+      cancelIndexing();
+    };
   }, []);
 
-  const activeCatalogItems = useMemo(() => buildCatalogItems(activeSnapshot), [activeSnapshot]);
+  const activeCatalogItems = useMemo(() => (catalogIndexed ? buildCatalogItems(activeSnapshot) : []), [activeSnapshot, catalogIndexed]);
 
   useEffect(() => {
     if (hydrated) saveWorkspace(workspace);
@@ -258,16 +316,51 @@ export function LootForgeApp() {
   const selectedBosses = useMemo(() => new Set(workspace.selectedBossKeys), [workspace.selectedBossKeys]);
   const hasScope = selectedMaps.size > 0 || selectedBosses.size > 0;
 
-  const expansions = useMemo(() => {
-    const groups = new Map<string, CatalogMap[]>();
-    for (const map of activeSnapshot.maps) {
-      const current = groups.get(map.expansion) ?? [];
-      current.push(map);
-      groups.set(map.expansion, current);
-    }
-    return [...groups.entries()]
-      .map(([name, maps]) => ({ name, maps }))
-      .filter((group) => !scopeQuery || group.name.includes(scopeQuery) || group.maps.some((map) => map.name.includes(scopeQuery) || map.difficulty.includes(scopeQuery) || map.bossNames.some((boss) => boss.includes(scopeQuery))));
+  const mapSelection = (map: CatalogMap) => {
+    if (selectedMaps.has(map.mapId)) return { full: true, partial: false };
+    const selectedBossCount = map.bossNames.reduce((count, boss) => count + (selectedBosses.has(sourceKey(map.mapId, boss)) ? 1 : 0), 0);
+    return {
+      full: map.bossNames.length > 0 && selectedBossCount === map.bossNames.length,
+      partial: selectedBossCount > 0 && selectedBossCount < map.bossNames.length,
+    };
+  };
+
+  const mapsSelection = (maps: CatalogMap[]) => {
+    const selectedMapCount = maps.filter((map) => selectedMaps.has(map.mapId)).length;
+    const fullCount = maps.filter((map) => mapSelection(map).full).length;
+    const partial = maps.some((map) => mapSelection(map).partial);
+    return {
+      selectedMapCount,
+      full: maps.length > 0 && fullCount === maps.length,
+      partial: partial || (fullCount > 0 && fullCount < maps.length),
+    };
+  };
+
+  const levelGroups = useMemo(() => {
+    const query = scopeQuery.trim();
+    return groupMapsByLevel(activeSnapshot.maps)
+      .map((levelGroup) => {
+        const levelMatches = !query
+          || levelGroup.label.includes(query)
+          || levelGroup.name.includes(query)
+          || levelGroup.expansions.some((expansion) => expansion.includes(query));
+        const difficultyGroups = groupMapsByDifficulty(levelGroup.maps)
+          .map((difficultyGroup) => {
+            const difficultyMatches = !query
+              || levelMatches
+              || difficultyGroup.label.includes(query)
+              || difficultyGroup.name.includes(query)
+              || difficultyGroup.difficulties.some((difficulty) => difficulty.includes(query));
+            const maps = difficultyGroup.maps.filter((map) => difficultyMatches
+              || map.name.includes(query)
+              || map.difficulty.includes(query)
+              || map.bossNames.some((boss) => boss.includes(query)));
+            return { ...difficultyGroup, maps };
+          })
+          .filter((difficultyGroup) => difficultyGroup.maps.length > 0);
+        return { ...levelGroup, maps: difficultyGroups.flatMap((group) => group.maps), difficultyGroups };
+      })
+      .filter((group) => group.maps.length > 0);
   }, [activeSnapshot.maps, scopeQuery]);
 
   const availableSlots = useMemo(() => {
@@ -328,6 +421,14 @@ export function LootForgeApp() {
     return { skipLoot, autoSell, protect, sourceLinks, repeatedNames };
   }, [filteredItems, stateMap]);
 
+  const categoryCounts = useMemo(() => {
+    const counts = Object.fromEntries(CATEGORY_ORDER.map((category) => [category, 0])) as Record<ItemCategory, number>;
+    for (const item of filteredItems) {
+      if (!item.customOverride && !item.systemSeed && !item.historical) counts[item.category] += 1;
+    }
+    return counts;
+  }, [filteredItems]);
+
   const commitStateMap = (nextMap: Map<string, ItemState>, keepUndo = true) => {
     if (keepUndo) setUndoWorkspace(workspace);
     setWorkspace((current) => workspaceWithStateMap(current, nextMap));
@@ -337,6 +438,23 @@ export function LootForgeApp() {
     const next = new Map(stateMap);
     const before = cloneState(next.get(item.id));
     next.set(item.id, setStateField(before, field, !before[field]));
+    commitStateMap(next);
+  };
+
+  const setItemDisposition = (item: ViewItem, disposition: ItemDisposition) => {
+    const next = new Map(stateMap);
+    let nextState = cloneState(next.get(item.id));
+    if (disposition === 'autoSell') {
+      nextState = setStateField(nextState, 'protect', false);
+      nextState = setStateField(nextState, 'autoSell', true);
+    } else if (disposition === 'protect') {
+      nextState = setStateField(nextState, 'autoSell', false);
+      nextState = setStateField(nextState, 'protect', true);
+    } else {
+      nextState = setStateField(nextState, 'autoSell', false);
+      nextState = setStateField(nextState, 'protect', false);
+    }
+    next.set(item.id, nextState);
     commitStateMap(next);
   };
 
@@ -367,10 +485,12 @@ export function LootForgeApp() {
     });
   };
 
-  const toggleExpansion = (maps: CatalogMap[]) => {
+  const toggleMapGroup = (maps: CatalogMap[]) => {
     setWorkspace((current) => {
       const selected = new Set(current.selectedMapIds);
-      const allSelected = maps.every((map) => selected.has(map.mapId));
+      const bosses = new Set(current.selectedBossKeys);
+      const allSelected = maps.length > 0 && maps.every((map) => selected.has(map.mapId)
+        || (map.bossNames.length > 0 && map.bossNames.every((boss) => bosses.has(sourceKey(map.mapId, boss)))));
       for (const map of maps) {
         if (allSelected) selected.delete(map.mapId);
         else selected.add(map.mapId);
@@ -379,7 +499,7 @@ export function LootForgeApp() {
       return {
         ...current,
         selectedMapIds: [...selected],
-        selectedBossKeys: current.selectedBossKeys.filter((key) => !mapIds.has(Number(key.split(':')[0]))),
+        selectedBossKeys: [...bosses].filter((key) => !mapIds.has(Number(key.split(':')[0]))),
         updatedAt: new Date().toISOString(),
       };
     });
@@ -410,17 +530,70 @@ export function LootForgeApp() {
     });
   };
 
+  const bulkDisposition = (category: ItemCategory): BulkDisposition => {
+    const rules = bulkRules[category];
+    if (rules.autoSell === 'unchanged' && rules.protect === 'unchanged') return 'unchanged';
+    if (rules.autoSell === 'enable' && rules.protect !== 'enable') return 'autoSell';
+    if (rules.protect === 'enable' && rules.autoSell !== 'enable') return 'protect';
+    if (rules.autoSell === 'disable' && rules.protect === 'disable') return 'none';
+    return 'unchanged';
+  };
+
+  const setBulkDisposition = (category: ItemCategory, disposition: BulkDisposition) => {
+    setBulkRules((current) => {
+      const next = { ...current[category] };
+      if (disposition === 'unchanged') {
+        next.autoSell = 'unchanged';
+        next.protect = 'unchanged';
+      } else if (disposition === 'autoSell') {
+        next.autoSell = 'enable';
+        next.protect = 'disable';
+      } else if (disposition === 'protect') {
+        next.autoSell = 'disable';
+        next.protect = 'enable';
+      } else {
+        next.autoSell = 'disable';
+        next.protect = 'disable';
+      }
+      return { ...current, [category]: next };
+    });
+  };
+
+  const openPreviewFor = (items: ViewItem[], rules: BulkRuleSet, label: string, resetRules = false) => {
+    const preview = previewBulkRules(items, stateMap, customOverrides, rules);
+    setBulkPreview(preview);
+    setBulkPreviewContext({ label, targetCount: items.length, resetRules });
+    setDialog('bulk');
+  };
+
   const openBulkPreview = () => {
     const scopedItems = filteredItems.filter((item) => !item.systemSeed && !item.historical);
-    const preview = previewBulkRules(scopedItems, stateMap, customOverrides, bulkRules);
-    setBulkPreview(preview);
-    setDialog('bulk');
+    openPreviewFor(scopedItems, bulkRules, '按类型批量规则', true);
+  };
+
+  const openQuickBulkPreview = (kind: 'lowerLevels' | 'scopeAutoSell' | 'scopeProtect' | 'scopeNone') => {
+    const officialEquipment = allItems.filter((item) => item.category === 'equipment' && !item.customOverride && !item.systemSeed && !item.historical);
+    const scopedEquipment = officialEquipment.filter(sourceMatchesScope);
+    const maxLevel = Math.max(...CATALOG_LEVEL_GROUPS.map((group) => group.level ?? Number.NEGATIVE_INFINITY));
+    const lowerLevelEquipment = officialEquipment.filter((item) => {
+      const sourceLevels = item.sources.map((source) => getLevelGroup(source.expansion).level).filter((level): level is number => level !== null);
+      return sourceLevels.length > 0 && Math.max(...sourceLevels) < maxLevel;
+    });
+    const presets: Record<typeof kind, { items: ViewItem[]; disposition: ItemDisposition; label: string }> = {
+      lowerLevels: { items: lowerLevelEquipment, disposition: 'autoSell', label: '除当前最高等级外的所有等级装备 → 自动出售' },
+      scopeAutoSell: { items: scopedEquipment, disposition: 'autoSell', label: '当前选择范围的装备 → 自动出售' },
+      scopeProtect: { items: scopedEquipment, disposition: 'protect', label: '当前选择范围的装备 → 保护不出售' },
+      scopeNone: { items: scopedEquipment, disposition: 'none', label: '当前选择范围的装备 → 不做特殊处理' },
+    };
+    const preset = presets[kind];
+    openPreviewFor(preset.items, createEquipmentBulkRules(preset.disposition), preset.label);
   };
 
   const applyBulkPreview = () => {
     if (!bulkPreview) return;
     commitStateMap(applyChanges(stateMap, bulkPreview.changes));
-    setBulkRules(createEmptyBulkRules());
+    if (bulkPreviewContext?.resetRules) setBulkRules(createEmptyBulkRules());
+    setBulkPreviewContext(null);
     setDialog(null);
     setToast({ tone: 'success', message: `已应用 ${bulkPreview.changes.length} 项变更，并保留一步撤销。` });
   };
@@ -479,6 +652,7 @@ export function LootForgeApp() {
 
   const exportFiles = (kind: 'pickup' | 'sell' | 'both') => {
     try {
+      if (!catalogIndexed) throw new Error('数据目录仍在建立索引，请稍候再导出。');
       const batch = buildExportBatch(createNamedStates());
       if (kind === 'pickup' || kind === 'both') downloadBatchFile(batch.pickup);
       if (kind === 'sell') downloadBatchFile(batch.sell);
@@ -550,6 +724,7 @@ export function LootForgeApp() {
   const activateCatalog = async (snapshot: CatalogSnapshot, message: string) => {
     await saveCatalogOverride(snapshot);
     setActiveSnapshot(snapshot);
+    setCatalogIndexed(true);
     setWorkspace((current) => ({ ...current, catalogVersion: snapshot.catalogVersion, updatedAt: new Date().toISOString() }));
     setDialog(null);
     setToast({ tone: 'success', message });
@@ -590,9 +765,11 @@ export function LootForgeApp() {
   };
 
   const restoreEmbeddedCatalog = async () => {
+    if (!embeddedSnapshot) return;
     await clearCatalogOverride();
-    setActiveSnapshot(catalogSnapshot);
-    setWorkspace((current) => ({ ...current, catalogVersion: catalogSnapshot.catalogVersion, updatedAt: new Date().toISOString() }));
+    setActiveSnapshot(embeddedSnapshot);
+    setCatalogIndexed(true);
+    setWorkspace((current) => ({ ...current, catalogVersion: embeddedSnapshot.catalogVersion, updatedAt: new Date().toISOString() }));
     setToast({ tone: 'success', message: '已恢复随离线包附带的数据目录。' });
   };
 
@@ -639,10 +816,10 @@ export function LootForgeApp() {
           </div>
         </div>
         <div className="header-actions">
-          <span className="data-badge" title={activeSnapshot.contentHash}><i /> 旗舰端 · {activeSnapshot.stats.uniqueItems.toLocaleString('zh-CN')} 项</span>
+          <span className="data-badge" title={activeSnapshot.contentHash}><i /> {catalogIndexed ? `旗舰端 · ${activeSnapshot.stats.uniqueItems.toLocaleString('zh-CN')} 项` : '目录载入中…'}</span>
           <button className="button ghost" type="button" onClick={() => setDialog('workspace')}>工作区</button>
           <button className="button ghost" type="button" onClick={() => configInputRef.current?.click()}>导入配置</button>
-          <button className="button primary" type="button" onClick={() => exportFiles('both')}>导出文件</button>
+          <button className="button primary" type="button" disabled={!catalogIndexed} onClick={() => exportFiles('both')}>导出文件</button>
         </div>
       </header>
 
@@ -661,32 +838,48 @@ export function LootForgeApp() {
           )}
           <div className="scope-actions">
             <button type="button" onClick={() => setWorkspace((current) => ({ ...current, selectedMapIds: activeSnapshot.maps.map((map) => map.mapId), selectedBossKeys: [] }))}>全选副本</button>
-            <button type="button" onClick={() => setWorkspace((current) => ({ ...current, selectedMapIds: [], selectedBossKeys: [] }))}>查看全部</button>
+            <button type="button" title="清除左侧的副本和 Boss 选择，主区显示完整目录" aria-label="清除范围并查看全部副本" onClick={() => setWorkspace((current) => ({ ...current, selectedMapIds: [], selectedBossKeys: [] }))}>清除范围</button>
           </div>
           <nav className="dungeon-tree" aria-label="副本范围">
-            {expansions.map((group) => {
-              const selectedCount = group.maps.filter((map) => selectedMaps.has(map.mapId)).length;
+            {levelGroups.map((levelGroup) => {
+              const levelSelection = mapsSelection(levelGroup.maps);
               return (
-                <details className="tree-group" key={group.name} open={scopeQuery ? true : undefined}>
-                  <summary className={selectedCount ? 'active' : ''}>
-                    <button className={`tree-check ${selectedCount === group.maps.length ? 'checked' : ''}`} type="button" aria-label={`切换${group.name}全部副本`} onClick={(event) => { event.preventDefault(); toggleExpansion(group.maps); }}>{selectedCount === 0 ? '' : selectedCount === group.maps.length ? '✓' : '−'}</button>
-                    <span>{group.name}</span><small>{selectedCount}/{group.maps.length}</small><b>⌄</b>
+                <details className="tree-group level-group" key={levelGroup.id} open={scopeQuery ? true : undefined}>
+                  <summary className={levelSelection.full || levelSelection.partial ? 'active' : ''}>
+                    <button className={`tree-check ${levelSelection.full ? 'checked' : levelSelection.partial ? 'partial' : ''}`} type="button" aria-pressed={levelSelection.full} aria-label={`切换${levelGroup.label}全部副本`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMapGroup(levelGroup.maps); }}>{levelSelection.full ? '✓' : levelSelection.partial ? '−' : ''}</button>
+                    <span>{levelGroup.label}</span><small>{levelSelection.selectedMapCount}/{levelGroup.maps.length}</small><b>⌄</b>
                   </summary>
-                  <div className="tree-children map-children">
-                    {group.maps.map((map) => (
-                      <details className="map-node" key={map.mapId}>
-                        <summary>
-                          <button className={`tree-check ${selectedMaps.has(map.mapId) ? 'checked' : ''}`} type="button" aria-label={`切换${map.name}${map.difficulty}`} onClick={(event) => { event.preventDefault(); toggleMap(map.mapId); }}>{selectedMaps.has(map.mapId) ? '✓' : ''}</button>
-                          <span><strong>{map.name}</strong><em>{map.difficulty}</em></span><small>{map.bossNames.length} Boss</small><b>⌄</b>
-                        </summary>
-                        <div className="boss-list">
-                          {map.bossNames.map((boss) => {
-                            const selected = selectedBosses.has(sourceKey(map.mapId, boss));
-                            return <button className={selected ? 'selected' : ''} type="button" key={boss} onClick={() => toggleBoss(map.mapId, boss)}>{boss}</button>;
-                          })}
-                        </div>
-                      </details>
-                    ))}
+                  <div className="tree-children difficulty-children">
+                    {levelGroup.difficultyGroups.map((difficultyGroup) => {
+                      const difficultySelection = mapsSelection(difficultyGroup.maps);
+                      return (
+                        <details className="difficulty-node" key={difficultyGroup.id} open={scopeQuery ? true : undefined}>
+                          <summary className={`tree-parent ${difficultySelection.full || difficultySelection.partial ? 'active' : ''}`}>
+                            <button className={`tree-check ${difficultySelection.full ? 'checked' : difficultySelection.partial ? 'partial' : ''}`} type="button" aria-pressed={difficultySelection.full} aria-label={`切换${levelGroup.label}${difficultyGroup.label}全部副本`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMapGroup(difficultyGroup.maps); }}>{difficultySelection.full ? '✓' : difficultySelection.partial ? '−' : ''}</button>
+                            <span>{difficultyGroup.label}</span><small>{difficultySelection.selectedMapCount}/{difficultyGroup.maps.length}</small><b>⌄</b>
+                          </summary>
+                          <div className="tree-children map-children">
+                            {difficultyGroup.maps.map((map) => {
+                              const mapState = mapSelection(map);
+                              return (
+                                <details className="map-node" key={map.mapId}>
+                                  <summary className={mapState.full || mapState.partial ? 'active' : ''}>
+                                    <button className={`tree-check ${mapState.full ? 'checked' : mapState.partial ? 'partial' : ''}`} type="button" aria-pressed={mapState.full} aria-label={`切换${map.name}${map.difficulty}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMap(map.mapId); }}>{mapState.full ? '✓' : mapState.partial ? '−' : ''}</button>
+                                    <span><strong>{map.name}</strong><em>{map.expansion} · {map.difficulty}</em></span><small>{map.bossNames.length} Boss</small><b>⌄</b>
+                                  </summary>
+                                  <div className="boss-list">
+                                    {map.bossNames.map((boss) => {
+                                      const selected = selectedBosses.has(sourceKey(map.mapId, boss));
+                                      return <button className={selected ? 'selected' : ''} type="button" key={boss} aria-pressed={selected} onClick={() => toggleBoss(map.mapId, boss)}>{boss}</button>;
+                                    })}
+                                  </div>
+                                </details>
+                              );
+                            })}
+                          </div>
+                        </details>
+                      );
+                    })}
                   </div>
                 </details>
               );
@@ -734,17 +927,36 @@ export function LootForgeApp() {
               <div className="section-actions"><button className="button ghost compact" type="button" onClick={() => setBulkRules(createEmptyBulkRules())}>重置规则</button><button className="button primary compact" type="button" onClick={openBulkPreview}>预览并应用</button></div>
             </div>
             <div className="rule-matrix" role="table" aria-label="物品类型批量规则">
-              <div className="matrix-row matrix-head" role="row"><span>物品类型</span><span>跳过拾取</span><span>自动出售</span><span>保护不出售</span></div>
+              <div className="matrix-row matrix-head" role="row"><span>物品类型</span><span>跳过拾取</span><span>出售策略</span></div>
               {CATEGORY_ORDER.map((category) => (
                 <div className="matrix-row" role="row" key={category}>
-                  <strong>{CATEGORY_LABELS[category]}<small>{filteredItems.filter((item) => item.category === category && !item.customOverride && !item.systemSeed && !item.historical).length} 项</small></strong>
-                  {(['skipLoot', 'autoSell', 'protect'] as StateField[]).map((field) => {
-                    const directive = bulkRules[category][field];
-                    return <button className={`rule-directive ${directive} ${field}`} type="button" key={field} onClick={() => cycleRule(category, field)}>{DIRECTIVE_LABELS[directive]}</button>;
-                  })}
+                  <strong>{CATEGORY_LABELS[category]}<small>{categoryCounts[category]} 项</small></strong>
+                  {(() => {
+                    const directive = bulkRules[category].skipLoot;
+                    return <button className={`rule-directive ${directive} skipLoot`} type="button" aria-label={`${CATEGORY_LABELS[category]}跳过拾取：${DIRECTIVE_LABELS[directive]}`} onClick={() => cycleRule(category, 'skipLoot')}>{DIRECTIVE_LABELS[directive]}</button>;
+                  })()}
+                  <div className="segmented bulk-strategy" role="group" aria-label={`${CATEGORY_LABELS[category]}出售策略`}>
+                    {([
+                      ['unchanged', '保持现状'],
+                      ['none', '未处理'],
+                      ['autoSell', '自动出售'],
+                      ['protect', '保护不出售'],
+                    ] as const).map(([disposition, label]) => (
+                      <button className={`bulk-strategy-option ${bulkDisposition(category) === disposition ? 'on' : ''} ${disposition}`} type="button" key={disposition} aria-pressed={bulkDisposition(category) === disposition} onClick={() => setBulkDisposition(category, disposition)}>{label}</button>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
+            <details className="quick-config">
+              <summary><span><strong>快速配置</strong><small>先生成差异预览，确认后原子应用，可撤销</small></span><b>⌄</b></summary>
+              <div className="quick-config-grid">
+                <button type="button" onClick={() => openQuickBulkPreview('lowerLevels')}><strong>低等级装备</strong><span>除当前最高等级外的所有等级 → 自动出售</span></button>
+                <button type="button" onClick={() => openQuickBulkPreview('scopeAutoSell')}><strong>当前范围</strong><span>当前选择范围的装备 → 自动出售</span></button>
+                <button type="button" onClick={() => openQuickBulkPreview('scopeProtect')}><strong>当前范围</strong><span>当前选择范围的装备 → 保护不出售</span></button>
+                <button type="button" onClick={() => openQuickBulkPreview('scopeNone')}><strong>清除策略</strong><span>当前选择范围的装备 → 不做特殊处理</span></button>
+              </div>
+            </details>
             <div className="rule-note"><span>!</span> 新目录物品不会自动继承批量规则；“开启自动出售/保护”会原子关闭其互斥状态。</div>
           </section>
 
@@ -754,7 +966,7 @@ export function LootForgeApp() {
               <span className="range-count">{filteredItems.length ? `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, filteredItems.length)}` : '0'} / {filteredItems.length}</span>
             </div>
             <div className="item-table" role="table" aria-label="物品状态列表">
-              <div className="item-row item-head" role="row"><span>物品与来源</span><span>类型 / 品质</span><span>跳过拾取</span><span>自动出售</span><span>保护</span></div>
+              <div className="item-row item-head" role="row"><span>物品与来源</span><span>类型 / 品质</span><span>跳过拾取</span><span>出售策略</span></div>
               {visibleItems.map((item) => {
                 const state = cloneState(stateMap.get(item.id));
                 const source = item.sources[0];
@@ -768,8 +980,7 @@ export function LootForgeApp() {
                     </div>
                     <span className={`category-pill quality-${item.qualityMax ?? item.quality ?? 0}`}>{CATEGORY_LABELS[item.category]}{item.subtype ? ` · ${item.subtype}` : ''}{item.itemLevelMax ? ` · ${item.itemLevelMin === item.itemLevelMax ? item.itemLevelMax : `${item.itemLevelMin}–${item.itemLevelMax}`}` : ''}</span>
                     <StateButton field="skipLoot" state={state} onClick={() => toggleItemState(item, 'skipLoot')} />
-                    <StateButton field="autoSell" state={state} onClick={() => toggleItemState(item, 'autoSell')} />
-                    <StateButton field="protect" state={state} onClick={() => toggleItemState(item, 'protect')} />
+                    <DispositionSelector disposition={itemDisposition(state)} onChange={(disposition) => setItemDisposition(item, disposition)} />
                   </div>
                 );
               })}
@@ -781,8 +992,8 @@ export function LootForgeApp() {
       </div>
 
       <footer className="export-dock glass-panel">
-        <div><span className="fingerprint-dot" /><p><strong>{hydrated ? '配置已自动保存在本地' : '正在恢复本地工作区…'}</strong><small>{undoWorkspace ? '最近一次变更可以撤销' : '同一批导出共享指纹与时间戳'}</small></p>{undoWorkspace && <button className="text-button" type="button" onClick={() => { setWorkspace(undoWorkspace); setUndoWorkspace(null); setToast({ tone: 'success', message: '已撤销最近一次变更。' }); }}>撤销</button>}</div>
-        <div className="dock-actions"><button className="button ghost" type="button" onClick={() => exportFiles('pickup')}>下载跳过拾取</button><button className="button ghost" type="button" onClick={() => exportFiles('sell')}>下载自动出售</button><button className="button primary" type="button" onClick={() => exportFiles('both')}>两个都下载</button></div>
+        <div><span className="fingerprint-dot" /><p><strong>{!catalogIndexed ? '正在建立目录索引…' : hydrated ? '配置已自动保存在本地' : '正在恢复本地工作区…'}</strong><small>{undoWorkspace ? '最近一次变更可以撤销' : '同一批导出共享指纹与时间戳'}</small></p>{undoWorkspace && <button className="text-button" type="button" onClick={() => { setWorkspace(undoWorkspace); setUndoWorkspace(null); setToast({ tone: 'success', message: '已撤销最近一次变更。' }); }}>撤销</button>}</div>
+        <div className="dock-actions"><button className="button ghost" type="button" disabled={!catalogIndexed} onClick={() => exportFiles('pickup')}>下载跳过拾取</button><button className="button ghost" type="button" disabled={!catalogIndexed} onClick={() => exportFiles('sell')}>下载自动出售</button><button className="button primary" type="button" disabled={!catalogIndexed} onClick={() => exportFiles('both')}>两个都下载</button></div>
       </footer>
 
       {dialog && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDialog(null); }}>
@@ -798,13 +1009,14 @@ export function LootForgeApp() {
             <button type="button" onClick={() => backupInputRef.current?.click()}><strong>导入工作区备份</strong><small>跨域名或移动离线文件后恢复上次状态</small></button>
             <button type="button" onClick={() => void checkCatalogUpdate()}><strong>检查数据更新</strong><small>在线版读取项目 manifest；离线版不会自动联网</small></button>
             <button type="button" onClick={() => dataPackInputRef.current?.click()}><strong>导入数据包</strong><small>校验 SHA-256 和完整性后保存到本机 IndexedDB</small></button>
-            {activeSnapshot.contentHash !== catalogSnapshot.contentHash && <button type="button" onClick={() => void restoreEmbeddedCatalog()}><strong>恢复内置数据目录</strong><small>保留物品选择，只切回随当前版本附带的快照</small></button>}
+            {embeddedSnapshot && activeSnapshot.contentHash !== embeddedSnapshot.contentHash && <button type="button" onClick={() => void restoreEmbeddedCatalog()}><strong>恢复内置数据目录</strong><small>保留物品选择，只切回随当前版本附带的快照</small></button>}
             <button className="danger-row" type="button" onClick={doResetWorkspace}><strong>重置工作区</strong><small>恢复 21 项首次保护基线，清除其他本地选择</small></button>
           </div>
           <p className="storage-note">清除浏览器 HTTP 缓存通常不会删除这里的数据；只有清除站点数据或主动重置才会移除。不同域名和不同 file:// 路径不会自动共享工作区。</p>
         </Modal>}
 
         {dialog === 'bulk' && bulkPreview && <Modal title="确认批量变更" eyebrow="DIFF PREVIEW" onClose={() => setDialog(null)}>
+          {bulkPreviewContext && <p className="modal-copy"><strong>{bulkPreviewContext.label}</strong> · 目标 {bulkPreviewContext.targetCount.toLocaleString('zh-CN')} 项；确认后保留一步撤销。</p>}
           <div className="preview-stats"><span><strong>{bulkPreview.changes.length}</strong> 项改变</span><span><strong>{bulkPreview.excludedCustom}</strong> 项自定义排除</span><span><strong>{bulkPreview.conflictsResolved}</strong> 个互斥处理</span></div>
           <div className="diff-list">
             {bulkPreview.changes.slice(0, 120).map((change) => <div key={change.id}><strong>{change.name}</strong><span>{stateSummary(change.before)} → {stateSummary(change.after)}</span></div>)}
@@ -833,6 +1045,21 @@ function StateButton({ field, state, onClick }: { field: StateField; state: Item
   const inactiveLabels: Record<StateField, string> = { skipLoot: '不跳过', autoSell: '不出售', protect: '未保护' };
   const activeLabels: Record<StateField, string> = { skipLoot: '已跳过', autoSell: '自动卖', protect: '已保护' };
   return <button className={`state-toggle ${field} ${enabled ? 'checked' : ''}`} aria-pressed={enabled} aria-label={`${STATE_LABELS[field]}：${enabled ? '开启' : '关闭'}`} onClick={onClick} type="button"><i />{enabled ? activeLabels[field] : inactiveLabels[field]}</button>;
+}
+
+function DispositionSelector({ disposition, onChange }: { disposition: ItemDisposition; onChange: (disposition: ItemDisposition) => void }) {
+  const options: Array<[ItemDisposition, string]> = [
+    ['none', '未处理'],
+    ['autoSell', '自动出售'],
+    ['protect', '保护不出售'],
+  ];
+  return (
+    <div className="segmented disposition-selector" role="group" aria-label="出售策略">
+      {options.map(([value, label]) => (
+        <button className={`disposition-option ${value} ${disposition === value ? 'on' : ''}`} type="button" key={value} aria-pressed={disposition === value} title={`出售策略：${label}`} onClick={() => onChange(value)}>{label}</button>
+      ))}
+    </div>
+  );
 }
 
 function Modal({ title, eyebrow, onClose, children }: { title: string; eyebrow: string; onClose: () => void; children: React.ReactNode }) {

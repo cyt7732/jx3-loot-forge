@@ -52,6 +52,43 @@ export type CatalogMap = {
   itemIds: string[];
 };
 
+export type CatalogLevelGroupId =
+  | 'lv-130'
+  | 'lv-120'
+  | 'lv-110'
+  | 'lv-100'
+  | 'lv-95'
+  | 'lv-90'
+  | 'lv-80'
+  | 'lv-70'
+  | 'unknown';
+
+export type CatalogLevelGroup = {
+  id: CatalogLevelGroupId;
+  level: number | null;
+  name: string;
+  title: string;
+  label: string;
+  expansions: readonly string[];
+};
+
+export type CatalogDifficultyGroupId =
+  | 'five'
+  | '10-normal'
+  | '10-hero'
+  | '10-challenge'
+  | '25-normal'
+  | '25-hero'
+  | '25-challenge'
+  | 'other';
+
+export type CatalogDifficultyGroup = {
+  id: CatalogDifficultyGroupId;
+  name: string;
+  label: string;
+  difficulties: readonly string[];
+};
+
 export type CatalogSnapshot = {
   schemaVersion: 1;
   client: Client;

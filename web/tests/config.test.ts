@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildExportBatch } from '../src/config/exporter';
 import { parseManagedConfig, previewImport } from '../src/config/importer';
 import { parseLuaChunk } from '../src/config/lua-parser';
-import { DEFAULT_PROTECTED_ITEMS } from '../src/domain/constants';
+import { APP_VERSION, DEFAULT_PROTECTED_ITEMS } from '../src/domain/constants';
 import { decodeGbk, encodeGbk } from '../src/encoding/gbk';
 
 const EXPECTED_PROTECTED_ITEMS = [
@@ -29,7 +29,7 @@ describe('GBK config export', () => {
       { name: '出售项', state: { skipLoot: false, autoSell: true, protect: false } },
       { name: '水长生 ·雪银莲', state: { skipLoot: false, autoSell: false, protect: true } },
     ], new Date('2026-08-23T12:15:42Z'));
-    expect(batch.fingerprint).toBe('『剑网3掉落工坊』 v0.1.1 by 凌千羽·龙争虎斗 <20260823_201542>');
+    expect(batch.fingerprint).toBe(`『剑网3掉落工坊』 v${APP_VERSION} by 凌千羽·龙争虎斗 <20260823_201542>`);
     expect(batch.pickup.filename.endsWith('.us.jx3dat')).toBe(true);
     expect(batch.sell.filename.endsWith('.us.jx3dat')).toBe(true);
     expect(batch.pickup.text.includes('\n')).toBe(false);
