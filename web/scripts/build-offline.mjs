@@ -22,7 +22,7 @@ function localAssetPath(reference) {
 
 await build({ configFile: resolve(PROJECT_DIR, 'vite.offline.config.ts') });
 let html = await readFile(TEMP_HTML, 'utf8');
-const stylesheetMatch = html.match(/<link rel="stylesheet"[^>]*href="([^"]+)"[^>]*>/u);
+const stylesheetMatch = html.match(/<link rel="stylesheet"[^>]*href="((?:\.\/|\/)?assets\/[^"]+)"[^>]*>/u);
 if (stylesheetMatch) {
   const css = await readFile(localAssetPath(stylesheetMatch[1]), 'utf8');
   html = html.replace(stylesheetMatch[0], () => `<style>${css.replace(/<\/style/giu, '<\\/style')}</style>`);

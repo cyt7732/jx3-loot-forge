@@ -86,7 +86,7 @@ type ImportDraft = {
 };
 
 type DialogName = 'custom' | 'workspace' | 'import' | null;
-type Toast = { tone: 'success' | 'warning' | 'error'; message: string } | null;
+type Toast = { tone: 'success' | 'warning' | 'error'; message: string; id?: number } | null;
 type ItemDisposition = 'none' | 'autoSell' | 'protect';
 
 const CATEGORY_ICONS: Record<ItemCategory, string> = {
@@ -184,9 +184,53 @@ export function LootForgeApp() {
   });
 
   useEffect(() => {
-    if (typeof document !== 'undefined') {
-      document.documentElement.setAttribute('data-font', fontTheme);
+    if (typeof document === 'undefined') return;
+
+    document.documentElement.setAttribute('data-font', fontTheme);
+
+    const fontLinks: Record<FontTheme, string[]> = {
+      misans: [
+        'https://cdn.jsdelivr.net/npm/misans@4.1.0/lib/Normal/MiSans-Regular.min.css',
+        'https://cdn.jsdelivr.net/npm/misans@4.1.0/lib/Normal/MiSans-Medium.min.css',
+        'https://cdn.jsdelivr.net/npm/misans@4.1.0/lib/Normal/MiSans-Bold.min.css',
+      ],
+      harmony: [
+        'https://cdn.jsdelivr.net/npm/harmonyos-sans-sc-webfont-splitted@1.1.0/dist/index.min.css',
+      ],
+      system: [],
+    };
+
+    fontLinks[fontTheme]?.forEach((url) => {
+      let link = document.querySelector<HTMLLinkElement>(`link[data-webfont="${url}"]`);
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = url;
+        link.setAttribute('data-webfont', url);
+        link.crossOrigin = 'anonymous';
+        document.head.appendChild(link);
+      }
+    });
+
+    let styleTag = document.getElementById('jx3-active-font-rule') as HTMLStyleElement | null;
+    if (!styleTag) {
+      styleTag = document.createElement('style');
+      styleTag.id = 'jx3-active-font-rule';
+      document.head.appendChild(styleTag);
     }
+
+    const fontStacks: Record<FontTheme, string> = {
+      misans: '"MiSans", "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei UI", sans-serif',
+      harmony: '"HarmonyOS Sans SC", "HarmonyOS Sans", "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "MiSans", "Microsoft YaHei UI", sans-serif',
+      system: '-apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif',
+    };
+
+    styleTag.textContent = `
+      html, body, button, input, select, textarea, .cat-info-cell strong, .workbench-heading h2, .panel-heading h2, .section-heading h2, .brand-line h1 {
+        font-family: ${fontStacks[fontTheme]} !important;
+      }
+    `;
+
     try {
       localStorage.setItem(FONT_THEME_STORAGE_KEY, fontTheme);
     } catch {}
@@ -939,7 +983,7 @@ export function LootForgeApp() {
               const nextTheme: FontTheme = fontTheme === 'misans' ? 'harmony' : fontTheme === 'harmony' ? 'system' : 'misans';
               setFontTheme(nextTheme);
               const target = FONT_THEMES.find((t) => t.id === nextTheme);
-              setToast({ tone: 'success', message: `界面字体已切换为：${target?.name}` });
+              setToast({ tone: 'success', message: `界面字体已切换为：${target?.name}`, id: Date.now() });
             }}
           >
             🔤 {FONT_THEMES.find((t) => t.id === fontTheme)?.label}
@@ -1413,7 +1457,7 @@ export function LootForgeApp() {
                   className={`font-theme-card ${fontTheme === theme.id ? 'active' : ''}`}
                   onClick={() => {
                     setFontTheme(theme.id);
-                    setToast({ tone: 'success', message: `已选用字体：${theme.name}` });
+                    setToast({ tone: 'success', message: `已选用字体：${theme.name}`, id: Date.now() });
                   }}
                 >
                   <div className="font-card-top">
@@ -1463,7 +1507,27 @@ export function LootForgeApp() {
         </Modal>}
       </div>}
 
-      {toast && <div className={`toast ${toast.tone}`} role="status" aria-live="polite">{toast.message}<button type="button" aria-label="关闭提示" onClick={() => setToast(null)}>×</button></div>}
+      {toast && (
+        <div className="toast-container" key={toast.id ?? toast.message}>
+          <div className={`toast-card ${toast.tone}`} role="status" aria-live="polite">
+            <div className={`toast-icon-badge ${toast.tone}`}>
+              {toast.tone === 'success' ? '✓' : toast.tone === 'warning' ? '⚡' : '✕'}
+            </div>
+            <div className="toast-content">
+              <span className="toast-text">{toast.message}</span>
+            </div>
+            <button
+              type="button"
+              className="toast-close-btn"
+              aria-label="关闭提示"
+              onClick={() => setToast(null)}
+            >
+              ✕
+            </button>
+            <div className={`toast-progress-bar ${toast.tone}`} />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
