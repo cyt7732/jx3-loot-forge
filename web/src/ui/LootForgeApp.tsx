@@ -146,6 +146,16 @@ function downloadBatchFile(file: { filename: string; bytes: Uint8Array }): void 
   downloadBytes(file.filename, file.bytes);
 }
 
+type FontTheme = 'misans' | 'harmony' | 'system';
+
+const FONT_THEME_STORAGE_KEY = 'jx3_lootforge_font_theme';
+
+const FONT_THEMES: Array<{ id: FontTheme; label: string; name: string; desc: string }> = [
+  { id: 'misans', label: 'MiSans', name: '小米 MiSans', desc: '小米兰亭现代屏幕黑体，字形开阔几何，游戏感与科技感极强（推荐）' },
+  { id: 'harmony', label: '鸿蒙黑体', name: '华为 HarmonyOS Sans', desc: '华为鸿蒙现代黑体，圆润清爽，暗色模式高对比度' },
+  { id: 'system', label: '苹方/系统', name: '苹果苹方 / 系统默认', desc: '苹果原厂苹方或 Windows 系统内置 Fluent 现代无衬线' },
+];
+
 export function LootForgeApp() {
   const [activeSnapshot, setActiveSnapshot] = useState(catalogSnapshot);
   const [embeddedSnapshot, setEmbeddedSnapshot] = useState<CatalogSnapshot | null>(null);
@@ -164,6 +174,24 @@ export function LootForgeApp() {
   const [drawerStateView, setDrawerStateView] = useState<'all' | 'configured' | 'unconfigured' | 'protected'>('all');
   const [drawerPage, setDrawerPage] = useState(1);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [fontTheme, setFontTheme] = useState<FontTheme>(() => {
+    if (typeof window === 'undefined') return 'misans';
+    try {
+      const saved = localStorage.getItem(FONT_THEME_STORAGE_KEY);
+      if (saved === 'misans' || saved === 'harmony' || saved === 'system') return saved;
+    } catch {}
+    return 'misans';
+  });
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-font', fontTheme);
+    }
+    try {
+      localStorage.setItem(FONT_THEME_STORAGE_KEY, fontTheme);
+    } catch {}
+  }, [fontTheme]);
+
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const configInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
@@ -903,6 +931,19 @@ export function LootForgeApp() {
               ↶ 撤销变更
             </button>
           )}
+          <button
+            className="button ghost font-picker-btn"
+            type="button"
+            title={`当前界面字体：${FONT_THEMES.find((t) => t.id === fontTheme)?.name}（点击循环切换对比：MiSans / 鸿蒙黑体 / 苹方系统）`}
+            onClick={() => {
+              const nextTheme: FontTheme = fontTheme === 'misans' ? 'harmony' : fontTheme === 'harmony' ? 'system' : 'misans';
+              setFontTheme(nextTheme);
+              const target = FONT_THEMES.find((t) => t.id === nextTheme);
+              setToast({ tone: 'success', message: `界面字体已切换为：${target?.name}` });
+            }}
+          >
+            🔤 {FONT_THEMES.find((t) => t.id === fontTheme)?.label}
+          </button>
           <button className="button ghost" type="button" onClick={() => setDialog('custom')}>＋ 自定义物品</button>
           <button className="button ghost" type="button" onClick={() => setDialog('workspace')}>工作区</button>
           <button className="button ghost" type="button" onClick={() => configInputRef.current?.click()}>导入配置</button>
@@ -1358,7 +1399,46 @@ export function LootForgeApp() {
               <small>清除所有个性化配置与自选记录，恢复系统推荐的默认珍品保护规则</small>
             </button>
           </div>
-          <p className="storage-note">💡 提示：您的所有设置都会实时自动保存在当前浏览器中，关闭页面不会丢失。建议在配置满意后导出备份文件，方便随时在其他设备一键恢复。</p>
+
+          <div className="font-theme-section">
+            <div className="font-theme-header">
+              <strong>🔤 界面字体外观偏好</strong>
+              <small>点击卡片即可实时预览不同现代中文字体的排版质感，选定后自动保存</small>
+            </div>
+            <div className="font-theme-grid">
+              {FONT_THEMES.map((theme) => (
+                <button
+                  key={theme.id}
+                  type="button"
+                  className={`font-theme-card ${fontTheme === theme.id ? 'active' : ''}`}
+                  onClick={() => {
+                    setFontTheme(theme.id);
+                    setToast({ tone: 'success', message: `已选用字体：${theme.name}` });
+                  }}
+                >
+                  <div className="font-card-top">
+                    <span className="font-card-title">{theme.name}</span>
+                    {fontTheme === theme.id && <span className="font-card-badge">当前使用</span>}
+                  </div>
+                  <div
+                    className="font-card-preview"
+                    style={{
+                      fontFamily: theme.id === 'misans'
+                        ? 'var(--font-misans)'
+                        : theme.id === 'harmony'
+                          ? 'var(--font-harmony)'
+                          : 'var(--font-system)',
+                    }}
+                  >
+                    剑网3掉落工坊 · 120级冷龙峰 0123456789
+                  </div>
+                  <small className="font-card-desc">{theme.desc}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <p className="storage-note">💡 提示：您的所有设置与字体偏好都会实时自动保存在当前浏览器中，关闭页面不会丢失。建议在配置满意后导出备份文件，方便随时在其他设备一键恢复。</p>
         </Modal>}
 
         {dialog === 'import' && importDraft && <Modal title="导入游戏配置文件" eyebrow="配置导入" onClose={() => setDialog(null)}>
