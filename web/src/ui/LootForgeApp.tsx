@@ -1117,16 +1117,12 @@ export function LootForgeApp() {
                 {categoryWorkbenchSummaries.map((catSummary) => {
                   const { category, total, skipLootCount, autoSellCount, protectCount, noneCount } = catSummary;
                   const allAutoSell = total > 0 && autoSellCount === total;
-                  const partialAutoSell = autoSellCount > 0 && autoSellCount < total;
                   const allProtect = total > 0 && protectCount === total;
-                  const partialProtect = protectCount > 0 && protectCount < total;
                   const allNone = total > 0 && noneCount === total;
-                  const partialNone = noneCount > 0 && noneCount < total;
                   const allSkip = total > 0 && skipLootCount === total;
-                  const partialSkip = skipLootCount > 0 && skipLootCount < total;
                   const allUnskip = total > 0 && skipLootCount === 0;
-                  const partialUnskip = total - skipLootCount > 0 && total - skipLootCount < total;
                   const isExpanded = expandedCategory === category;
+                  const isPureDefault = skipLootCount === 0 && autoSellCount === 0 && protectCount === 0;
 
                   return (
                     <div className={`cat-strat-group ${isExpanded ? 'is-expanded' : ''}`} key={category}>
@@ -1144,8 +1140,48 @@ export function LootForgeApp() {
                         >
                           <span className="cat-icon">{CATEGORY_ICONS[category]}</span>
                           <div className="cat-name-box">
-                            <strong>{CATEGORY_LABELS[category]}</strong>
-                            <span className="cat-count-badge">{total} 项</span>
+                            <div className="cat-name-row">
+                              <strong>{CATEGORY_LABELS[category]}</strong>
+                              <span className="cat-count-badge">{total} 项</span>
+                            </div>
+                            <div className="cat-status-pills">
+                              {isPureDefault && (
+                                <span className="status-pill pure-none">⚪ 全未处理</span>
+                              )}
+                              {!isPureDefault && allAutoSell && allUnskip && (
+                                <span className="status-pill pure-sell">🟠 全自动出售</span>
+                              )}
+                              {!isPureDefault && allProtect && allUnskip && (
+                                <span className="status-pill pure-protect">🟢 全保护</span>
+                              )}
+                              {!isPureDefault && allSkip && allNone && (
+                                <span className="status-pill pure-skip">🟣 全跳过拾取</span>
+                              )}
+                              {!isPureDefault && !(allAutoSell && allUnskip) && !(allProtect && allUnskip) && !(allSkip && allNone) && (
+                                <>
+                                  {skipLootCount > 0 && (
+                                    <span className="status-pill pill-skip" title={`当前范围有 ${skipLootCount} 项设为跳过拾取`}>
+                                      🟣 {skipLootCount} 跳过
+                                    </span>
+                                  )}
+                                  {autoSellCount > 0 && (
+                                    <span className="status-pill pill-sell" title={`当前范围有 ${autoSellCount} 项设为自动出售`}>
+                                      🟠 {autoSellCount} 售
+                                    </span>
+                                  )}
+                                  {protectCount > 0 && (
+                                    <span className="status-pill pill-protect" title={`当前范围有 ${protectCount} 项设为保护不出售`}>
+                                      🟢 {protectCount} 保
+                                    </span>
+                                  )}
+                                  {noneCount > 0 && (autoSellCount > 0 || protectCount > 0 || skipLootCount > 0) && (
+                                    <span className="status-pill pill-none" title={`当前范围有 ${noneCount} 项未设置出售策略`}>
+                                      ⚪ {noneCount} 未
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </div>
                           </div>
                           <span className={`drawer-toggle-arrow ${isExpanded ? 'open' : ''}`}>
                             {isExpanded ? '▴ 收起' : '▾ 明细'}
@@ -1160,7 +1196,7 @@ export function LootForgeApp() {
                               onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'skipLoot'); }}
                               title={`一键将当前范围全部 ${total} 项【${CATEGORY_LABELS[category]}】设为跳过拾取`}
                             >
-                              跳过拾取{partialSkip ? <small>({skipLootCount})</small> : ''}
+                              跳过拾取
                             </button>
                             <button
                               type="button"
@@ -1168,7 +1204,7 @@ export function LootForgeApp() {
                               onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'unskipLoot'); }}
                               title={`清除当前范围【${CATEGORY_LABELS[category]}】的跳过标记，恢复正常拾取`}
                             >
-                              正常拾取{partialUnskip ? <small>({total - skipLootCount})</small> : ''}
+                              正常拾取
                             </button>
                           </div>
                         </div>
@@ -1181,7 +1217,7 @@ export function LootForgeApp() {
                               onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'autoSell'); }}
                               title={`一键将当前范围全部 ${total} 项【${CATEGORY_LABELS[category]}】设为自动出售`}
                             >
-                              自动出售{partialAutoSell ? <small>({autoSellCount})</small> : ''}
+                              自动出售
                             </button>
                             <button
                               type="button"
@@ -1189,7 +1225,7 @@ export function LootForgeApp() {
                               onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'protect'); }}
                               title={`一键将当前范围全部 ${total} 项【${CATEGORY_LABELS[category]}】设为保护不出售`}
                             >
-                              保护不出售{partialProtect ? <small>({protectCount})</small> : ''}
+                              保护不出售
                             </button>
                             <button
                               type="button"
@@ -1197,7 +1233,7 @@ export function LootForgeApp() {
                               onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'none'); }}
                               title={`清除当前范围【${CATEGORY_LABELS[category]}】的出售/保护策略`}
                             >
-                              未处理{partialNone ? <small>({noneCount})</small> : ''}
+                              未处理
                             </button>
                           </div>
                         </div>
@@ -1206,6 +1242,11 @@ export function LootForgeApp() {
                       {isExpanded && (
                         <div className="cat-drawer-container">
                           <div className="cat-drawer-sticky-header">
+                            {((autoSellCount > 0 && autoSellCount < total) || (skipLootCount > 0 && skipLootCount < total)) && (
+                              <div className="drawer-cross-scope-tip">
+                                💡 当前分类包含跨副本通用掉落配置（{autoSellCount > 0 ? `${autoSellCount} 项自动出售` : ''}{autoSellCount > 0 && skipLootCount > 0 ? '、' : ''}{skipLootCount > 0 ? `${skipLootCount} 项跳过拾取` : ''}），如需统一策略可点击上方分类直选按钮。
+                              </div>
+                            )}
                             <div className="cat-drawer-toolbar">
                               <label className="drawer-search-box">
                                 <span>⌕</span>

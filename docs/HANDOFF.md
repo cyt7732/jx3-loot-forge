@@ -724,6 +724,7 @@ gh release create vX.Y.Z artifacts/jx3-loot-forge-vX.Y.Z-offline.zip --title "�
 1. **分类策略直选区域 UI 规范化重构（方案 A）**：将分段按钮解耦为纯操作语义，将局部状态统计下沉，彻底解决跨副本通用掉落引起的局部混合状态视觉不统一问题。
 2. **多端与 CI 自动化**：为 GitHub Actions 引入无头环境运行验证与多平台产物打包。
 3. **发版推送与 GitHub Release 联动不变量**：按 `docs/RELEASE_PROCESS.md` 4.7 节规定，只要用户指示执行发版并推送远端，**必须同步在 GitHub 上创建正式 Release 并上传离线分发压缩包（`jx3-loot-forge-vX.Y.Z-offline.zip`）**，不得仅推 Git Commit/Tag 而遗漏 Release。
+4. **更新日志与 Release Notes 语言规范**：按 `docs/RELEASE_PROCESS.md` 3.1 节规定，面向广大普通玩家采用通俗大白话编写，**严禁在对外日志或 GitHub Release 中包含 `P0/P1/P2/P3` 内部审查级别标签及晦涩代码术语**。
 
 ## 16. 信息来源优先级
 

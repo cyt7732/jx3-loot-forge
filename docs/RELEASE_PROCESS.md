@@ -52,10 +52,16 @@ Tag 规则：
 - 已发布 tag 不移动、不覆盖、不删除；发现问题时递增 `PATCH` 版本重新发布，例如 `v0.1.1`。
 - 候选版使用 `vMAJOR.MINOR.PATCH-rc.N`，例如 `v0.2.0-rc.1`。
 
-## 3. CHANGELOG 写法
+## 3. CHANGELOG 与 Release Notes 写法规范
 
 根目录 `CHANGELOG.md` 遵循 Keep a Changelog 风格，顶部保留 `[Unreleased]`，正式版本按发布日期倒序排列。每个版本只记录用户可感知或维护者需要关注的变化，不直接复制完整 commit 列表。
 
+### 3.1 编写原则与受众视角
+- **普通玩家视角优先**：更新日志主要面向广大剑网3玩家，必须使用通俗易懂的大白话概括功能改进与缺陷修复，让普通玩家能一眼看懂本次版本带来的实际变化。
+- **严禁内部审查标签**：**绝对不要在对外公开的 `CHANGELOG.md`、`RELEASE_NOTES.md` 或 GitHub Release 中出现 `P0/P1/P2/P3` 等内部审计级别标签**，也不要堆砌晦涩的代码实现细节或内部沟通代号。
+- **保持结构自洽**：重点突出数据安全、交互体验、功能新增及修复重点，简洁有力。
+
+### 3.2 分类规范
 可使用的分类如下，按内容需要保留：
 
 - `Added`：新增能力。
@@ -158,7 +164,7 @@ git status
    ```
 
 2. **创建 GitHub Release 并上传附件（固定动作）**：
-   使用 GitHub CLI 创建正式 Release，并只上传单一的标准英文命名离线压缩包：
+   使用 GitHub CLI 创建正式 Release，并只上传单一的标准英文命名离线压缩包（**注意**：`RELEASE_NOTES.md` 必须严格遵循 3.1 节面向普通玩家的通俗大白话规范，绝不包含 P 级标签或内部审查代码）：
    ```powershell
    gh release create vMAJOR.MINOR.PATCH artifacts/jx3-loot-forge-vMAJOR.MINOR.PATCH-offline.zip --title "剑网3掉落工坊 vMAJOR.MINOR.PATCH" --notes-file "artifacts/剑网3掉落工坊-vMAJOR.MINOR.PATCH/RELEASE_NOTES.md"
    ```
