@@ -1,6 +1,6 @@
 [package]
 name = "jx3-loot-forge"
-version = "1.0.4"
+version = "1.0.5"
 description = "剑网3掉落工坊"
 authors = ["凌千羽"]
 edition = "2021"
