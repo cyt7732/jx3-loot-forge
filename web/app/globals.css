@@ -186,19 +186,20 @@ kbd { padding: 2px 5px; border: 1px solid var(--border); border-radius: 4px; col
 .cat-info-cell:hover .drawer-toggle-arrow { background: var(--gold-soft); border-color: rgba(240,192,96,.45); }
 .drawer-toggle-arrow.open { background: var(--gold); color: #17130b; border-color: var(--gold); font-weight: 700; }
 
-/* Status Pills (Clean, High-Readability & Informative) */
-.cat-status-pills { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.status-pill { font-size: 11px; padding: 1px 6px; border-radius: 4px; font-weight: 500; font-family: "Cascadia Code", monospace; line-height: 1.4; display: inline-flex; align-items: center; gap: 2px; }
+/* Status Pills (Ultra-Clean, High-Readability & Informative Dot Badges) */
+.cat-status-pills { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.status-pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 1px 7px; border-radius: 999px; font-weight: 600; font-family: "Cascadia Code", "Fira Code", monospace; line-height: 1.5; background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .08); color: var(--text); transition: all .15s ease; user-select: none; cursor: default; }
 
-.status-pill.pure-none { background: rgba(255, 255, 255, .04); color: var(--weak); border: 1px solid rgba(255, 255, 255, .08); }
-.status-pill.pure-sell { background: rgba(248, 81, 73, .14); color: #ff7b72; border: 1px solid rgba(248, 81, 73, .3); font-weight: 600; }
-.status-pill.pure-protect { background: rgba(46, 160, 67, .14); color: #56d364; border: 1px solid rgba(46, 160, 67, .3); font-weight: 600; }
-.status-pill.pure-skip { background: rgba(56, 139, 253, .14); color: #79c0ff; border: 1px solid rgba(56, 139, 253, .3); font-weight: 600; }
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.dot-gray { background: #8b949e; box-shadow: 0 0 4px rgba(139, 148, 158, .4); }
+.dot-orange { background: #ff7b72; box-shadow: 0 0 5px rgba(248, 81, 73, .6); }
+.dot-green { background: #56d364; box-shadow: 0 0 5px rgba(46, 160, 67, .6); }
+.dot-blue { background: #79c0ff; box-shadow: 0 0 5px rgba(56, 139, 253, .6); }
 
-.status-pill.pill-skip { background: rgba(56, 139, 253, .14); color: #79c0ff; border: 1px solid rgba(56, 139, 253, .3); }
-.status-pill.pill-sell { background: rgba(248, 81, 73, .14); color: #ff7b72; border: 1px solid rgba(248, 81, 73, .3); }
-.status-pill.pill-protect { background: rgba(46, 160, 67, .14); color: #56d364; border: 1px solid rgba(46, 160, 67, .3); }
-.status-pill.pill-none { background: rgba(255, 255, 255, .05); color: #8b949e; border: 1px solid rgba(255, 255, 255, .1); }
+.status-pill.pill-sell { background: rgba(248, 81, 73, .12); border-color: rgba(248, 81, 73, .35); color: #ff7b72; }
+.status-pill.pill-protect { background: rgba(46, 160, 67, .12); border-color: rgba(46, 160, 67, .35); color: #56d364; }
+.status-pill.pill-skip { background: rgba(56, 139, 253, .12); border-color: rgba(56, 139, 253, .35); color: #79c0ff; }
+.status-pill.pill-none { background: rgba(255, 255, 255, .04); border-color: rgba(255, 255, 255, .1); color: #8b949e; }
 
 .drawer-cross-scope-tip { margin-bottom: 10px; padding: 6px 12px; background: rgba(240, 192, 96, .08); border: 1px solid rgba(240, 192, 96, .25); border-radius: 6px; font-size: var(--font-meta); color: var(--gold); line-height: 1.5; }
 

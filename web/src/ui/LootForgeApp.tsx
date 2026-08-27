@@ -1122,8 +1122,6 @@ export function LootForgeApp() {
                   const allSkip = total > 0 && skipLootCount === total;
                   const allUnskip = total > 0 && skipLootCount === 0;
                   const isExpanded = expandedCategory === category;
-                  const isPureDefault = skipLootCount === 0 && autoSellCount === 0 && protectCount === 0;
-
                   return (
                     <div className={`cat-strat-group ${isExpanded ? 'is-expanded' : ''}`} key={category}>
                       <div className="cat-strat-row" role="row">
@@ -1144,44 +1142,28 @@ export function LootForgeApp() {
                               <strong>{CATEGORY_LABELS[category]}</strong>
                               <span className="cat-count-badge">{total} 项</span>
                             </div>
-                            <div className="cat-status-pills">
-                              {isPureDefault && (
-                                <span className="status-pill pure-none">⚪ 全未处理</span>
-                              )}
-                              {!isPureDefault && allAutoSell && allUnskip && (
-                                <span className="status-pill pure-sell">🟠 全自动出售</span>
-                              )}
-                              {!isPureDefault && allProtect && allUnskip && (
-                                <span className="status-pill pure-protect">🟢 全保护</span>
-                              )}
-                              {!isPureDefault && allSkip && allNone && (
-                                <span className="status-pill pure-skip">🟣 全跳过拾取</span>
-                              )}
-                              {!isPureDefault && !(allAutoSell && allUnskip) && !(allProtect && allUnskip) && !(allSkip && allNone) && (
-                                <>
-                                  {skipLootCount > 0 && (
-                                    <span className="status-pill pill-skip" title={`当前范围有 ${skipLootCount} 项设为跳过拾取`}>
-                                      🟣 {skipLootCount} 跳过
-                                    </span>
-                                  )}
-                                  {autoSellCount > 0 && (
-                                    <span className="status-pill pill-sell" title={`当前范围有 ${autoSellCount} 项设为自动出售`}>
-                                      🟠 {autoSellCount} 售
-                                    </span>
-                                  )}
-                                  {protectCount > 0 && (
-                                    <span className="status-pill pill-protect" title={`当前范围有 ${protectCount} 项设为保护不出售`}>
-                                      🟢 {protectCount} 保
-                                    </span>
-                                  )}
-                                  {noneCount > 0 && (autoSellCount > 0 || protectCount > 0 || skipLootCount > 0) && (
-                                    <span className="status-pill pill-none" title={`当前范围有 ${noneCount} 项未设置出售策略`}>
-                                      ⚪ {noneCount} 未
-                                    </span>
-                                  )}
-                                </>
-                              )}
-                            </div>
+                            {(skipLootCount > 0 || autoSellCount > 0 || protectCount > 0) && (
+                              <div className="cat-status-pills">
+                                {skipLootCount > 0 && (
+                                  <span className="status-pill pill-skip" title={`当前范围有 ${skipLootCount} 项已设为跳过拾取`}>
+                                    <i className="pill-dot dot-blue" />
+                                    {skipLootCount}
+                                  </span>
+                                )}
+                                {autoSellCount > 0 && (
+                                  <span className="status-pill pill-sell" title={`当前范围有 ${autoSellCount} 项已设为自动出售`}>
+                                    <i className="pill-dot dot-orange" />
+                                    {autoSellCount}
+                                  </span>
+                                )}
+                                {protectCount > 0 && (
+                                  <span className="status-pill pill-protect" title={`当前范围有 ${protectCount} 项已设为保护不出售`}>
+                                    <i className="pill-dot dot-green" />
+                                    {protectCount}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <span className={`drawer-toggle-arrow ${isExpanded ? 'open' : ''}`}>
                             {isExpanded ? '▴ 收起' : '▾ 明细'}
