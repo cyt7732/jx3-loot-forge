@@ -26,3 +26,4 @@ Thumbs.db
 # Tauri desktop build artifacts
 /web/src-tauri/target/
 /dist-exe/
+/*.exe

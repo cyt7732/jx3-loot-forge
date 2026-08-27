@@ -3,15 +3,15 @@ setlocal
 
 cd /d "%~dp0"
 
-if exist "剑网3掉落工坊.html" (
-    echo [INFO] 正在打开离线版 剑网3掉落工坊...
-    start "" "%~dp0剑网3掉落工坊.html"
+for %%F in ("%~dp0剑网3掉落工坊*.exe") do (
+    echo [INFO] 正在启动 剑网3掉落工坊 桌面版 (%%~nxF)...
+    start "" "%%~fF"
     exit /b 0
 )
 
-if exist "web\dist\offline\index.html" (
+if exist "剑网3掉落工坊.html" (
     echo [INFO] 正在打开离线版 剑网3掉落工坊...
-    start "" "%~dp0web\dist\offline\index.html"
+    start "" "%~dp0剑网3掉落工坊.html"
     exit /b 0
 )
 
