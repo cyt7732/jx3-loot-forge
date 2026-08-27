@@ -15,7 +15,9 @@
     "test": "vitest run --config vitest.config.ts",
     "crawl:catalog": "node scripts/crawl-catalog.mjs",
     "reclassify:catalog": "node scripts/reclassify-catalog.mjs",
-    "check": "npm run typecheck && npm run lint && npm run test && npm run build && npm run build:offline"
+    "check": "npm run typecheck && npm run lint && npm run test && npm run build && npm run build:offline",
+    "icon:tauri": "node scripts/generate-tauri-icons.mjs",
+    "tauri": "tauri"
   },
   "dependencies": {
     "next": "16.3.2",
@@ -27,6 +29,7 @@
     "@cloudflare/workers-types": "5.20260823.1",
     "@openai/sites-vite-plugin": "^0.1.0 || ^0.2.0",
     "@tailwindcss/postcss": "4.2.1",
+    "@tauri-apps/cli": "^2.11.4",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",

@@ -22,3 +22,7 @@
 .DS_Store
 Thumbs.db
 *.log
+
+# Tauri desktop build artifacts
+/web/src-tauri/target/
+/dist-exe/
