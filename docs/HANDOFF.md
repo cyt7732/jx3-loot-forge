@@ -719,10 +719,11 @@ gh release create vX.Y.Z artifacts/jx3-loot-forge-vX.Y.Z-offline.zip --title "�
    - 大批量操作目前提供即时 Toast 撤销（P1-02），变动 > 50 项时的 Diff 确认浮层纳入后续演进规划；
    - 当前单文件离线 HTML 在 Windows 环境下验证完成，待在 Linux/macOS CI 环境中补充物理流水线验证。
 
-## 15. 后续演进与下一阶段规划
+## 15. 后续演进与发版规范不变量
 
 1. **分类策略直选区域 UI 规范化重构（方案 A）**：将分段按钮解耦为纯操作语义，将局部状态统计下沉，彻底解决跨副本通用掉落引起的局部混合状态视觉不统一问题。
 2. **多端与 CI 自动化**：为 GitHub Actions 引入无头环境运行验证与多平台产物打包。
+3. **发版推送与 GitHub Release 联动不变量**：按 `docs/RELEASE_PROCESS.md` 4.7 节规定，只要用户指示执行发版并推送远端，**必须同步在 GitHub 上创建正式 Release 并上传离线分发压缩包（`jx3-loot-forge-vX.Y.Z-offline.zip`）**，不得仅推 Git Commit/Tag 而遗漏 Release。
 
 ## 16. 信息来源优先级
 

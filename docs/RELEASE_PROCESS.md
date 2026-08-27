@@ -147,22 +147,24 @@ git status
      Compress-Archive -Path 'artifacts/剑网3掉落工坊-v0.2.1' -DestinationPath 'artifacts/jx3-loot-forge-v0.2.1-offline.zip' -Force
      ```
 
-### 4.7 推送与发布 GitHub Release
+### 4.7 推送与发布 GitHub Release（强制固定动作）
+
+> **【强制固定动作】**：只要用户下达发版并推送到 GitHub 的指令，**在 GitHub 远端创建正式 Release 并上传离线分发压缩包（`jx3-loot-forge-vMAJOR.MINOR.PATCH-offline.zip`）是必须同步执行的固定闭环动作**。只推送 Git commit/tag 而遗漏 GitHub Release 属于发版未完成。
 
 1. **推送代码与标签**：
    ```powershell
    git push origin main
-   git push origin v0.2.1
+   git push origin vMAJOR.MINOR.PATCH
    ```
 
-2. **创建 GitHub Release 并上传附件**：
+2. **创建 GitHub Release 并上传附件（固定动作）**：
    使用 GitHub CLI 创建正式 Release，并只上传单一的标准英文命名离线压缩包：
    ```powershell
-   gh release create v0.2.1 artifacts/jx3-loot-forge-v0.2.1-offline.zip --title "剑网3掉落工坊 v0.2.1" --notes-file "artifacts/剑网3掉落工坊-v0.2.1/RELEASE_NOTES.md"
+   gh release create vMAJOR.MINOR.PATCH artifacts/jx3-loot-forge-vMAJOR.MINOR.PATCH-offline.zip --title "剑网3掉落工坊 vMAJOR.MINOR.PATCH" --notes-file "artifacts/剑网3掉落工坊-vMAJOR.MINOR.PATCH/RELEASE_NOTES.md"
    ```
 
 3. **检查发布资产**：
-   Release 资产列表中应只包含该单一离线 zip 包，不重复上传多份或中文名称附件。发布后在项目平台登记版本号、发布日期与目录快照版本。
+   Release 资产列表中应只包含该单一离线 zip 包，不重复上传多份或中文名称附件。发布后在项目平台核验 Release 页面展示与资产可下载性。
 
 ## 5. 首次无历史仓库的特殊处理
 
