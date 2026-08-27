@@ -128,6 +128,8 @@ export type CustomItem = {
   id: string;
   name: string;
   createdAt: string;
+  category?: ItemCategory;
+  note?: string;
 };
 
 export type FavoriteScope = {
@@ -168,6 +170,8 @@ export type WorkspaceV1 = {
 };
 
 export type Workspace = WorkspaceV1;
+
+export type BatchActionType = 'autoSell' | 'protect' | 'none' | 'skipLoot' | 'unskipLoot' | 'clearAll';
 
 export type BulkRuleSet = Record<ItemCategory, Record<StateField, RuleDirective>>;
 

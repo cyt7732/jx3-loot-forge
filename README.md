@@ -6,8 +6,8 @@
 
 **全副本掉落智能管理 · 跳过拾取与自动出售一键合一配置工坊**
 
-[![Release](https://img.shields.io/badge/Release-v1.0.3-gold.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
-[![Data Version](https://img.shields.io/badge/Data-丝路风雨--260823-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
+[![Release](https://img.shields.io/badge/Release-v1.0.4-emerald.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
+[![Data Version](https://img.shields.io/badge/Data-丝路风语--260823-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![Platform](https://img.shields.io/badge/Platform-JX3%20旗舰端-emerald.svg?style=flat-square)](https://jx3.xoyo.com)
 [![Offline Ready](https://img.shields.io/badge/Offline-100%25%20Single--File-blueviolet.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-orange.svg?style=flat-square)](LICENSE)
@@ -31,7 +31,7 @@
 | 模块 | 特性说明 |
 | :--- | :--- |
 | ⚡ **合一配置导出 (独家)** | 将跳过拾取（`MY_GKPLoot`）与自动出售/保护（`MY_AutoSell`）合并为单一 `.us.jx3dat` 文件，游戏内点击一次导入全部生效。 |
-| 🎮 **默认插件配置全量对齐** | 完美内嵌茗伊默认的 21 项珍品推荐保护、19 项默认出售杂物及默认跳过拾取（金叶子），与游戏插件默认行为保持 100% 一致。 |
+| 🎮 **默认插件配置全量对齐** | 完美内嵌茗伊默认的 21 项珍品推荐保护与 19 项默认出售杂物，初始不预设多余跳过拾取规则，与游戏插件官方默认行为保持 100% 一致。 |
 | 🎯 **全量精准数据覆盖** | 覆盖 70~130 级全赛季 254 个副本，细化分类“装备”“兑换牌”“特殊掉落”“大铁”“小铁”“宠物”“家具”“附魔”等实用大类。 |
 | 📦 **100% 离线单文件运行** | 零网络依赖、零服务器需求，独立单文件 `剑网3掉落工坊.html` 双击即用，自带全部数据与水墨图标，极易发群分享。 |
 | ✨ **用户自定义物品体系** | 支持任意自定义物品录入，独立受控，绝不受任何批量规则误伤，左侧专属【✨ 用户自定义】顶层管理节点。 |
@@ -107,7 +107,7 @@ jx3-loot-forge/
     │   ├── crawl-catalog.mjs  # 官方/魔盒副本与掉落数据抓取脚本
     │   ├── reclassify-catalog.mjs # 离线目录智能重分类脚本
     │   └── build-offline.mjs  # 单文件离线 HTML 自动化打包器
-    └── tests/                 # Vitest 自动化测试套件（76 项全覆盖）
+    └── tests/                 # Vitest 自动化测试套件（覆盖核心领域模型与配置算法）
 ```
 
 ---
@@ -118,7 +118,7 @@ jx3-loot-forge/
 - **编码格式**：CP936 / GBK 编码、无 BOM、单行格式；
 - **配置指纹**：每次导出均在数据首项附带标准指纹标记，插件无感解析：
   ```text
-  『剑网3掉落工坊』 v1.0.0 by 凌千羽·龙争虎斗 <YYYYMMDD_HHmmss>
+  『剑网3掉落工坊』 v1.0.4 by 凌千羽·龙争虎斗 <YYYYMMDD_HHmmss>
   ```
 - **隐私与安全**：纯前端与本地计算，所有自选设置实时保存在浏览器本地（`localStorage`），绝不向任何第三方服务器上传个人配置。
 

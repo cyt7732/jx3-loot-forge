@@ -322,7 +322,14 @@ kbd { padding: 2px 5px; border: 1px solid var(--border); border-radius: 4px; col
   .preview-stats { grid-template-columns: 1fr; }.modal-backdrop { padding: 8px; }.modal-card { max-height: calc(100vh - 16px); padding: 15px; }
 }
 
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* v0.2 readability and touch targets */
 :root {

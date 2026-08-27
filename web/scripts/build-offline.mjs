@@ -1,5 +1,5 @@
 import { readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Script } from 'node:vm';
 import { build } from 'vite';
@@ -14,9 +14,10 @@ const CATALOG_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.std.json');
 
 function localAssetPath(reference) {
   const normalized = reference.replace(/^\.\//u, '').replace(/^\//u, '');
-  const path = resolve(dirname(TEMP_HTML), normalized);
-  if (!path.startsWith(`${TEMP_DIR}\\`) && path !== TEMP_DIR) throw new Error(`Unsafe asset path: ${reference}`);
-  return path;
+  const targetPath = resolve(dirname(TEMP_HTML), normalized);
+  const rel = relative(TEMP_DIR, targetPath);
+  if (rel.startsWith('..') || resolve(TEMP_DIR, rel) !== targetPath) throw new Error(`Unsafe asset path: ${reference}`);
+  return targetPath;
 }
 
 await build({ configFile: resolve(PROJECT_DIR, 'vite.offline.config.ts') });

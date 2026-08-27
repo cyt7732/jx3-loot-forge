@@ -1,8 +1,3 @@
-import {
-  DEFAULT_PROTECTED_ITEMS,
-  DEFAULT_SELL_ITEMS,
-} from '../domain/constants';
-import { normalizeItemName } from '../domain/state';
 import type { CatalogItem, CatalogSnapshot } from '../domain/types';
 
 export * from './levels';
@@ -63,30 +58,5 @@ export async function loadCatalogSnapshot(): Promise<CatalogSnapshot> {
 }
 
 export function buildCatalogItems(snapshot: CatalogSnapshot = catalogSnapshot): CatalogItem[] {
-  const byId = new Map(snapshot.items.map((item) => [item.id, item]));
-  for (const name of DEFAULT_PROTECTED_ITEMS) {
-    const id = normalizeItemName(name);
-    if (!byId.has(id)) {
-      byId.set(id, {
-        id,
-        name,
-        category: 'other',
-        subtype: '插件推荐保护',
-        sources: [],
-      });
-    }
-  }
-  for (const name of DEFAULT_SELL_ITEMS) {
-    const id = normalizeItemName(name);
-    if (!byId.has(id)) {
-      byId.set(id, {
-        id,
-        name,
-        category: 'other',
-        subtype: '插件默认出售',
-        sources: [],
-      });
-    }
-  }
-  return [...byId.values()];
+  return snapshot.items;
 }

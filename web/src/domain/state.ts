@@ -1,12 +1,14 @@
 import {
   APP_VERSION,
   CATEGORY_LABELS,
+  CATEGORY_ORDER,
   DEFAULT_FILTERS,
   DEFAULT_PROTECTED_ITEMS,
   DEFAULT_SELL_ITEMS,
   EMPTY_ITEM_STATE,
 } from './constants';
 import type {
+  BatchActionType,
   BulkPreview,
   BulkRuleSet,
   CatalogItem,
@@ -119,6 +121,18 @@ export function workspaceWithStateMap(workspace: Workspace, map: Map<string, Ite
   return { ...workspace, itemStates, updatedAt: new Date().toISOString() };
 }
 
+export function removeCustomItemFromWorkspace(workspace: Workspace, id: string): Workspace {
+  const normalizedId = normalizeItemName(id);
+  const nextMap = stateMapFromWorkspace(workspace);
+  nextMap.delete(normalizedId);
+  return {
+    ...workspaceWithStateMap(workspace, nextMap),
+    customItems: workspace.customItems.filter((item) => item.id !== normalizedId),
+    customOverrides: workspace.customOverrides.filter((value) => value !== normalizedId),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 export function compareCodePoints(a: string, b: string): number {
   const aPoints = [...a].map((value) => value.codePointAt(0) ?? 0);
   const bPoints = [...b].map((value) => value.codePointAt(0) ?? 0);
@@ -130,12 +144,52 @@ export function compareCodePoints(a: string, b: string): number {
 }
 
 export function createEmptyBulkRules(): BulkRuleSet {
-  const categories = Object.keys(CATEGORY_LABELS) as ItemCategory[];
-  return Object.fromEntries(categories.map((category) => [category, {
+  return Object.fromEntries(CATEGORY_ORDER.map((category) => [category, {
     skipLoot: 'unchanged',
     autoSell: 'unchanged',
     protect: 'unchanged',
   }])) as BulkRuleSet;
+}
+
+export function createCategoryActionRules(category: ItemCategory | 'all', action: BatchActionType): BulkRuleSet {
+  const rules = createEmptyBulkRules();
+  const targetCategories = category === 'all' ? CATEGORY_ORDER : [category];
+  for (const cat of targetCategories) {
+    if (action === 'autoSell') {
+      rules[cat].autoSell = 'enable';
+      rules[cat].protect = 'disable';
+    } else if (action === 'protect') {
+      rules[cat].autoSell = 'disable';
+      rules[cat].protect = 'enable';
+    } else if (action === 'none') {
+      rules[cat].autoSell = 'disable';
+      rules[cat].protect = 'disable';
+    } else if (action === 'skipLoot') {
+      rules[cat].skipLoot = 'enable';
+    } else if (action === 'unskipLoot') {
+      rules[cat].skipLoot = 'disable';
+    } else if (action === 'clearAll') {
+      rules[cat].autoSell = 'disable';
+      rules[cat].protect = 'disable';
+      rules[cat].skipLoot = 'disable';
+    }
+  }
+  return rules;
+}
+
+export function createEquipmentBulkRules(disposition: 'autoSell' | 'protect' | 'none'): BulkRuleSet {
+  const rules = createEmptyBulkRules();
+  if (disposition === 'autoSell') {
+    rules.equipment.autoSell = 'enable';
+    rules.equipment.protect = 'disable';
+  } else if (disposition === 'protect') {
+    rules.equipment.autoSell = 'disable';
+    rules.equipment.protect = 'enable';
+  } else {
+    rules.equipment.autoSell = 'disable';
+    rules.equipment.protect = 'disable';
+  }
+  return rules;
 }
 
 function applyDirective(state: ItemState, field: StateField, directive: RuleDirective): ItemState {

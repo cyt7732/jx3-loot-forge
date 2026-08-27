@@ -2,7 +2,7 @@ import type { ItemCategory, ItemState, WorkspaceFilters } from './types';
 
 export const APP_NAME = '剑网3掉落工坊';
 export const APP_NAME_EN = 'JX3 Loot Forge';
-export const APP_VERSION = '1.0.3';
+export const APP_VERSION = '1.0.4';
 export const AUTHOR = '凌千羽·龙争虎斗';
 export const CLIENT = 'std' as const;
 export const WORKSPACE_STORAGE_KEY = 'jx3-loot-forge:workspace:v1';
@@ -44,6 +44,8 @@ export const CATEGORY_LABELS: Record<ItemCategory, string> = {
   other: '其他',
   unknown: '未分类',
 };
+
+export const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS) as ItemCategory[];
 
 export const DEFAULT_PROTECTED_ITEMS = [
   '炎枪重黎',
@@ -100,10 +102,10 @@ export const MANAGED_PATHS = {
 } as const;
 
 export const RESERVED_MARKER_PATTERNS = [
-  /^『剑网3掉落工坊』 v\d+\.\d+\.\d+ by 凌千羽·龙争虎斗 <\d{8}_\d{6}>$/u,
+  /^『剑网3掉落工坊』 v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)? by 凌千羽·龙争虎斗 <\d{8}_\d{6}>$/u,
   /^【剑网3掉落工坊\|by 凌千羽@龙争虎斗\|跳过拾取\|\d{8}-\d{6}】$/u,
   /^【剑网3掉落工坊\|by 凌千羽@龙争虎斗\|自动出售\|\d{8}-\d{6}】$/u,
-  /^『JX3 Loot Forge』 v\d+\.\d+\.\d+ by 凌千羽·龙争虎斗 <\d{8}_\d{6}>$/u,
+  /^『JX3 Loot Forge』 v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)? by 凌千羽·龙争虎斗 <\d{8}_\d{6}>$/u,
   /^【JX3 Loot Forge\|by 凌千羽@龙争虎斗\|跳过拾取\|\d{8}-\d{6}】$/u,
   /^【JX3 Loot Forge\|by 凌千羽@龙争虎斗\|自动出售\|\d{8}-\d{6}】$/u,
 ] as const;

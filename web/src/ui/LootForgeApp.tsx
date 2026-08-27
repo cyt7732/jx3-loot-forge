@@ -18,20 +18,25 @@ import {
   APP_VERSION,
   AUTHOR,
   CATEGORY_LABELS,
+  CATEGORY_ORDER,
   DEFAULT_PROTECTED_ITEMS,
 } from '../domain/constants';
 import {
   applyChanges,
   cloneState,
+  createCategoryActionRules,
   createEmptyBulkRules,
+  createEquipmentBulkRules,
   createInitialWorkspace,
   normalizeItemName,
   previewBulkRules,
+  removeCustomItemFromWorkspace,
   setStateField,
   stateMapFromWorkspace,
   workspaceWithStateMap,
 } from '../domain/state';
 import type {
+  BatchActionType,
   BulkRuleSet,
   CatalogItem,
   CatalogMap,
@@ -53,11 +58,13 @@ import {
   selectCatalogSnapshot,
 } from '../storage/catalog';
 import {
+  assertFileSizeWithinLimit,
+  executeDebouncedSave,
   exportWorkspaceBackup,
-  importWorkspaceBackup,
-  loadWorkspace,
+  handleWorkspaceInitialization,
+  MAX_DATA_PACK_BYTES,
+  readWorkspaceBackupFile,
   resetWorkspace,
-  saveWorkspace,
 } from '../storage/workspace';
 import logoImg from '../assets/logo.jpg';
 import { downloadBytes, downloadText } from '../utils/download';
@@ -81,9 +88,7 @@ type ImportDraft = {
 type DialogName = 'custom' | 'workspace' | 'import' | null;
 type Toast = { tone: 'success' | 'warning' | 'error'; message: string } | null;
 type ItemDisposition = 'none' | 'autoSell' | 'protect';
-type BatchActionType = 'autoSell' | 'protect' | 'none' | 'skipLoot' | 'unskipLoot' | 'clearAll';
 
-const CATEGORY_ORDER = Object.keys(CATEGORY_LABELS) as ItemCategory[];
 const CATEGORY_ICONS: Record<ItemCategory, string> = {
   equipment: '⚔️',
   equipmentExchange: '🎫',
@@ -122,46 +127,6 @@ function itemDisposition(state: ItemState): ItemDisposition {
   return 'none';
 }
 
-function createEquipmentBulkRules(disposition: Exclude<ItemDisposition, 'none'> | 'none'): BulkRuleSet {
-  const rules = createEmptyBulkRules();
-  if (disposition === 'autoSell') {
-    rules.equipment.autoSell = 'enable';
-    rules.equipment.protect = 'disable';
-  } else if (disposition === 'protect') {
-    rules.equipment.autoSell = 'disable';
-    rules.equipment.protect = 'enable';
-  } else {
-    rules.equipment.autoSell = 'disable';
-    rules.equipment.protect = 'disable';
-  }
-  return rules;
-}
-
-function createCategoryActionRules(category: ItemCategory | 'all', action: BatchActionType): BulkRuleSet {
-  const rules = createEmptyBulkRules();
-  const targetCategories = category === 'all' ? CATEGORY_ORDER : [category];
-  for (const cat of targetCategories) {
-    if (action === 'autoSell') {
-      rules[cat].autoSell = 'enable';
-      rules[cat].protect = 'disable';
-    } else if (action === 'protect') {
-      rules[cat].autoSell = 'disable';
-      rules[cat].protect = 'enable';
-    } else if (action === 'none') {
-      rules[cat].autoSell = 'disable';
-      rules[cat].protect = 'disable';
-    } else if (action === 'skipLoot') {
-      rules[cat].skipLoot = 'enable';
-    } else if (action === 'unskipLoot') {
-      rules[cat].skipLoot = 'disable';
-    } else if (action === 'clearAll') {
-      rules[cat].autoSell = 'disable';
-      rules[cat].protect = 'disable';
-      rules[cat].skipLoot = 'disable';
-    }
-  }
-  return rules;
-}
 
 function shanghaiDateStamp(now = new Date()): string {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
@@ -174,7 +139,7 @@ function formatCatalogVersion(version: string): string {
   if (!version || version === 'loading') return 'Data.载入中…';
   const match = /^(?:20)?(\d{2})(\d{2})(\d{2})/u.exec(version);
   const dateSuffix = match ? `${match[1]}${match[2]}${match[3]}` : version.slice(0, 6);
-  return `Data.丝路风雨-${dateSuffix}`;
+  return `Data.丝路风语-${dateSuffix}`;
 }
 
 function downloadBatchFile(file: { filename: string; bytes: Uint8Array }): void {
@@ -186,6 +151,7 @@ export function LootForgeApp() {
   const [embeddedSnapshot, setEmbeddedSnapshot] = useState<CatalogSnapshot | null>(null);
   const [workspace, setWorkspace] = useState<Workspace>(() => createInitialWorkspace(catalogSnapshot.catalogVersion));
   const [hydrated, setHydrated] = useState(false);
+  const [persistenceEnabled, setPersistenceEnabled] = useState(false);
   const [catalogIndexed, setCatalogIndexed] = useState(false);
   const [scopeQuery, setScopeQuery] = useState('');
   const [dialog, setDialog] = useState<DialogName>(null);
@@ -227,10 +193,14 @@ export function LootForgeApp() {
         const selection = selectCatalogSnapshot(embedded, override);
         setEmbeddedSnapshot(embedded);
         setActiveSnapshot(selection.snapshot);
-        const restoredWorkspace = loadWorkspace(selection.snapshot.catalogVersion);
+        const { workspace: restoredWorkspace, persistenceEnabled: isPersistent } = handleWorkspaceInitialization(
+          selection.snapshot.catalogVersion,
+          (notif) => setToast(notif),
+        );
         setWorkspace(selection.usedOverride
           ? { ...restoredWorkspace, catalogVersion: selection.snapshot.catalogVersion, updatedAt: new Date().toISOString() }
           : restoredWorkspace);
+        setPersistenceEnabled(isPersistent);
         setHydrated(true);
 
         const markIndexed = () => {
@@ -245,8 +215,10 @@ export function LootForgeApp() {
         }
       } catch (error) {
         if (!cancelled) {
+          // On catalog initialization failure, DO NOT enable persistence to prevent wiping user's localStorage
+          setPersistenceEnabled(false);
           setHydrated(true);
-          setToast({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
+          setToast({ tone: 'error', message: `初始化加载失败：${error instanceof Error ? error.message : String(error)}。已启用只读保护，未覆盖本地存储。` });
         }
       }
     };
@@ -260,8 +232,12 @@ export function LootForgeApp() {
   const activeCatalogItems = useMemo(() => (catalogIndexed ? buildCatalogItems(activeSnapshot) : []), [activeSnapshot, catalogIndexed]);
 
   useEffect(() => {
-    if (hydrated) saveWorkspace(workspace);
-  }, [workspace, hydrated]);
+    if (!hydrated || !persistenceEnabled) return;
+    const timer = window.setTimeout(() => {
+      executeDebouncedSave(workspace, persistenceEnabled, hydrated, (notif) => setToast(notif));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [workspace, hydrated, persistenceEnabled]);
 
   useEffect(() => {
     if (!toast) return;
@@ -317,17 +293,22 @@ export function LootForgeApp() {
     for (const custom of workspace.customItems) {
       const existing = byId.get(custom.id);
       if (existing) {
-        byId.set(custom.id, { ...existing, isCustom: true, customOverride: true });
+        byId.set(custom.id, {
+          ...existing,
+          category: custom.category ?? existing.category,
+          isCustom: true,
+          customOverride: true,
+        });
       } else {
         byId.set(custom.id, {
           id: custom.id,
           name: custom.name,
-          category: 'unknown',
-          subtype: '自定义物品',
+          category: custom.category ?? 'other',
+          subtype: custom.note ?? '自定义物品',
           sources: [],
           isCustom: true,
           customOverride: true,
-          systemSeed: false,
+          systemSeed: protectedSeedSet.has(custom.id),
           historical: false,
         });
       }
@@ -595,7 +576,6 @@ export function LootForgeApp() {
     const scopedCategoryOfficial = allItems.filter((item) => (
       item.category === category
       && !item.customOverride
-      && !item.systemSeed
       && !item.historical
       && sourceMatchesScope(item)
     ));
@@ -624,13 +604,12 @@ export function LootForgeApp() {
     }
     const scopedAllOfficial = allItems.filter((item) => (
       !item.customOverride
-      && !item.systemSeed
       && !item.historical
       && sourceMatchesScope(item)
     ));
 
     if (kind === 'lowerLevels') {
-      const officialEquipment = allItems.filter((item) => item.category === 'equipment' && !item.customOverride && !item.systemSeed && !item.historical);
+      const officialEquipment = allItems.filter((item) => item.category === 'equipment' && !item.customOverride && !item.historical);
       const maxLevel = Math.max(...CATALOG_LEVEL_GROUPS.map((group) => group.level ?? Number.NEGATIVE_INFINITY));
       const lowerLevelEquipment = officialEquipment.filter((item) => {
         const sourceLevels = item.sources.map((source) => getLevelGroup(source.expansion).level).filter((level): level is number => level !== null);
@@ -710,15 +689,8 @@ export function LootForgeApp() {
   };
 
   const removeCustomOverride = (id: string) => {
-    const nextMap = new Map(stateMap);
-    if (!catalogIdSet.has(id)) nextMap.delete(id);
     setUndoWorkspace(workspace);
-    setWorkspace((current) => ({
-      ...workspaceWithStateMap(current, nextMap),
-      customItems: current.customItems.filter((item) => item.id !== id),
-      customOverrides: current.customOverrides.filter((value) => value !== id),
-      updatedAt: new Date().toISOString(),
-    }));
+    setWorkspace((current) => removeCustomItemFromWorkspace(current, id));
   };
 
   const removeHistoricalState = (id: string) => {
@@ -795,7 +767,7 @@ export function LootForgeApp() {
 
   const importBackupFile = async (file: File) => {
     try {
-      const restored = importWorkspaceBackup(await file.text(), activeSnapshot.catalogVersion);
+      const restored = await readWorkspaceBackupFile(file, activeSnapshot.catalogVersion);
       setUndoWorkspace(workspace);
       setWorkspace(restored);
       setDialog(null);
@@ -818,6 +790,7 @@ export function LootForgeApp() {
 
   const importDataPackFile = async (file: File) => {
     try {
+      assertFileSizeWithinLimit(file, MAX_DATA_PACK_BYTES, '数据包');
       const snapshot = await parseCatalogDataPack(await file.text());
       await activateCatalog(snapshot, `数据目录已更新到 ${snapshot.catalogVersion}。`);
     } catch (error) {
