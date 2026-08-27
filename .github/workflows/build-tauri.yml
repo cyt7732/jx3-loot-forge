@@ -57,13 +57,31 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path "dist-exe"
-          $rawExe = "web/src-tauri/target/release/jx3-loot-forge.exe"
-          if (-not (Test-Path $rawExe)) {
-            $rawExe = "web/src-tauri/target/release/剑网3掉落工坊.exe"
+          $candidates = @(
+            "web/src-tauri/target/release/jx3-loot-forge.exe",
+            "web/src-tauri/target/release/剑网3掉落工坊.exe",
+            "web/target/release/jx3-loot-forge.exe",
+            "web/target/release/剑网3掉落工坊.exe",
+            "target/release/jx3-loot-forge.exe",
+            "target/release/剑网3掉落工坊.exe"
+          )
+          $rawExe = $null
+          foreach ($cand in $candidates) {
+            if (Test-Path $cand) {
+              $rawExe = $cand
+              Write-Host "Found binary at: $cand"
+              break
+            }
           }
-          if (-not (Test-Path $rawExe)) {
-            Write-Error "Could not find built executable in web/src-tauri/target/release/"
-            exit 1
+          if (-not $rawExe) {
+            $allExe = Get-ChildItem -Path . -Recurse -Filter "*.exe" | Where-Object { $_.FullName -notmatch "node_modules" } | Select-Object -ExpandProperty FullName
+            Write-Host "Candidate executables found: $allExe"
+            if ($allExe.Count -gt 0) {
+              $rawExe = $allExe[0]
+            } else {
+              Write-Error "Could not find built executable."
+              exit 1
+            }
           }
           $destExeName = "剑网3掉落工坊-v${env:APP_VERSION}.exe"
           Copy-Item -Path $rawExe -Destination "dist-exe/$destExeName"
