@@ -99,12 +99,9 @@ jobs:
 
       - name: Create Release and Upload Assets (on tag only)
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          name: 剑网3掉落工坊 v${{ env.APP_VERSION }}
-          draft: false
-          prerelease: false
-          files: |
-            dist-exe/*.exe
-            剑网3掉落工坊.html
-          generate_release_notes: true
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          Copy-Item "dist-exe/$env:DEST_EXE_NAME" "$env:DEST_EXE_NAME"
+          node web/scripts/upload-release.mjs
