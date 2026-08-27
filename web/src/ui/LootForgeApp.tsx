@@ -1140,7 +1140,7 @@ export function LootForgeApp() {
                           <div className="cat-name-box">
                             <div className="cat-name-row">
                               <strong>{CATEGORY_LABELS[category]}</strong>
-                              <span className="cat-count-badge">{total} 项</span>
+                              <span className="cat-count-badge" title={`共 ${total} 项`}>{total}</span>
                             </div>
                             {(skipLootCount > 0 || autoSellCount > 0 || protectCount > 0) && (
                               <div className="cat-status-pills">
