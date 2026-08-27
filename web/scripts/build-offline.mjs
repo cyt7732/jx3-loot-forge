@@ -22,11 +22,10 @@ function localAssetPath(reference) {
 
 await build({ configFile: resolve(PROJECT_DIR, 'vite.offline.config.ts') });
 let html = await readFile(TEMP_HTML, 'utf8');
-const stylesheetMatch = html.match(/<link rel="stylesheet"[^>]*href="((?:\.\/|\/)?assets\/[^"]+)"[^>]*>/u);
-if (stylesheetMatch) {
-  const css = await readFile(localAssetPath(stylesheetMatch[1]), 'utf8');
-  html = html.replace(stylesheetMatch[0], () => `<style>${css.replace(/<\/style/giu, '<\\/style')}</style>`);
-}
+const stylesheetMatch = html.match(/<link rel="stylesheet"[^>]*href="(?!(?:https?:)?\/\/)([^"]+)"[^>]*>/u);
+if (!stylesheetMatch) throw new Error('Offline build did not produce a bundled stylesheet.');
+const css = await readFile(localAssetPath(stylesheetMatch[1]), 'utf8');
+html = html.replace(stylesheetMatch[0], () => `<style>${css.replace(/<\/style/giu, '<\\/style')}</style>`);
 const scriptMatch = html.match(/<script type="module"[^>]*src="([^"]+)"[^>]*><\/script>/u);
 if (!scriptMatch) throw new Error('Offline build did not produce one module script.');
 const javascript = await readFile(localAssetPath(scriptMatch[1]), 'utf8');
@@ -37,7 +36,7 @@ html = html.replace(scriptMatch[0], () => `<script type="module">${javascript.re
 const logoBuffer = await readFile(resolve(PROJECT_DIR, 'src/assets/logo.jpg'));
 const logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
 html = html.replace(/<link rel="icon"[^>]*>/u, `<link rel="icon" type="image/jpeg" href="${logoBase64}" />`);
-if (/<(?:script|link)[^>]+(?:src|href)="(?:\.\/|\/)?assets\//u.test(html)) throw new Error('Offline HTML still references external build assets.');
+if (/<(?:script|link)[^>]+(?:src|href)="(?!(?:https?:)?\/\/|data:)[^"]*assets\//u.test(html)) throw new Error('Offline HTML still references external build assets.');
 const catalog = await readFile(CATALOG_PATH, 'utf8');
 const catalogScript = `<script id="jx3-catalog-data" type="application/json">${catalog.replace(/</gu, '\\u003c')}</script>`;
 html = html.replace('<div id="root"></div>', `${catalogScript}<div id="root"></div>`);
