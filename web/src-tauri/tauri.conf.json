@@ -5,14 +5,16 @@
   "identifier": "com.lootforge.jx3",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build:offline",
+    "beforeBuildCommand": "npm run build:desktop",
     "devUrl": "http://localhost:3000",
-    "frontendDist": "../dist/offline"
+    "frontendDist": "../dist/desktop"
   },
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "剑网3掉落工坊",
+        "url": "index.html",
         "width": 1440,
         "height": 920,
         "minWidth": 1024,
@@ -20,11 +22,13 @@
         "resizable": true,
         "fullscreen": false,
         "decorations": true,
-        "theme": "Dark"
+        "theme": "Dark",
+        "devtools": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "dangerousDisableAssetCspModification": true
     }
   },
   "bundle": {
