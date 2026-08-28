@@ -702,7 +702,11 @@ export function LootForgeApp() {
 
   const createNamedStates = () => {
     const names = new Map(allItems.map((item) => [item.id, item.name]));
-    return [...stateMap.entries()].map(([id, state]) => ({ name: names.get(id) ?? id, state }));
+    const targetItems = hasScope ? scopedItems : allItems;
+    const targetIdSet = new Set(targetItems.map((item) => item.id));
+    return [...stateMap.entries()]
+      .filter(([id, state]) => targetIdSet.has(id) && (state.skipLoot || state.autoSell || state.protect))
+      .map(([id, state]) => ({ name: names.get(id) ?? id, state }));
   };
 
   const exportFiles = (kind: 'combined' | 'pickup' | 'sell' = 'combined') => {
@@ -984,8 +988,49 @@ export function LootForgeApp() {
             </select>
           )}
           <div className="scope-actions">
-            <button type="button" onClick={() => setWorkspace((current) => ({ ...current, selectedMapIds: activeSnapshot.maps.map((map) => map.mapId), selectedBossKeys: [] }))}>全选副本</button>
-            <button type="button" title="清除左侧的副本和 Boss 选择，主区显示完整目录" aria-label="清除范围并查看全部副本" onClick={() => setWorkspace((current) => ({ ...current, selectedMapIds: [], selectedBossKeys: [] }))}>清除范围</button>
+            <button
+              type="button"
+              title="一键选中 70~120 级所有历史前尘老副本（自动排除当前 130 级丝路风语赛季本）"
+              onClick={() => {
+                const maxLevel = Math.max(...CATALOG_LEVEL_GROUPS.map((group) => group.level ?? Number.NEGATIVE_INFINITY));
+                const lowerLevelMaps = activeSnapshot.maps.filter((map) => {
+                  const level = getLevelGroup(map.expansion).level;
+                  return level !== null && level < maxLevel;
+                });
+                setWorkspace((current) => ({
+                  ...current,
+                  selectedMapIds: lowerLevelMaps.map((map) => map.mapId),
+                  selectedBossKeys: [],
+                  updatedAt: new Date().toISOString(),
+                }));
+                setToast({ tone: 'success', message: `已选中 70~120 级前尘老本（共 ${lowerLevelMaps.length} 个副本）` });
+              }}
+            >
+              全选老本
+            </button>
+            <button
+              type="button"
+              title="全选 70~130 级所有赛季副本"
+              onClick={() => {
+                setWorkspace((current) => ({
+                  ...current,
+                  selectedMapIds: activeSnapshot.maps.map((map) => map.mapId),
+                  selectedBossKeys: [],
+                  updatedAt: new Date().toISOString(),
+                }));
+                setToast({ tone: 'success', message: `已选中全部副本（共 ${activeSnapshot.maps.length} 个副本）` });
+              }}
+            >
+              全选所有
+            </button>
+            <button
+              type="button"
+              title="清除左侧的副本和 Boss 选择，主区显示完整目录"
+              aria-label="清除范围并查看全部副本"
+              onClick={() => setWorkspace((current) => ({ ...current, selectedMapIds: [], selectedBossKeys: [], updatedAt: new Date().toISOString() }))}
+            >
+              清除范围
+            </button>
           </div>
           <nav className="dungeon-tree" aria-label="副本范围">
             <div className={`tree-group custom-scope-group ${selectedMaps.has(CUSTOM_SCOPE_ID) ? 'active' : ''}`}>

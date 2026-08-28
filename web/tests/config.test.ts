@@ -78,6 +78,35 @@ describe('GBK config export', () => {
     expect(DEFAULT_PROTECTED_ITEMS[19]).toBe('水长生 ·雪银莲');
     expect([...DEFAULT_PROTECTED_ITEMS]).toEqual(EXPECTED_PROTECTED_ITEMS);
   });
+
+  it('correctly filters out items not in selected scopes during export preparation', () => {
+    // 模拟所选范围：70~120级老本物品与自定义物品
+    const scopedItemIds = new Set(['老本装备A', '老本牌子B', '自定义物品C']);
+    const fullStateMap = new Map([
+      ['老本装备A', { skipLoot: false, autoSell: true, protect: false }],
+      ['老本牌子B', { skipLoot: true, autoSell: false, protect: false }],
+      ['丝路风语未选本装备D', { skipLoot: false, autoSell: true, protect: false }], // 未选年代物品
+      ['丝路风语未选本牌子E', { skipLoot: true, autoSell: false, protect: false }], // 未选年代物品
+      ['自定义物品C', { skipLoot: false, autoSell: false, protect: true }],
+    ]);
+
+    const filteredNamedStates = [...fullStateMap.entries()]
+      .filter(([id, state]) => scopedItemIds.has(id) && (state.skipLoot || state.autoSell || state.protect))
+      .map(([id, state]) => ({ name: id, state }));
+
+    const batch = buildExportBatch(filteredNamedStates, new Date('2026-08-23T12:15:42Z'));
+
+    // 断言导出的配置中包含老本与自定义物品
+    expect(batch.combined.text).toContain('老本装备A');
+    expect(batch.combined.text).toContain('老本牌子B');
+    expect(batch.combined.text).toContain('自定义物品C');
+
+    // 断言未选中的丝路风语物品绝对不出现在导出文件中
+    expect(batch.combined.text).not.toContain('丝路风语未选本装备D');
+    expect(batch.combined.text).not.toContain('丝路风语未选本牌子E');
+    expect(batch.sell.text).not.toContain('丝路风语未选本装备D');
+    expect(batch.pickup.text).not.toContain('丝路风语未选本牌子E');
+  });
 });
 
 describe('restricted Lua import', () => {
