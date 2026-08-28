@@ -870,7 +870,7 @@ export function LootForgeApp() {
       <header className="topbar">
         <div className="brand-block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="brand-logo" src={typeof logoImg === 'string' ? logoImg : logoImg.src} alt={APP_NAME} />
+          <img className="brand-logo" src={typeof logoImg === 'string' ? logoImg : (logoImg as { src?: string })?.src || ''} alt={APP_NAME} />
           <div className="brand-meta">
             <div className="brand-line">
               <h1>{APP_NAME}</h1>
