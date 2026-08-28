@@ -917,7 +917,7 @@ export function LootForgeApp() {
               className="button primary export-main-btn"
               type="button"
               disabled={!catalogIndexed}
-              title="一键生成同时包含跳过拾取与自动出售的合一配置文件（游戏内一键导入，全部生效）"
+              title={`导出当前勾选范围（${hasScope ? currentScopeLabel : '全部有效物品'}）内的合一配置；未勾选的年代/副本绝不导出。`}
               onClick={() => exportFiles('combined')}
             >
               ⚡ 导出合一配置
@@ -942,7 +942,7 @@ export function LootForgeApp() {
                   <span className="menu-icon">⚡</span>
                   <div>
                     <strong>导出合一配置 (推荐)</strong>
-                    <small>跳过拾取 + 自动出售合为 1 个文件，游戏内一键导入</small>
+                    <small>仅导出已勾选范围内的跳过拾取+自动出售策略，未选年代不导出</small>
                   </div>
                 </button>
                 <div className="export-menu-divider" />
@@ -954,7 +954,7 @@ export function LootForgeApp() {
                   <span className="menu-icon">📥</span>
                   <div>
                     <strong>仅导出跳过拾取</strong>
-                    <small>仅生成 MY_GKPLoot 插件配置</small>
+                    <small>仅生成已勾选范围的 MY_GKPLoot 插件配置</small>
                   </div>
                 </button>
                 <button
@@ -965,7 +965,7 @@ export function LootForgeApp() {
                   <span className="menu-icon">💰</span>
                   <div>
                     <strong>仅导出自动出售</strong>
-                    <small>仅生成 MY_AutoSell 插件配置</small>
+                    <small>仅生成已勾选范围的 MY_AutoSell 插件配置</small>
                   </div>
                 </button>
               </div>
@@ -1031,6 +1031,10 @@ export function LootForgeApp() {
             >
               清除范围
             </button>
+          </div>
+          <div className="scope-rule-hint" role="note">
+            <span className="hint-badge">💡 导出规则</span>
+            <span>仅<strong>勾选范围</strong>内的副本会导出策略；未勾选的年代（如当前赛季本）<strong>绝不导出</strong>。</span>
           </div>
           <nav className="dungeon-tree" aria-label="副本范围">
             <div className={`tree-group custom-scope-group ${selectedMaps.has(CUSTOM_SCOPE_ID) ? 'active' : ''}`}>
@@ -1131,11 +1135,11 @@ export function LootForgeApp() {
               <div>
                 <span className="eyebrow">CATEGORY STRATEGY</span>
                 <h2>已选范围 · 分类策略直选</h2>
-                <p>为当前范围（<strong>{currentScopeLabel}</strong>）下的各类物品一键设置拾取与出售策略；点击分类名称可展开物品明细。</p>
+                <p>为当前选中的 <strong>{currentScopeLabel}</strong> 批量设置策略；<strong>导出时将严格仅导出已勾选范围内的物品配置，未勾选的年代与副本完全不影响</strong>。</p>
               </div>
               {hasScope && (
                 <div className="workbench-quick-presets">
-                  <button className="button primary compact" type="button" onClick={() => applyScopePreset('farming')} title="推荐预设：旧装备全卖 + 牌子跳过 + 珍稀保护（将当前范围的所有装备设为自动出售、装备兑换牌设为跳过拾取、珍稀特殊物品设为保护）">
+                  <button className="button primary compact" type="button" onClick={() => applyScopePreset('farming')} title="推荐预设：旧装备全卖 + 牌子跳过 + 珍稀保护（仅对当前已勾选的副本生效，未勾选年代不配置且不导出）">
                     ⚡ 推荐预设
                   </button>
                   <button className="button ghost compact danger-btn" type="button" onClick={() => applyScopePreset('clear')} title="清除当前范围下所有物品的出售与拾取策略，恢复未处理状态">
@@ -1149,8 +1153,8 @@ export function LootForgeApp() {
               <div className="empty-workbench-guide">
                 <span className="guide-icon">👈</span>
                 <div>
-                  <strong>请在左侧勾选副本或版本范围</strong>
-                  <p>在左侧选择要配置的历史版本或具体副本（支持多选，或直接点击左侧上方的“全选副本”）；勾选后，此处将即时呈现对应范围内的所有物品分类供您一键快速配置策略。</p>
+                  <strong>请在左侧勾选要配置的副本范围</strong>
+                  <p>工坊采用<strong>严格范围隔离</strong>机制：左侧<strong>勾选的副本才会导出配置，不勾选的年代/副本绝不导出</strong>。点击左侧上方【全选老本】可一键勾选 70~120 级所有历史前尘本（自动排除当前 130 级赛季本），勾选后即可在此一键配置。</p>
                 </div>
               </div>
             ) : (
