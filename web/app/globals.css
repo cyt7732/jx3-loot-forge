@@ -165,11 +165,12 @@ kbd { padding: 2px 5px; border: 1px solid var(--border); border-radius: 4px; col
 
 /* Category Strategy Table (Compact, Readable & Intuitive) */
 .workbench-panel { padding: 18px 20px; }
-.workbench-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+.workbench-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 14px; flex-wrap: nowrap; }
+.workbench-heading-content { flex: 1 1 auto; min-width: 0; }
 .workbench-heading h2 { font-size: 16px; margin: 3px 0 0; }
-.workbench-heading p { font-size: var(--font-meta); color: var(--muted); margin: 5px 0 0; }
-.workbench-quick-presets { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.workbench-quick-presets .button { font-size: 13.5px !important; font-weight: 600; padding: 7px 16px; min-height: 36px; }
+.workbench-heading p { font-size: var(--font-meta); color: var(--muted); margin: 5px 0 0; line-height: 1.5; }
+.workbench-quick-presets { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: nowrap; }
+.workbench-quick-presets .button { font-size: 13.5px !important; font-weight: 600; padding: 7px 16px; min-height: 36px; white-space: nowrap; }
 .workbench-quick-presets .danger-btn { border-color: rgba(248,113,113,.3); color: var(--red); }
 .workbench-quick-presets .danger-btn:hover { background: var(--red-soft); border-color: var(--red); }
 
@@ -513,6 +514,9 @@ body { font-size: var(--font-body); line-height: 1.5; }
   .difficulty-children { margin-left: 2px; padding-left: 7px; }
   .quick-config-grid { padding-inline: 8px; }
   .bulk-strategy-option, .disposition-option { font-size: 11px; }
+  .workbench-heading { flex-direction: column; align-items: stretch; gap: 12px; }
+  .workbench-quick-presets { width: 100%; }
+  .workbench-quick-presets .button { flex: 1; }
 }
 
 /* v0.3 readability: calmer contrast, readable labels, and larger touch targets */

@@ -1,6 +1,6 @@
 # 剑网3掉落工坊：开发与发布归档交接文档
 
-> 快照时间：2026-08-27（Asia/Shanghai）<br>
+> 快照时间：2026-08-29（Asia/Shanghai）<br>
 > 项目目录：`E:\Project\jx3-loot-forge`<br>
 > 交接目标：让新的开发模型在不依赖历史聊天的情况下，安全接管当前工作区、继续开发并按统一标准发版。
 
@@ -8,11 +8,11 @@
 
 ## 0. 快速接管说明
 
-1. 确认当前产品版本为 `v1.0.5`（commit `release: v1.0.5` / tag `v1.0.5`），目录版本为 `20260823-011b26367022`。
+1. 确认当前产品版本为 `v1.1.0`（commit `release: v1.1.0` / tag `v1.1.0`），目录版本为 `20260823-011b26367022`。
 2. 阅读本文、`docs/RELEASE_PROCESS.md`、`README.md`、`CHANGELOG.md` 和 `VERSION.json`。
-3. 执行 `git log --oneline --decorate -10` 和 `git tag -n`，确认 `v1.0.5` tag 与 release commit。
+3. 执行 `git log --oneline --decorate -10` 和 `git tag -n`，确认 `v1.1.0` tag 与 release commit。
 4. 进入 `web/`，确认 Node.js 版本不低于 22.13；依赖缺失时使用 `npm ci`，已有依赖时不要无原因升级依赖或改写 lockfile。
-5. 执行 `npm run check`。已知正确基线是：类型检查、Lint、140 项测试、在线构建、离线构建全部通过。
+5. 执行 `npm run check`。已知正确基线是：类型检查、Lint、141 项测试、在线构建、离线构建全部通过。
 6. 分类调整涉及三条执行链：`web/src/catalog/type-label-rules.json`、`web/src/catalog/classification.ts`、`web/scripts/crawl-catalog.mjs` 和 `web/scripts/reclassify-catalog.mjs`。任何分类调整必须同步三条执行链并补测试。
 7. 发版时严格遵循 `docs/RELEASE_PROCESS.md` 标准。
 
@@ -21,8 +21,8 @@
 | 项目 | 当前事实 |
 | --- | --- |
 | 产品名 | 剑网3掉落工坊 |
-| 最新已发布版本 | `v1.0.5`（tag `v1.0.5`） |
-| 当前工作区版本 | `v1.0.5`（正式稳定版） |
+| 最新已发布版本 | `v1.1.0`（tag `v1.1.0`） |
+| 当前工作区版本 | `v1.1.0`（正式稳定版） |
 | `VERSION.json` 目录版本 | `20260823-011b26367022` |
 | 当前分支 | `main` |
 

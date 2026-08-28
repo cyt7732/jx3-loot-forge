@@ -104,7 +104,7 @@ export function buildExportBatch(namedStates: NamedState[], now = new Date()): E
     fingerprint,
     timestamp: markerTimestamp,
     combined: {
-      filename: `掉落工坊_合一配置_${filenameTimestamp}.us.jx3dat`,
+      filename: `掉落工坊_综合配置_${filenameTimestamp}.us.jx3dat`,
       text: combinedText,
       bytes: encodeGbk(combinedText),
     },

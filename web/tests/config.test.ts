@@ -101,7 +101,7 @@ describe('GBK config export', () => {
     expect(batch.combined.text).toContain('老本牌子B');
     expect(batch.combined.text).toContain('自定义物品C');
 
-    // 断言未选中的丝路风语物品绝对不出现在导出文件中
+    // 断言未选中的丝路风语物品不会出现在导出文件中
     expect(batch.combined.text).not.toContain('丝路风语未选本装备D');
     expect(batch.combined.text).not.toContain('丝路风语未选本牌子E');
     expect(batch.sell.text).not.toContain('丝路风语未选本装备D');

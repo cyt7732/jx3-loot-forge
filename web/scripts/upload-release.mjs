@@ -12,7 +12,7 @@ if (!token) {
 }
 
 const repo = process.env.GITHUB_REPOSITORY || 'cyt7732/jx3-loot-forge';
-const tag = process.env.GITHUB_REF_NAME || 'v1.0.5';
+const tag = process.env.GITHUB_REF_NAME || 'v1.1.0';
 
 const headers = {
   Authorization: `Bearer ${token}`,
