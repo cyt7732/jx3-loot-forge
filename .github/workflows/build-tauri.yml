@@ -52,7 +52,7 @@ jobs:
       - name: Build Tauri portable binary (.exe)
         working-directory: web
         run: |
-          cargo build --release --manifest-path src-tauri/Cargo.toml
+          npx @tauri-apps/cli build --no-bundle --ci
 
       - name: Package versioned standalone executable
         shell: pwsh

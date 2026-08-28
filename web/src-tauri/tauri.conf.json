@@ -4,9 +4,7 @@
   "version": "1.0.5",
   "identifier": "com.lootforge.jx3",
   "build": {
-    "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build:desktop",
-    "devUrl": "http://localhost:3000",
     "frontendDist": "../dist/desktop"
   },
   "app": {
