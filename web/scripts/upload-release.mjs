@@ -25,23 +25,23 @@ const releaseRes = await fetch(`https://api.github.com/repos/${repo}/releases/ta
 if (!releaseRes.ok) throw new Error(`Failed to fetch release: ${releaseRes.status} ${await releaseRes.text()}`);
 const releaseData = await releaseRes.json();
 
-console.log(`[INFO] Found release id ${releaseData.id}. Cleaning existing assets...`);
+console.log(`[INFO] Found release id ${releaseData.id}. Cleaning all existing assets...`);
 for (const asset of releaseData.assets) {
   console.log(`[INFO] Deleting asset ${asset.name} (id: ${asset.id})...`);
   await fetch(`https://api.github.com/repos/${repo}/releases/assets/${asset.id}`, { method: 'DELETE', headers });
 }
 
+// GitHub Releases requires ASCII asset names to prevent URL truncation / mangling
 const filesToUpload = [
-  { name: `剑网3掉落工坊-${tag}.exe`, path: resolve(`剑网3掉落工坊-${tag}.exe`), type: 'application/x-msdownload' },
   { name: `JX3-Loot-Forge-${tag}.exe`, path: resolve(`剑网3掉落工坊-${tag}.exe`), type: 'application/x-msdownload' },
-  { name: '剑网3掉落工坊.html', path: resolve('剑网3掉落工坊.html'), type: 'text/html; charset=utf-8' },
+  { name: `JX3-Loot-Forge-${tag}.html`, path: resolve('剑网3掉落工坊.html'), type: 'text/html; charset=utf-8' },
 ];
 
 for (const file of filesToUpload) {
   try {
     console.log(`[INFO] Reading file ${file.path}...`);
     const buffer = await readFile(file.path);
-    console.log(`[INFO] Uploading ${file.name} (${buffer.length} bytes)...`);
+    console.log(`[INFO] Uploading clean asset ${file.name} (${buffer.length} bytes)...`);
     const uploadUrl = `https://uploads.github.com/repos/${repo}/releases/${releaseData.id}/assets?name=${encodeURIComponent(file.name)}`;
     const uploadRes = await fetch(uploadUrl, {
       method: 'POST',
