@@ -33,8 +33,7 @@ for (const asset of releaseData.assets) {
 
 // GitHub Releases requires ASCII asset names to prevent URL truncation / mangling
 const filesToUpload = [
-  { name: `JX3-Loot-Forge-${tag}.exe`, path: resolve(`剑网3掉落工坊-${tag}.exe`), type: 'application/x-msdownload' },
-  { name: `JX3-Loot-Forge-${tag}.html`, path: resolve('剑网3掉落工坊.html'), type: 'text/html; charset=utf-8' },
+  { name: `jx3-loot-forge-${tag}-offline.zip`, path: resolve(`../artifacts/jx3-loot-forge-${tag}-offline.zip`), type: 'application/zip' },
 ];
 
 for (const file of filesToUpload) {

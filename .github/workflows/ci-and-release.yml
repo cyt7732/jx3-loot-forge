@@ -43,14 +43,22 @@ jobs:
 
       - name: Prepare release assets
         run: |
-          mkdir -p dist-release
-          cp 剑网3掉落工坊.html dist-release/JX3-Loot-Forge-v${{ env.APP_VERSION }}.html
+          mkdir -p artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}
+          cp 剑网3掉落工坊.html artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/index.html
+          cp CHANGELOG.md artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/
+          cp README.md artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/
+          cp LICENSE artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/
+          cp VERSION.json artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/
+          if [ ! -f artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/RELEASE_NOTES.md ]; then
+            echo "# 剑网3掉落工坊 v${{ env.APP_VERSION }}" > artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/RELEASE_NOTES.md
+          fi
+          cd artifacts && zip -r ../artifacts/jx3-loot-forge-v${{ env.APP_VERSION }}-offline.zip 剑网3掉落工坊-v${{ env.APP_VERSION }} && cd ..
 
-      - name: Upload offline HTML artifact
+      - name: Upload offline zip artifact
         uses: actions/upload-artifact@v4
         with:
-          name: 剑网3掉落工坊-v${{ env.APP_VERSION }}-离线网页版
-          path: dist-release/*.html
+          name: jx3-loot-forge-v${{ env.APP_VERSION }}-offline
+          path: artifacts/jx3-loot-forge-v${{ env.APP_VERSION }}-offline.zip
           if-no-files-found: error
 
       - name: Publish Release (on tag only)
@@ -60,5 +68,5 @@ jobs:
           name: 剑网3掉落工坊 v${{ env.APP_VERSION }}
           draft: false
           prerelease: false
-          files: dist-release/*.html
-          generate_release_notes: true
+          files: artifacts/jx3-loot-forge-v${{ env.APP_VERSION }}-offline.zip
+          generate_release_notes: false
