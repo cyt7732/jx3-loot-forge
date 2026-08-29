@@ -6,16 +6,17 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "vinext dev",
-    "build": "vinext build",
+    "dev": "vite",
+    "build": "vite build --config vite.web.config.ts",
+    "build:web": "vite build --config vite.web.config.ts",
     "build:offline": "node scripts/build-offline.mjs",
-    "start": "vinext start",
+    "start": "vite preview",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "crawl:catalog": "node scripts/crawl-catalog.mjs",
     "reclassify:catalog": "node scripts/reclassify-catalog.mjs",
-    "check": "npm run typecheck && npm run lint && npm run test && npm run build && npm run build:offline"
+    "check": "npm run typecheck && npm run lint && npm run test && npm run build:web && npm run build:offline"
   },
   "dependencies": {
     "next": "16.3.2",

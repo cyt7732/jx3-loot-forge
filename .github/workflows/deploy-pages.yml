@@ -36,7 +36,7 @@ jobs:
         working-directory: web
         run: |
           npm ci
-          npm run build:offline
+          npm run build:web
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -46,7 +46,7 @@ jobs:
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'web/dist/offline'
+          path: 'web/dist/web'
 
       - name: Deploy to GitHub Pages
         id: deployment
