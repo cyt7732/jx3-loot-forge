@@ -29,12 +29,10 @@ html = html.replace(stylesheetMatch[0], () => `<style>${css.replace(/<\/style/gi
 const scriptMatch = html.match(/<script type="module"[^>]*src="([^"]+)"[^>]*><\/script>/u);
 if (!scriptMatch) throw new Error('Offline build did not produce one module script.');
 const javascript = await readFile(localAssetPath(scriptMatch[1]), 'utf8');
-// A replacement string would interpret `$&`, `$1`, `$\`` and `$'` sequences
-// that legitimately occur inside minified JavaScript. Return the payload from
-// a function so the bundle is inserted byte-for-byte instead of being mutated.
-html = html.replace(scriptMatch[0], () => `<script type="module">${javascript.replace(/<\/script/giu, '<\\/script')}</script>`);
 const logoBuffer = await readFile(resolve(PROJECT_DIR, 'src/assets/logo.jpg'));
 const logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
+const inlinedJs = javascript.replaceAll('"./logo.jpg"', JSON.stringify(logoBase64));
+html = html.replace(scriptMatch[0], () => `<script type="module">${inlinedJs.replace(/<\/script/giu, '<\\/script')}</script>`);
 html = html.replace(/<link rel="icon"[^>]*>/u, `<link rel="icon" type="image/jpeg" href="${logoBase64}" />`);
 if (/<(?:script|link)[^>]+(?:src|href)="(?!(?:https?:)?\/\/|data:)[^"]*assets\//u.test(html)) throw new Error('Offline HTML still references external build assets.');
 const catalog = await readFile(CATALOG_PATH, 'utf8');
