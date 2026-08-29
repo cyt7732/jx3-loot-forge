@@ -1,21 +1,21 @@
 # 剑网3掉落工坊 (JX3 Loot Forge) 审核与交接文档
 
-> **文档版本**：v1.2.1-Audit-Handoff  
+> **文档版本**：v1.2.2-Audit-Handoff  
 > **生成时间**：2026-08-30  
-> **交接目标**：提供给 Codex 进行全面代码审核、架构评估与质量验收。
+> **交接目标**：提供给团队与审核工具进行全面代码审核、架构评估与质量验收。
 
 ---
 
 ## 1. 项目概况与当前版本基线 (Project Baseline)
 
-- **当前稳定版本**：`v1.2.1`（GitHub Release Latest）
+- **当前稳定版本**：`v1.2.2`（GitHub Release Latest）
 - **数据目录快照**：`20260823-011b26367022`（丝路风语-260823，共 16,571 项掉落条目）
 - **技术栈**：TypeScript + React 19 + Vite 8 + CSS Variables + Vitest
 - **部署与分发地址**：
   - ⚡ **主在线镜像 (Cloudflare Pages)**：[https://jx3-loot-forge.pages.dev](https://jx3-loot-forge.pages.dev)
   - 🛡️ **备用在线镜像 (GitHub Pages)**：[https://cyt7732.github.io/jx3-loot-forge/](https://cyt7732.github.io/jx3-loot-forge/)
-  - 📦 **GitHub Releases (唯一全英文 zip 资产)**：[https://github.com/cyt7732/jx3-loot-forge/releases/tag/v1.2.1](https://github.com/cyt7732/jx3-loot-forge/releases/tag/v1.2.1)
-  - 📂 **本地离线单文件**：`根目录/剑网3掉落工坊.html` 及 `artifacts/剑网3掉落工坊-v1.2.1/index.html`
+  - 📦 **GitHub Releases (唯一全英文 zip 资产)**：[https://github.com/cyt7732/jx3-loot-forge/releases/tag/v1.2.2](https://github.com/cyt7732/jx3-loot-forge/releases/tag/v1.2.2)
+  - 📂 **本地离线单文件**：`根目录/剑网3掉落工坊.html` 及 `artifacts/剑网3掉落工坊-v1.2.2/index.html`
 
 ---
 
@@ -24,8 +24,8 @@
 ### 2.1 界面视觉与 100% 经典毛玻璃美学复原
 - **问题根因**：先前在处理宽屏居中时误重置了大块 CSS，导致顶部 Header 异化为全宽贴顶通栏、丢失了毛玻璃卡片（`.glass-panel`）通透质感，并将大标题从 `21px` 缩小至 `18px`。
 - **整改结果**：
-  - 100% 精确复原 `v1.2.0` 的悬浮居中 `topbar`（宽度 `min(1400px, calc(100% - 40px))`，下方保留 `24px` 舒适留白）；
-  - 完整复原 `24px` 高斯模糊毛玻璃深色面板、三点微光固定背景（`background-attachment: fixed`）；
+  - 100% 精确复原 `v1.2.0` 的悬浮居中 `topbar`（外层容器 `.app-shell` 最大宽度 1440px 配合 clamp 留白与水平 `margin: 0 auto;` 自适应，下方保留舒适留白）；
+  - 完整复原高性能毛玻璃深色面板（`backdrop-filter: blur(...)`）、三点微光固定背景（`background-attachment: fixed`）；
   - 保持 `21px` 醒目大标题与精致高光版本号微光胶囊（`.version-pill` 与 `.data-version-pill`）；
   - 在保持经典美学的前提下，完美修复了 1080P/2K/4K 宽屏显示下的左右对称水平居中。
 
@@ -65,8 +65,8 @@ jx3-loot-forge/
 │   ├── ci-and-release.yml    # CI 自动化检查与 Release 自动发布工作流
 │   └── deploy-pages.yml      # GitHub Pages 静态多文件自动部署工作流
 ├── artifacts/                # 本地与发布产物归档
-│   ├── 剑网3掉落工坊-v1.2.1/  # 包含离线 index.html、CHANGELOG、README、LICENSE、VERSION、RELEASE_NOTES
-│   └── jx3-loot-forge-v1.2.1-offline.zip
+│   ├── 剑网3掉落工坊-v1.2.2/  # 包含离线 index.html、CHANGELOG、README、LICENSE、VERSION、RELEASE_NOTES
+│   └── jx3-loot-forge-v1.2.2-offline.zip
 ├── docs/                     # 架构设计、发版流程与交接文档
 │   ├── HANDOFF.md            # 本审核交接文档
 │   └── RELEASE_PROCESS.md    # 标准发版流程与防漏清单 (SOP)

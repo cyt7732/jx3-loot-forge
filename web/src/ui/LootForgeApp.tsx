@@ -111,7 +111,7 @@ const STATE_LABELS: Record<StateField, string> = {
   autoSell: '自动出售',
   protect: '保护不出售',
 };
-function sourceKey(mapId: number, bossName: string): string {
+export function sourceKey(mapId: number, bossName: string): string {
   return `${mapId}:${encodeURIComponent(bossName)}`;
 }
 
@@ -542,14 +542,36 @@ export function LootForgeApp() {
     });
   };
 
-  const toggleBoss = (mapId: number, bossName: string) => {
+  const toggleBoss = (mapId: number, bossName: string, mapBossNames?: string[]) => {
     const key = sourceKey(mapId, bossName);
     setWorkspace((current) => {
+      const isMapSelected = current.selectedMapIds.includes(mapId);
       const bosses = new Set(current.selectedBossKeys);
-      if (bosses.has(key)) bosses.delete(key); else bosses.add(key);
+
+      if (isMapSelected) {
+        const nextMaps = current.selectedMapIds.filter((id) => id !== mapId);
+        const mapBosses = mapBossNames ?? activeSnapshot.maps.find((m) => m.mapId === mapId)?.bossNames ?? [];
+        for (const b of mapBosses) {
+          if (b !== bossName) {
+            bosses.add(sourceKey(mapId, b));
+          }
+        }
+        bosses.delete(key);
+        return {
+          ...current,
+          selectedMapIds: nextMaps,
+          selectedBossKeys: [...bosses],
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      if (bosses.has(key)) {
+        bosses.delete(key);
+      } else {
+        bosses.add(key);
+      }
       return {
         ...current,
-        selectedMapIds: current.selectedMapIds.filter((id) => id !== mapId),
         selectedBossKeys: [...bosses],
         updatedAt: new Date().toISOString(),
       };
@@ -625,10 +647,43 @@ export function LootForgeApp() {
       return;
     }
     if (focusedScope.type === 'boss') {
-      if (!selectedBosses.has(sourceKey(focusedScope.mapId, focusedScope.bossName))) {
+      if (!selectedBosses.has(sourceKey(focusedScope.mapId, focusedScope.bossName)) && !selectedMaps.has(focusedScope.mapId)) {
         toggleBoss(focusedScope.mapId, focusedScope.bossName);
       }
       setToast({ tone: 'success', message: `已勾选【${focusedScope.bossName}】用于导出` });
+    }
+  };
+
+  const uncheckCurrentFocusedScope = () => {
+    if (focusedScope.type === 'all') return;
+    if (focusedScope.type === 'custom') {
+      if (selectedMaps.has(CUSTOM_SCOPE_ID)) toggleMap(CUSTOM_SCOPE_ID);
+      setToast({ tone: 'success', message: '已取消勾选【用户自定义】' });
+      return;
+    }
+    if (focusedScope.type === 'level' || focusedScope.type === 'difficulty') {
+      setWorkspace((current) => {
+        const nextMaps = new Set(current.selectedMapIds);
+        for (const id of focusedScope.mapIds) nextMaps.delete(id);
+        const mapIds = new Set(focusedScope.mapIds);
+        return {
+          ...current,
+          selectedMapIds: [...nextMaps],
+          selectedBossKeys: current.selectedBossKeys.filter((key) => !mapIds.has(Number(key.split(':')[0]))),
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      setToast({ tone: 'success', message: `已取消勾选【${focusedScope.type === 'level' ? focusedScope.name : focusedScope.label}】` });
+      return;
+    }
+    if (focusedScope.type === 'map') {
+      if (selectedMaps.has(focusedScope.mapId)) toggleMap(focusedScope.mapId);
+      setToast({ tone: 'success', message: `已取消勾选【${focusedScope.name}】` });
+      return;
+    }
+    if (focusedScope.type === 'boss') {
+      toggleBoss(focusedScope.mapId, focusedScope.bossName);
+      setToast({ tone: 'success', message: `已取消勾选【${focusedScope.bossName}】` });
     }
   };
 
@@ -648,8 +703,10 @@ export function LootForgeApp() {
   };
 
   const handleFocusCurrentSeason = () => {
-    const currentSeason = levelGroups.find((g) => g.level === 130);
+    const allLevelGroups = groupMapsByLevel(activeSnapshot.maps);
+    const currentSeason = allLevelGroups.find((g) => g.level === 130);
     if (currentSeason) {
+      setScopeQuery('');
       setFocusedScope({
         type: 'level',
         id: currentSeason.id,
@@ -1337,6 +1394,14 @@ export function LootForgeApp() {
                                               levelName: levelGroup.name,
                                             }));
                                           }}
+                                          onDoubleClick={(event) => {
+                                            event.preventDefault();
+                                            toggleBoss(map.mapId, boss, map.bossNames);
+                                          }}
+                                          onContextMenu={(event) => {
+                                            event.preventDefault();
+                                            toggleBoss(map.mapId, boss, map.bossNames);
+                                          }}
                                           title={`点击单选聚焦【${boss}】的掉落；双击或右键可切换导出勾选`}
                                         >
                                           <span>{boss}</span>
@@ -1396,8 +1461,12 @@ export function LootForgeApp() {
                   </span>
                 </div>
                 <div className="focus-scope-actions">
-                  {!isCurrentScopeChecked && (
-                    <button type="button" className="button ghost compact check-scope-btn" onClick={checkCurrentFocusedScope} title="将当前编辑的年代/副本加入到右侧导出范围中">
+                  {isCurrentScopeChecked ? (
+                    <button type="button" className="button ghost compact uncheck-scope-btn" onClick={uncheckCurrentFocusedScope} title="将当前编辑的年代/副本/Boss从导出范围中取消勾选">
+                      ✕ 取消勾选本项
+                    </button>
+                  ) : (
+                    <button type="button" className="button ghost compact check-scope-btn" onClick={checkCurrentFocusedScope} title="将当前编辑的年代/副本/Boss加入到右侧导出范围中">
                       ✓ 勾选本项用于导出
                     </button>
                   )}

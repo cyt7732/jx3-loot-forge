@@ -14,6 +14,7 @@ const artDir = resolve(PROJECT_DIR, `artifacts/剑网3掉落工坊-v${ver}`);
 const zipPath = resolve(PROJECT_DIR, `artifacts/jx3-loot-forge-v${ver}-offline.zip`);
 const htmlSource = resolve(PROJECT_DIR, '剑网3掉落工坊.html');
 
+await rm(artDir, { recursive: true, force: true });
 await mkdir(artDir, { recursive: true });
 
 await cp(htmlSource, resolve(artDir, 'index.html'));
@@ -25,11 +26,10 @@ await cp(VERSION_PATH, resolve(artDir, 'VERSION.json'));
 const releaseNotes = `# 剑网3掉落工坊 v${ver}
 
 ### 更新亮点
-- **【极速开始】快捷引导面板**：未选择副本范围时主区呈现居中拟态引导卡片，提供【一键全选前尘老本】与【聚焦当前赛季】两大高频入口，快速进入策略配置。
-- **宽屏自适应水平居中与 100% 经典美学复原**：完美复原 v1.2.0 高质感毛玻璃悬浮卡片美学，确保在 1080P、2K 及超宽屏显示器下始终对称居中展示。
-- **离线版 Logo Base64 自动化可靠内嵌**：升级离线打包管线，确保离线单文件在无网络本地环境中 100% 正常显示应用 Logo 与 Favicon。
-- **字体非阻塞异步加载与优雅呈现**：采用异步加载与 font-display: swap，首屏 0 延迟秒开并平滑过渡至鸿蒙字体（HarmonyOS Sans SC）。
-- **策略区标题自适应与排版语病修复**：消除范围为空时的前后矛盾用词，移除孤立折行冒号与生硬技术术语。
+- **【聚焦当前赛季】搜索联动与体验修复**：修复在搜索过滤状态下点击“聚焦当前赛季”无响应的问题，现在无论处于何种搜索词下均能精准直达 130 级（丝路风语）并自动重置搜索视野。
+- **Boss 精细化双击/右键勾选控制**：全面支持在侧栏 Boss 节点上双击或右键快速切换单个 Boss 的导出勾选状态，并在聚焦详情顶栏提供一键勾选/取消勾选，实现文案提示与功能完全闭环。
+- **跨平台离线包发布结构 100% 统一**：统一 Windows 与 Linux/CI 本地打包管线，生成的离线 ZIP 压缩包均规范包含 \`剑网3掉落工坊-v${ver}/\` 独立顶层目录，打包前自动执行产物清理，杜绝历史文件夹带。
+- **全文档与版本规范闭环**：对齐 README 徽章、更新日志与交接文档，确保发布资产唯一性与可复现性。
 `;
 
 await writeFile(resolve(artDir, 'RELEASE_NOTES.md'), releaseNotes, 'utf8');
@@ -39,7 +39,7 @@ try {
 } catch {}
 
 if (process.platform === 'win32') {
-  execFileSync('powershell', ['-NoProfile', '-Command', `Compress-Archive -Path '${artDir}\\*' -DestinationPath '${zipPath}' -Force`]);
+  execFileSync('powershell', ['-NoProfile', '-Command', `Compress-Archive -Path '${artDir}' -DestinationPath '${zipPath}' -Force`]);
 } else {
   execFileSync('zip', ['-r', zipPath, `剑网3掉落工坊-v${ver}`], { cwd: resolve(PROJECT_DIR, 'artifacts') });
 }
