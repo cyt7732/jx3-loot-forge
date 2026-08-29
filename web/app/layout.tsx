@@ -27,10 +27,6 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <head>
-        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/harmonyos-sans-sc-webfont-splitted@1.1.0/dist/index.min.css" crossOrigin="anonymous" />
-      </head>
       <body>{children}</body>
     </html>
   );
