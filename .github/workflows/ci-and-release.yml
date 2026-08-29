@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies & run full checks
         working-directory: web
         run: |
-          npm ci
+          npm install
           npm run check
 
       - name: Prepare release assets
@@ -68,5 +68,7 @@ jobs:
           name: 剑网3掉落工坊 v${{ env.APP_VERSION }}
           draft: false
           prerelease: false
-          files: artifacts/jx3-loot-forge-v${{ env.APP_VERSION }}-offline.zip
+          files: |
+            artifacts/jx3-loot-forge-v${{ env.APP_VERSION }}-offline.zip
+            剑网3掉落工坊.html
           generate_release_notes: false
