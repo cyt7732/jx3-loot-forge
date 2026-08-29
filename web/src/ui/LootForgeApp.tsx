@@ -146,6 +146,33 @@ function downloadBatchFile(file: { filename: string; bytes: Uint8Array }): void 
   downloadBytes(file.filename, file.bytes);
 }
 
+export type FocusedScope =
+  | { type: 'all' }
+  | { type: 'custom' }
+  | { type: 'level'; id: string; name: string; level: number | null; mapIds: number[] }
+  | { type: 'difficulty'; levelName: string; label: string; mapIds: number[] }
+  | { type: 'map'; mapId: number; name: string; difficulty: string; levelName?: string }
+  | { type: 'boss'; mapId: number; mapName: string; bossName: string; levelName?: string };
+
+function ChevronIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      className={`tree-chevron-icon ${className}`}
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="2 4 6 8 10 4" />
+    </svg>
+  );
+}
+
 export function LootForgeApp() {
   const [activeSnapshot, setActiveSnapshot] = useState(catalogSnapshot);
   const [embeddedSnapshot, setEmbeddedSnapshot] = useState<CatalogSnapshot | null>(null);
@@ -164,6 +191,7 @@ export function LootForgeApp() {
   const [drawerStateView, setDrawerStateView] = useState<'all' | 'configured' | 'unconfigured' | 'protected'>('all');
   const [drawerPage, setDrawerPage] = useState(1);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [focusedScope, setFocusedScope] = useState<FocusedScope>({ type: 'all' });
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const configInputRef = useRef<HTMLInputElement>(null);
@@ -387,7 +415,7 @@ export function LootForgeApp() {
     return allItems.filter((item) => item.isCustom || item.customOverride || item.historical).length;
   }, [allItems]);
 
-  const sourceMatchesScope = (item: ViewItem): boolean => {
+  const sourceMatchesExportScope = (item: ViewItem): boolean => {
     const isCustomItem = Boolean(item.isCustom || item.customOverride || item.historical);
     if (!hasScope) return isCustomItem;
     const matchesCustom = selectedMaps.has(CUSTOM_SCOPE_ID) && isCustomItem;
@@ -395,20 +423,44 @@ export function LootForgeApp() {
     return matchesCustom || matchesSource;
   };
 
+  const sourceMatchesViewScope = (item: ViewItem): boolean => {
+    const isCustomItem = Boolean(item.isCustom || item.customOverride || item.historical);
+    if (focusedScope.type === 'custom') {
+      return isCustomItem;
+    }
+    if (focusedScope.type === 'level') {
+      const levelMapSet = new Set(focusedScope.mapIds);
+      return item.sources.some((source) => levelMapSet.has(source.mapId));
+    }
+    if (focusedScope.type === 'difficulty') {
+      const diffMapSet = new Set(focusedScope.mapIds);
+      return item.sources.some((source) => diffMapSet.has(source.mapId));
+    }
+    if (focusedScope.type === 'map') {
+      return item.sources.some((source) => source.mapId === focusedScope.mapId);
+    }
+    if (focusedScope.type === 'boss') {
+      return item.sources.some((source) => source.mapId === focusedScope.mapId && source.bossName === focusedScope.bossName);
+    }
+    return sourceMatchesExportScope(item);
+  };
+
+  const hasScopeInView = focusedScope.type !== 'all' || hasScope;
+
   const availableCategories = useMemo(() => {
     const counts = Object.fromEntries(CATEGORY_ORDER.map((category) => [category, 0])) as Record<ItemCategory, number>;
     for (const item of allItems) {
-      if (!sourceMatchesScope(item)) continue;
+      if (!sourceMatchesViewScope(item)) continue;
       counts[item.category] += 1;
     }
     return CATEGORY_ORDER.filter((category) => counts[category] > 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allItems, hasScope, selectedMaps, selectedBosses]);
+  }, [allItems, hasScope, selectedMaps, selectedBosses, focusedScope]);
 
   const scopedItems = useMemo(() => {
-    return allItems.filter((item) => sourceMatchesScope(item));
+    return allItems.filter((item) => sourceMatchesViewScope(item));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allItems, hasScope, selectedMaps, selectedBosses]);
+  }, [allItems, hasScope, selectedMaps, selectedBosses, focusedScope]);
 
   const scopeStats = useMemo(() => {
     let skipLoot = 0;
@@ -434,7 +486,7 @@ export function LootForgeApp() {
     const query = drawerQuery.trim().normalize('NFC');
     return allItems.filter((item) => {
       if (item.category !== expandedCategory) return false;
-      if (!sourceMatchesScope(item)) return false;
+      if (!sourceMatchesViewScope(item)) return false;
       if (query && !item.name.normalize('NFC').includes(query) && !item.sources.some((source) => `${source.expansion}${source.mapName}${source.bossName}`.includes(query))) return false;
       const state = cloneState(stateMap.get(item.id));
       if (drawerStateView === 'configured' && !state.skipLoot && !state.autoSell && !state.protect) return false;
@@ -443,7 +495,7 @@ export function LootForgeApp() {
       return true;
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expandedCategory, drawerQuery, drawerStateView, allItems, stateMap, hasScope, selectedMaps, selectedBosses]);
+  }, [expandedCategory, drawerQuery, drawerStateView, allItems, stateMap, hasScope, selectedMaps, selectedBosses, focusedScope]);
 
   const drawerTotalPages = Math.max(1, Math.ceil(drawerItems.length / DRAWER_PAGE_SIZE));
   const currentDrawerPage = Math.min(drawerPage, drawerTotalPages);
@@ -526,6 +578,11 @@ export function LootForgeApp() {
   };
 
   const currentScopeLabel = useMemo(() => {
+    if (focusedScope.type === 'custom') return '✨ 用户自定义物品';
+    if (focusedScope.type === 'level') return `『${focusedScope.name}』${focusedScope.level !== null ? ` (Lv.${focusedScope.level})` : ''}`;
+    if (focusedScope.type === 'difficulty') return `『${focusedScope.levelName}』· ${focusedScope.label}`;
+    if (focusedScope.type === 'map') return `${focusedScope.name} (${focusedScope.difficulty})`;
+    if (focusedScope.type === 'boss') return `${focusedScope.mapName} · ${focusedScope.bossName}`;
     if (!hasScope) return '尚未选择范围';
     const parts: string[] = [];
     if (selectedMaps.has(CUSTOM_SCOPE_ID)) parts.push('✨ 用户自定义');
@@ -534,7 +591,47 @@ export function LootForgeApp() {
     if (selectedBosses.size > 0) parts.push(`${selectedBosses.size} 个 Boss`);
     if (parts.length === 0) return '尚未选择范围';
     return parts.join(' + ');
-  }, [hasScope, selectedBosses.size, selectedMaps]);
+  }, [focusedScope, hasScope, selectedBosses.size, selectedMaps]);
+
+  const isCurrentScopeChecked = useMemo(() => {
+    if (focusedScope.type === 'all') return true;
+    if (focusedScope.type === 'custom') return selectedMaps.has(CUSTOM_SCOPE_ID);
+    if (focusedScope.type === 'level' || focusedScope.type === 'difficulty') {
+      return focusedScope.mapIds.length > 0 && focusedScope.mapIds.every((id) => selectedMaps.has(id));
+    }
+    if (focusedScope.type === 'map') return selectedMaps.has(focusedScope.mapId);
+    if (focusedScope.type === 'boss') return selectedBosses.has(sourceKey(focusedScope.mapId, focusedScope.bossName)) || selectedMaps.has(focusedScope.mapId);
+    return false;
+  }, [focusedScope, selectedMaps, selectedBosses]);
+
+  const checkCurrentFocusedScope = () => {
+    if (focusedScope.type === 'all') return;
+    if (focusedScope.type === 'custom') {
+      if (!selectedMaps.has(CUSTOM_SCOPE_ID)) toggleMap(CUSTOM_SCOPE_ID);
+      setToast({ tone: 'success', message: '已勾选【用户自定义】用于导出' });
+      return;
+    }
+    if (focusedScope.type === 'level' || focusedScope.type === 'difficulty') {
+      setWorkspace((current) => {
+        const nextMaps = new Set(current.selectedMapIds);
+        for (const id of focusedScope.mapIds) nextMaps.add(id);
+        return { ...current, selectedMapIds: [...nextMaps], updatedAt: new Date().toISOString() };
+      });
+      setToast({ tone: 'success', message: `已勾选【${focusedScope.type === 'level' ? focusedScope.name : focusedScope.label}】全部副本用于导出` });
+      return;
+    }
+    if (focusedScope.type === 'map') {
+      if (!selectedMaps.has(focusedScope.mapId)) toggleMap(focusedScope.mapId);
+      setToast({ tone: 'success', message: `已勾选【${focusedScope.name}】用于导出` });
+      return;
+    }
+    if (focusedScope.type === 'boss') {
+      if (!selectedBosses.has(sourceKey(focusedScope.mapId, focusedScope.bossName))) {
+        toggleBoss(focusedScope.mapId, focusedScope.bossName);
+      }
+      setToast({ tone: 'success', message: `已勾选【${focusedScope.bossName}】用于导出` });
+    }
+  };
 
   const categoryWorkbenchSummaries = useMemo(() => {
     const summaryMap = new Map<ItemCategory, {
@@ -558,7 +655,7 @@ export function LootForgeApp() {
     }
 
     for (const item of allItems) {
-      if (!sourceMatchesScope(item)) continue;
+      if (!sourceMatchesViewScope(item)) continue;
       const entry = summaryMap.get(item.category);
       if (!entry) continue;
       entry.total += 1;
@@ -571,14 +668,14 @@ export function LootForgeApp() {
 
     return availableCategories.map((cat) => summaryMap.get(cat)!).filter((s) => s && s.total > 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allItems, availableCategories, hasScope, selectedMaps, selectedBosses, stateMap]);
+  }, [allItems, availableCategories, hasScope, selectedMaps, selectedBosses, stateMap, focusedScope]);
 
   const applyCategoryDirectAction = (category: ItemCategory, action: BatchActionType) => {
     const scopedCategoryOfficial = allItems.filter((item) => (
       item.category === category
       && !item.customOverride
       && !item.historical
-      && sourceMatchesScope(item)
+      && sourceMatchesViewScope(item)
     ));
     const rules = createCategoryActionRules(category, action);
     const preview = previewBulkRules(scopedCategoryOfficial, stateMap, customOverrides, rules);
@@ -599,14 +696,14 @@ export function LootForgeApp() {
   };
 
   const applyScopePreset = (kind: 'farming' | 'clear' | 'lowerLevels') => {
-    if (!hasScope && kind !== 'lowerLevels') {
-      setToast({ tone: 'warning', message: '请先在左侧勾选要配置的副本或版本范围。' });
+    if (!hasScopeInView && kind !== 'lowerLevels') {
+      setToast({ tone: 'warning', message: '请先在左侧选择要配置的副本或版本范围。' });
       return;
     }
     const scopedAllOfficial = allItems.filter((item) => (
       !item.customOverride
       && !item.historical
-      && sourceMatchesScope(item)
+      && sourceMatchesViewScope(item)
     ));
 
     if (kind === 'lowerLevels') {
@@ -702,8 +799,12 @@ export function LootForgeApp() {
 
   const createNamedStates = () => {
     const names = new Map(allItems.map((item) => [item.id, item.name]));
-    const targetItems = hasScope ? scopedItems : allItems;
-    const targetIdSet = new Set(targetItems.map((item) => item.id));
+    let exportItems = allItems.filter(sourceMatchesExportScope);
+    // 如果勾选框完全为空，但当前聚焦在某个年代/难度/副本/Boss，则导出当前聚焦的范围
+    if (exportItems.length === 0 && focusedScope.type !== 'all') {
+      exportItems = allItems.filter(sourceMatchesViewScope);
+    }
+    const targetIdSet = new Set(exportItems.map((item) => item.id));
     return [...stateMap.entries()]
       .filter(([id, state]) => targetIdSet.has(id) && (state.skipLoot || state.autoSell || state.protect))
       .map(([id, state]) => ({ name: names.get(id) ?? id, state }));
@@ -990,7 +1091,7 @@ export function LootForgeApp() {
           <div className="scope-actions">
             <button
               type="button"
-              title="一键选中 70~120 级所有历史前尘老副本（自动排除当前 130 级丝路风语赛季本）"
+              title="一键勾选 70~120 级所有历史前尘老副本用于导出（自动排除当前 130 级丝路风语赛季本）"
               onClick={() => {
                 const maxLevel = Math.max(...CATALOG_LEVEL_GROUPS.map((group) => group.level ?? Number.NEGATIVE_INFINITY));
                 const lowerLevelMaps = activeSnapshot.maps.filter((map) => {
@@ -1003,14 +1104,14 @@ export function LootForgeApp() {
                   selectedBossKeys: [],
                   updatedAt: new Date().toISOString(),
                 }));
-                setToast({ tone: 'success', message: `已选中 70~120 级前尘老本（共 ${lowerLevelMaps.length} 个副本）` });
+                setToast({ tone: 'success', message: `已勾选 70~120 级前尘老本用于导出（共 ${lowerLevelMaps.length} 个副本）` });
               }}
             >
               全选老本
             </button>
             <button
               type="button"
-              title="全选 70~130 级所有赛季副本"
+              title="全选 70~130 级所有赛季副本用于导出"
               onClick={() => {
                 setWorkspace((current) => ({
                   ...current,
@@ -1018,44 +1119,51 @@ export function LootForgeApp() {
                   selectedBossKeys: [],
                   updatedAt: new Date().toISOString(),
                 }));
-                setToast({ tone: 'success', message: `已选中全部副本（共 ${activeSnapshot.maps.length} 个副本）` });
+                setToast({ tone: 'success', message: `已勾选全部副本用于导出（共 ${activeSnapshot.maps.length} 个副本）` });
               }}
             >
               全选所有
             </button>
             <button
               type="button"
-              title="清除左侧的副本和 Boss 选择，主区显示完整目录"
+              title="清除左侧所有副本和 Boss 的勾选标记，主区显示完整目录"
               aria-label="清除范围并查看全部副本"
-              onClick={() => setWorkspace((current) => ({ ...current, selectedMapIds: [], selectedBossKeys: [], updatedAt: new Date().toISOString() }))}
+              onClick={() => {
+                setWorkspace((current) => ({ ...current, selectedMapIds: [], selectedBossKeys: [], updatedAt: new Date().toISOString() }));
+                setFocusedScope({ type: 'all' });
+              }}
             >
               清除范围
             </button>
           </div>
           <div className="scope-rule-hint" role="note">
-            <span className="hint-badge">💡 导出规则</span>
-            <span>仅导出<strong>当前所选范围</strong>内的策略；未勾选的年代或副本<strong>不会包含在导出文件中</strong>。</span>
+            <span className="hint-badge">💡 模式说明</span>
+            <span>点击名称<strong>单选聚焦配置</strong>；左侧方框<strong>打勾多选导出</strong>。</span>
           </div>
           <nav className="dungeon-tree" aria-label="副本范围">
-            <div className={`tree-group custom-scope-group ${selectedMaps.has(CUSTOM_SCOPE_ID) ? 'active' : ''}`}>
+            <div className={`tree-group custom-scope-group ${selectedMaps.has(CUSTOM_SCOPE_ID) ? 'active' : ''} ${focusedScope.type === 'custom' ? 'is-focused' : ''}`}>
               <div
-                className="custom-scope-row"
-                onClick={() => toggleMap(CUSTOM_SCOPE_ID)}
+                className={`custom-scope-row ${focusedScope.type === 'custom' ? 'focused-row' : ''}`}
+                onClick={() => setFocusedScope((curr) => (curr.type === 'custom' ? { type: 'all' } : { type: 'custom' }))}
                 role="button"
                 tabIndex={0}
-                title="选择所有用户手动添加、自定义覆盖及导入的历史条目"
+                title="点击单选聚焦：只看并管理用户自定义物品"
               >
                 <button
                   className={`tree-check ${selectedMaps.has(CUSTOM_SCOPE_ID) ? 'checked' : ''}`}
                   type="button"
                   aria-pressed={selectedMaps.has(CUSTOM_SCOPE_ID)}
-                  aria-label="切换用户自定义范围"
+                  aria-label="切换用户自定义范围勾选"
+                  title="勾选自定义物品用于导出"
                   onClick={(e) => { e.stopPropagation(); toggleMap(CUSTOM_SCOPE_ID); }}
                 >
                   {selectedMaps.has(CUSTOM_SCOPE_ID) ? '✓' : ''}
                 </button>
                 <div className="custom-scope-meta">
-                  <strong>✨ 用户自定义</strong>
+                  <strong>
+                    ✨ 用户自定义
+                    {focusedScope.type === 'custom' && <span className="focus-pill">正在编辑</span>}
+                  </strong>
                   <small>手动添加 / 外部导入 / 历史条目</small>
                 </div>
                 <span className="custom-scope-badge">{customCount} 项</span>
@@ -1064,34 +1172,149 @@ export function LootForgeApp() {
 
             {levelGroups.map((levelGroup) => {
               const levelSelection = mapsSelection(levelGroup.maps);
+              const isLevelFocused = focusedScope.type === 'level' && focusedScope.id === levelGroup.id;
               return (
-                <details className="tree-group level-group" key={levelGroup.id} open={scopeQuery ? true : undefined}>
-                  <summary className={levelSelection.full || levelSelection.partial ? 'active' : ''}>
-                    <button className={`tree-check ${levelSelection.full ? 'checked' : levelSelection.partial ? 'partial' : ''}`} type="button" aria-pressed={levelSelection.full} aria-label={`切换${levelGroup.label}全部副本`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMapGroup(levelGroup.maps); }}>{levelSelection.full ? '✓' : levelSelection.partial ? '−' : ''}</button>
-                    <span><strong>『{levelGroup.name}』</strong><em>{levelGroup.level !== null ? `(Lv.${levelGroup.level})` : '未知等级'}</em></span><small>{levelSelection.selectedMapCount}/{levelGroup.maps.length}</small><b>⌄</b>
+                <details className={`tree-group level-group ${isLevelFocused ? 'is-focused' : ''}`} key={levelGroup.id} open={scopeQuery ? true : undefined}>
+                  <summary className={`${levelSelection.full || levelSelection.partial ? 'active' : ''} ${isLevelFocused ? 'focused-summary' : ''}`}>
+                    <button
+                      className={`tree-check ${levelSelection.full ? 'checked' : levelSelection.partial ? 'partial' : ''}`}
+                      type="button"
+                      aria-pressed={levelSelection.full}
+                      aria-label={`切换${levelGroup.label}全部副本勾选`}
+                      title={levelSelection.full ? '取消勾选该年代所有副本（不影响视图）' : '勾选该年代所有副本用于导出'}
+                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMapGroup(levelGroup.maps); }}
+                    >
+                      {levelSelection.full ? '✓' : levelSelection.partial ? '−' : ''}
+                    </button>
+                    <span
+                      className="level-title-clickable"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setFocusedScope((curr) => (curr.type === 'level' && curr.id === levelGroup.id ? { type: 'all' } : {
+                          type: 'level',
+                          id: levelGroup.id,
+                          name: levelGroup.name,
+                          level: levelGroup.level,
+                          mapIds: levelGroup.maps.map((m) => m.mapId),
+                        }));
+                      }}
+                      title={`点击单选聚焦：只看并配置『${levelGroup.name}』(${levelGroup.maps.length}个副本)的策略`}
+                    >
+                      <strong>
+                        『{levelGroup.name}』
+                        {isLevelFocused && <span className="focus-pill">正在编辑</span>}
+                      </strong>
+                      <em>{levelGroup.level !== null ? `(Lv.${levelGroup.level})` : '未知等级'}</em>
+                    </span>
+                    <small>{levelSelection.selectedMapCount}/{levelGroup.maps.length}</small>
+                    <span className="tree-arrow-indicator" title="展开/收起年代详情"><ChevronIcon /></span>
                   </summary>
                   <div className="tree-children difficulty-children">
                     {levelGroup.difficultyGroups.map((difficultyGroup) => {
                       const difficultySelection = mapsSelection(difficultyGroup.maps);
+                      const isDiffFocused = focusedScope.type === 'difficulty' && focusedScope.label === difficultyGroup.label && focusedScope.levelName === levelGroup.name;
                       return (
-                        <details className="difficulty-node" key={difficultyGroup.id} open={scopeQuery ? true : undefined}>
-                          <summary className={`tree-parent ${difficultySelection.full || difficultySelection.partial ? 'active' : ''}`}>
-                            <button className={`tree-check ${difficultySelection.full ? 'checked' : difficultySelection.partial ? 'partial' : ''}`} type="button" aria-pressed={difficultySelection.full} aria-label={`切换${levelGroup.label}${difficultyGroup.label}全部副本`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMapGroup(difficultyGroup.maps); }}>{difficultySelection.full ? '✓' : difficultySelection.partial ? '−' : ''}</button>
-                            <span>{difficultyGroup.label}</span><small>{difficultySelection.selectedMapCount}/{difficultyGroup.maps.length}</small><b>⌄</b>
+                        <details className={`difficulty-node ${isDiffFocused ? 'is-focused' : ''}`} key={difficultyGroup.id} open={scopeQuery ? true : undefined}>
+                          <summary className={`tree-parent ${difficultySelection.full || difficultySelection.partial ? 'active' : ''} ${isDiffFocused ? 'focused-summary' : ''}`}>
+                            <button
+                              className={`tree-check ${difficultySelection.full ? 'checked' : difficultySelection.partial ? 'partial' : ''}`}
+                              type="button"
+                              aria-pressed={difficultySelection.full}
+                              aria-label={`切换${levelGroup.label}${difficultyGroup.label}全部副本勾选`}
+                              title="勾选/取消勾选该难度所有副本用于导出"
+                              onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMapGroup(difficultyGroup.maps); }}
+                            >
+                              {difficultySelection.full ? '✓' : difficultySelection.partial ? '−' : ''}
+                            </button>
+                            <span
+                              className="diff-title-clickable"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                setFocusedScope((curr) => (curr.type === 'difficulty' && curr.label === difficultyGroup.label && curr.levelName === levelGroup.name ? { type: 'all' } : {
+                                  type: 'difficulty',
+                                  levelName: levelGroup.name,
+                                  label: difficultyGroup.label,
+                                  mapIds: difficultyGroup.maps.map((m) => m.mapId),
+                                }));
+                              }}
+                              title={`点击单选聚焦：只看并配置【${levelGroup.name} · ${difficultyGroup.label}】的策略`}
+                            >
+                              <span>
+                                {difficultyGroup.label}
+                                {isDiffFocused && <span className="focus-pill">正在编辑</span>}
+                              </span>
+                            </span>
+                            <small>{difficultySelection.selectedMapCount}/{difficultyGroup.maps.length}</small>
+                            <span className="tree-arrow-indicator" title="展开/收起难度分组"><ChevronIcon /></span>
                           </summary>
                           <div className="tree-children map-children">
                             {difficultyGroup.maps.map((map) => {
                               const mapState = mapSelection(map);
+                              const isMapFocused = focusedScope.type === 'map' && focusedScope.mapId === map.mapId;
                               return (
-                                <details className="map-node" key={map.mapId}>
-                                  <summary className={mapState.full || mapState.partial ? 'active' : ''}>
-                                    <button className={`tree-check ${mapState.full ? 'checked' : mapState.partial ? 'partial' : ''}`} type="button" aria-pressed={mapState.full} aria-label={`切换${map.name}${map.difficulty}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMap(map.mapId); }}>{mapState.full ? '✓' : mapState.partial ? '−' : ''}</button>
-                                    <span><strong>{map.name}</strong><em>{map.difficulty}</em></span><small>{map.bossNames.length} Boss</small><b>⌄</b>
+                                <details className={`map-node ${isMapFocused ? 'is-focused' : ''}`} key={map.mapId}>
+                                  <summary className={`${mapState.full || mapState.partial ? 'active' : ''} ${isMapFocused ? 'focused-summary' : ''}`}>
+                                    <button
+                                      className={`tree-check ${mapState.full ? 'checked' : mapState.partial ? 'partial' : ''}`}
+                                      type="button"
+                                      aria-pressed={mapState.full}
+                                      aria-label={`切换${map.name}${map.difficulty}勾选`}
+                                      title="勾选/取消勾选该副本用于导出"
+                                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMap(map.mapId); }}
+                                    >
+                                      {mapState.full ? '✓' : mapState.partial ? '−' : ''}
+                                    </button>
+                                    <span
+                                      className="map-title-clickable"
+                                      onClick={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                        setFocusedScope((curr) => (curr.type === 'map' && curr.mapId === map.mapId ? { type: 'all' } : {
+                                          type: 'map',
+                                          mapId: map.mapId,
+                                          name: map.name,
+                                          difficulty: map.difficulty,
+                                          levelName: levelGroup.name,
+                                        }));
+                                      }}
+                                      title={`点击单选聚焦：只看并配置【${map.name} (${map.difficulty})】的策略`}
+                                    >
+                                      <strong>
+                                        {map.name}
+                                        {isMapFocused && <span className="focus-pill">正在编辑</span>}
+                                      </strong>
+                                      <em>{map.difficulty}</em>
+                                    </span>
+                                    <small>{map.bossNames.length} Boss</small>
+                                    <span className="tree-arrow-indicator" title="展开/收起Boss列表"><ChevronIcon /></span>
                                   </summary>
                                   <div className="boss-list">
                                     {map.bossNames.map((boss) => {
-                                      const selected = selectedBosses.has(sourceKey(map.mapId, boss));
-                                      return <button className={selected ? 'selected' : ''} type="button" key={boss} aria-pressed={selected} onClick={() => toggleBoss(map.mapId, boss)}>{boss}</button>;
+                                      const isBossChecked = selectedBosses.has(sourceKey(map.mapId, boss)) || selectedMaps.has(map.mapId);
+                                      const isBossFocused = focusedScope.type === 'boss' && focusedScope.mapId === map.mapId && focusedScope.bossName === boss;
+                                      return (
+                                        <button
+                                          className={`boss-badge-btn ${isBossChecked ? 'checked' : ''} ${isBossFocused ? 'is-focused' : ''}`}
+                                          type="button"
+                                          key={boss}
+                                          aria-pressed={isBossChecked}
+                                          onClick={() => {
+                                            setFocusedScope((curr) => (curr.type === 'boss' && curr.mapId === map.mapId && curr.bossName === boss ? { type: 'all' } : {
+                                              type: 'boss',
+                                              mapId: map.mapId,
+                                              mapName: map.name,
+                                              bossName: boss,
+                                              levelName: levelGroup.name,
+                                            }));
+                                          }}
+                                          title={`点击单选聚焦【${boss}】的掉落；双击或右键可切换导出勾选`}
+                                        >
+                                          <span>{boss}</span>
+                                          {isBossFocused && <i className="boss-focus-dot" />}
+                                        </button>
+                                      );
                                     })}
                                   </div>
                                 </details>
@@ -1113,7 +1336,7 @@ export function LootForgeApp() {
             <article className="summary-card glass-panel gold">
               <span>当前匹配物品</span>
               <strong>{scopedItems.length.toLocaleString('zh-CN')}</strong>
-              <small>{hasScope ? `${scopeStats.sourceLinks.toLocaleString('zh-CN')} 处掉落来源 · ${scopeStats.repeatedNames.toLocaleString('zh-CN')} 个同名物品` : '请在左侧勾选副本范围以开始配置'}</small>
+              <small>{hasScopeInView ? `${scopeStats.sourceLinks.toLocaleString('zh-CN')} 处掉落来源 · ${scopeStats.repeatedNames.toLocaleString('zh-CN')} 个同名物品` : '请在左侧选择年代或副本以开始配置'}</small>
             </article>
             <article className="summary-card glass-panel blue">
               <span>跳过拾取</span>
@@ -1131,15 +1354,41 @@ export function LootForgeApp() {
           </div>
 
           <section className="workbench-panel glass-panel">
+            {focusedScope.type !== 'all' && (
+              <div className="focus-scope-banner">
+                <div className="focus-scope-info">
+                  <span className="focus-badge">⚡ 当前聚焦编辑</span>
+                  <strong>{currentScopeLabel}</strong>
+                  <span className="focus-export-status">
+                    {isCurrentScopeChecked ? (
+                      <span className="export-status-tag checked">✓ 已勾选导出</span>
+                    ) : (
+                      <span className="export-status-tag unchecked">未勾选导出</span>
+                    )}
+                  </span>
+                </div>
+                <div className="focus-scope-actions">
+                  {!isCurrentScopeChecked && (
+                    <button type="button" className="button ghost compact check-scope-btn" onClick={checkCurrentFocusedScope} title="将当前编辑的年代/副本加入到右侧导出范围中">
+                      ✓ 勾选本项用于导出
+                    </button>
+                  )}
+                  <button type="button" className="button ghost compact exit-focus-btn" onClick={() => setFocusedScope({ type: 'all' })} title="退出单选聚焦模式，查看所有勾选的副本">
+                    ✕ 查看全部范围
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="section-heading workbench-heading">
               <div className="workbench-heading-content">
                 <span className="eyebrow">CATEGORY STRATEGY</span>
-                <h2>已选范围 · 分类策略直选</h2>
-                <p>为当前选中的 <strong>{currentScopeLabel}</strong> 批量设置策略；<strong>导出文件仅包含当前所选范围的策略，未选中的年代与副本保持既有状态不受影响</strong>。</p>
+                <h2>{focusedScope.type !== 'all' ? `专属策略直选 · ${currentScopeLabel}` : '已选范围 · 分类策略直选'}</h2>
+                <p>为当前选中的 <strong>{currentScopeLabel}</strong> 批量设置策略；<strong>导出文件以左侧勾选框标记的范围为准，未勾选的年代与副本不生成配置</strong>。</p>
               </div>
-              {hasScope && (
+              {hasScopeInView && (
                 <div className="workbench-quick-presets">
-                  <button className="button primary compact" type="button" onClick={() => applyScopePreset('farming')} title="推荐预设：旧装备全卖 + 牌子跳过 + 珍稀保护（仅对当前所选副本生效，未选中的副本不参与配置与导出）">
+                  <button className="button primary compact" type="button" onClick={() => applyScopePreset('farming')} title="推荐预设：旧装备全卖 + 牌子跳过 + 珍稀保护（仅对当前范围生效，已配置策略全局持久保存）">
                     ⚡ 推荐预设
                   </button>
                   <button className="button ghost compact danger-btn" type="button" onClick={() => applyScopePreset('clear')} title="清除当前范围下所有物品的出售与拾取策略，恢复未处理状态">
@@ -1149,12 +1398,16 @@ export function LootForgeApp() {
               )}
             </div>
 
-            {!hasScope ? (
+            {!hasScopeInView ? (
               <div className="empty-workbench-guide">
                 <span className="guide-icon">👈</span>
                 <div>
-                  <strong>请在左侧勾选要配置的副本范围</strong>
-                  <p>工坊采用<strong>作用域限定</strong>机制：<strong>仅导出左侧所选副本的配置，未选中的年代与副本不生成配置</strong>。点击左侧上方【全选老本】可一键勾选 70~120 级所有历史前尘本（自动排除当前 130 级赛季本），勾选后即可在此一键配置。</p>
+                  <strong>请在左侧选择要配置的年代或副本范围</strong>
+                  <p>工坊支持<strong>双模式自由组合</strong>：</p>
+                  <ul className="empty-guide-list">
+                    <li><strong>单选聚焦配置</strong>：直接点击左侧任意年代（如『丝路风语』）、难度、副本或 Boss 名称，即可单独为其定制策略，各年代策略独立保存互不干扰；</li>
+                    <li><strong>多选勾选导出</strong>：勾选左侧年代或副本前面的方框，最后点击右上角【⚡ 导出综合配置】一键打包导出所有打勾范围！</li>
+                  </ul>
                 </div>
               </div>
             ) : (

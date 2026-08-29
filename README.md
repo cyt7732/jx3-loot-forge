@@ -6,7 +6,7 @@
 
 **全副本掉落智能管理 · 跳过拾取与自动出售一键综合配置工坊**
 
-[![Release](https://img.shields.io/badge/Release-v1.1.0-emerald.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
+[![Release](https://img.shields.io/badge/Release-v1.2.0-emerald.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
 [![Data Version](https://img.shields.io/badge/Data-丝路风语--260823-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![Platform](https://img.shields.io/badge/Platform-JX3%20旗舰端-emerald.svg?style=flat-square)](https://jx3.xoyo.com)
 [![Offline Ready](https://img.shields.io/badge/Offline-100%25%20Single--File-blueviolet.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
@@ -122,7 +122,7 @@ jx3-loot-forge/
 - **编码格式**：CP936 / GBK 编码、无 BOM、单行格式；
 - **配置指纹**：每次导出均在数据首项附带标准指纹标记，插件无感解析：
   ```text
-  『剑网3掉落工坊』 v1.1.0 by 凌千羽·龙争虎斗 <YYYYMMDD_HHmmss>
+  『剑网3掉落工坊』 v1.2.0 by 凌千羽·龙争虎斗 <YYYYMMDD_HHmmss>
   ```
 - **隐私与安全**：纯前端与本地计算，所有自选设置实时保存在浏览器本地（`localStorage`），不向任何第三方服务器上传个人配置。
 
