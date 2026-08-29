@@ -1,0 +1,6 @@
+﻿{
+  "buildCommand": "npm --prefix web run build:offline",
+  "outputDirectory": "web/dist/offline",
+  "framework": null,
+  "cleanUrls": true
+}
