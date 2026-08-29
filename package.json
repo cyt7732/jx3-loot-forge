@@ -9,6 +9,7 @@
     "build": "npm --prefix web run build:web",
     "build:web": "npm --prefix web run build:web",
     "build:offline": "npm --prefix web run build:offline",
-    "package:artifacts": "node web/scripts/package-artifacts.mjs"
+    "package:artifacts": "node web/scripts/package-artifacts.mjs",
+    "check": "npm --prefix web run check"
   }
 }

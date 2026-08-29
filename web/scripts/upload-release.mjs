@@ -11,8 +11,9 @@ if (!token) {
   }
 }
 
+const versionData = JSON.parse(await readFile(resolve('../VERSION.json'), 'utf8'));
 const repo = process.env.GITHUB_REPOSITORY || 'cyt7732/jx3-loot-forge';
-const tag = process.env.GITHUB_REF_NAME || 'v1.1.0';
+const tag = process.env.GITHUB_REF_NAME || versionData.tag || `v${versionData.appVersion}`;
 
 const headers = {
   Authorization: `Bearer ${token}`,
