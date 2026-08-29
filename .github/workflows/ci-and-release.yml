@@ -68,7 +68,5 @@ jobs:
           name: 剑网3掉落工坊 v${{ env.APP_VERSION }}
           draft: false
           prerelease: false
-          files: |
-            artifacts/jx3-loot-forge-v${{ env.APP_VERSION }}-offline.zip
-            剑网3掉落工坊.html
+          files: artifacts/jx3-loot-forge-v${{ env.APP_VERSION }}-offline.zip
           generate_release_notes: false

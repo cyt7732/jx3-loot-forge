@@ -1,8 +1,24 @@
-# 剑网3掉落工坊发版流程
+# 剑网3掉落工坊发版流程与规范
 
-本文是项目后续正式发版的统一操作标准。每次发版都应按本文执行；如果某一步无法完成，先记录原因并处理，不在未验证的状态下创建正式版本标签。
+本文是项目正式发版的统一操作与质量标准。每次发版都必须严格按本文执行；任何步骤未经检验不得跳过，严禁在未验证状态下创建发布标签。
 
-## 1. 版本号与目录版本
+---
+
+## 1. 第一性原理与防错铁律 (First Principles & Anti-Mistake Rules)
+
+### 1.1 资产唯一性与极简交付原则
+- **用户心智第一**：普通玩家获取离线版时，需要的是一个解压后包含完整说明（`README.md`、`CHANGELOG.md`）和单文件网页的独立文件夹。**严禁在 GitHub Release 中额外上传散装单文件（如单个 `.html`）**，避免给玩家带来认知困惑。
+- **全英文 ASCII 命名铁律**：GitHub Releases 底层 API 在接收非 ASCII 中文名称附件时，会因 Content-Disposition 编码解析导致文件名被严重截断（例如 `剑网3掉落工坊.html` 被截断为 `3.html`）。因此，**Release 资产列表中必须且仅允许挂载单一的标准全英文压缩包：`jx3-loot-forge-vMAJOR.MINOR.PATCH-offline.zip`**。
+
+### 1.2 本地与云端归档闭环原则
+- **工程脚本内建**：为杜绝依赖人工记忆导致本地 `artifacts/` 目录遗漏，项目内建标准打包命令 `npm run package:artifacts`。每次发版前必须在本地执行该命令，确保本地 `artifacts/` 文件夹与 `.zip` 压缩包完整留档。
+
+### 1.3 UI 视觉基线比对原则 (Baseline Diff)
+- **拒绝破坏经典美学**：在对样式进行优化或修复时，**必须以最近一个稳定版的 Commit 作为视觉与 CSS 基线进行最小差异对比（Minimal Diff）**，严禁大面积替换或误删核心体系（如毛玻璃卡片 `.glass-panel`、浮动 `topbar`、`21px` 醒目标题与高光微光药丸）。
+
+---
+
+## 2. 版本号与目录版本
 
 产品版本采用语义化版本号（Semantic Versioning）：
 
@@ -15,18 +31,14 @@ vMAJOR.MINOR.PATCH
 - `PATCH`：向后兼容的缺陷修复、性能优化、数据修正或文档修订。
 
 产品版本与目录数据版本必须分开记录：
+- 产品版本表示网页、领域模型、交互和导出能力，例如 `v1.2.1`。
+- `catalogVersion` 表示目录快照（例如 `20260823-011b26367022`），不得用产品版本代替。目录更新可以独立于功能版本发布，也必须在更新日志和 `VERSION.json` 中写明。
 
-- 产品版本表示网页、领域模型、交互和导出能力，例如 `v0.1.0`。
-- `catalogVersion` 表示目录快照，不得用产品版本代替。目录更新可以独立于功能版本发布，也必须在更新日志和 `VERSION.json` 中写明。
+---
 
-当前首版约定为：产品版本 `v0.1.0`，目录版本 `20260823-47ec717b1065`。
-
-候选版本使用预发布标识，例如 `v0.2.0-rc.1`；候选版本未通过最终验收前，不得当作正式稳定版宣传或分发。
-
-## 2. Commit 与 Tag 规范
+## 3. Commit 与 Tag 规范
 
 日常提交采用 Conventional Commits：
-
 ```text
 feat: 增加等级快速生成规则
 fix: 修复保护物品被加入出售表
@@ -34,165 +46,101 @@ perf: 延迟加载完整掉落目录
 docs: 更新发版说明
 test: 增加工作区迁移测试
 chore: 更新依赖
-release: v0.2.0
+release: v1.2.1
 ```
 
-常用类型包括 `feat`、`fix`、`perf`、`docs`、`test`、`chore` 和 `release`。提交说明写用户或维护者可以理解的变化；发版提交只同步版本号、`CHANGELOG.md`、README 当前版本、目录版本及必要的发布配置，不把未完成的新功能混入 `release:` 提交。
-
 正式版本只使用带 `v` 的 annotated tag，格式为：
-
 ```powershell
-git tag -a v0.1.0 -m "Release v0.1.0"
+git tag -a v1.2.1 -m "Release v1.2.1"
 ```
 
 Tag 规则：
-
-- 只在通过检查和人工验收的正式发版提交上创建 tag。
+- 只在通过自动化检查和人工验收的正式发版提交上创建 tag。
 - 不使用轻量 tag。
-- 已发布 tag 不移动、不覆盖、不删除；发现问题时递增 `PATCH` 版本重新发布，例如 `v0.1.1`。
-- 候选版使用 `vMAJOR.MINOR.PATCH-rc.N`，例如 `v0.2.0-rc.1`。
+- 已发布 tag 不移动、不覆盖、不删除；发现问题时递增 `PATCH` 版本重新发布。
 
-## 3. CHANGELOG 与 Release Notes 写法规范
+---
 
-根目录 `CHANGELOG.md` 遵循 Keep a Changelog 风格，顶部保留 `[Unreleased]`，正式版本按发布日期倒序排列。每个版本只记录用户可感知或维护者需要关注的变化，不直接复制完整 commit 列表。
+## 4. CHANGELOG 与 Release Notes 写法规范
 
-### 3.1 编写原则与受众视角
+根目录 `CHANGELOG.md` 遵循 Keep a Changelog 风格，顶部保留 `[Unreleased]`，正式版本按发布日期倒序排列。
+
+### 4.1 编写原则与受众视角
 - **普通玩家视角优先**：更新日志主要面向广大剑网3玩家，必须使用通俗易懂的大白话概括功能改进与缺陷修复，让普通玩家能一眼看懂本次版本带来的实际变化。
 - **严禁内部审查标签**：**绝对不要在对外公开的 `CHANGELOG.md`、`RELEASE_NOTES.md` 或 GitHub Release 中出现 `P0/P1/P2/P3` 等内部审计级别标签**，也不要堆砌晦涩的代码实现细节或内部沟通代号。
 - **保持结构自洽**：重点突出数据安全、交互体验、功能新增及修复重点，简洁有力。
 
-### 3.2 分类规范
-可使用的分类如下，按内容需要保留：
+---
 
-- `Added`：新增能力。
-- `Changed`：已有能力或交互的变化。
-- `Fixed`：缺陷修复。
-- `Performance`：启动、加载、渲染或导出性能变化。
-- `Data`：目录快照、数据来源或数据统计变化。
-- `Known Limitations`：已知限制，不能把规划中的能力写成已完成。
+## 5. 标准发版标准流水线 (SOP)
 
-发版前把已完成的 `[Unreleased]` 条目移动到新版本，并补充日期；空分类可以保留以保持结构一致。每条应说明影响和结果，必要时注明迁移、兼容性或数据目录版本。
+### 步骤 1：冻结范围
+明确本次版本范围，所有未完成事项留在 `[Unreleased]` 中。
 
-## 4. 标准发版流程
+### 步骤 2：同步版本全链路
+检查并同步以下 5 处版本信息：
+1. `web/src/domain/constants.ts` 中的 `APP_VERSION`
+2. `web/package.json` 与根目录 `package.json` 中的 `version`
+3. `VERSION.json` 中的 `appVersion`、`catalogVersion`、`releasedAt` 和 `tag`
+4. `CHANGELOG.md` 中的新版本条目与日期
+5. `README.md` 中的当前版本
 
-### 4.1 冻结范围
-
-明确本次版本包含和不包含的内容，冻结功能范围。所有未完成事项留在 `[Unreleased]` 或单独的开发计划中，不在发版提交中临时扩大范围。
-
-### 4.2 同步版本信息
-
-检查并同步以下位置：
-
-- `web/package.json` 的产品版本。
-- 页面或领域常量中的产品版本（如项目当前存在对应常量）。
-- `README.md` 的当前版本和首版能力说明。
-- `CHANGELOG.md` 的版本、日期、已完成条目和已知限制。
-- `VERSION.json` 的 `appVersion`、`catalogVersion`、`releasedAt` 和 `tag`。
-
-产品版本和目录版本必须与实际发布内容一致；不要为填充字段捏造哈希、时间或统计数据。
-
-### 4.3 自动检查
-
+### 步骤 3：本地自动化全量检查
 在项目根目录执行：
-
 ```powershell
-npm --prefix web ci
 npm --prefix web run check
 ```
+必须确保类型检查、Lint、所有单元测试、Web 多文件打包及离线单文件打包 100% 通过。
 
-`check` 至少应覆盖类型检查、Lint、单元测试、在线构建和离线构建。若项目脚本发生变化，发版记录中写明实际执行的等价命令及结果。任何失败都必须修复或明确阻止发版，不以人工观察替代自动检查。
-
-### 4.4 人工验收
-
-使用发布构建进行最小完整回归：
-
-- 启动网页并确认首屏可打开、关键操作可用。
-- 选择目录范围，修改物品状态并确认刷新后工作区仍存在。
-- 验证跳过拾取、自动出售、保护不出售三状态及自动出售/保护不出售互斥。
-- 验证批量规则、自定义物品、已有 `.us.jx3dat` 导入（合并/替换预览）和工作区备份/恢复。
-- 导出 `.us.jx3dat`，检查文件名、后缀、单行格式、CP936/GBK 编码、无 BOM 以及内容正确。
-- 构建并双击离线 `index.html`，在断网条件下检查编辑、持久化和导出。
-- 检查数据统计、版本信息和已知限制说明与本次发布记录一致。
-
-### 4.5 提交与创建 Tag
-
-确认工作区仅包含本次版本变更后执行：
-
+### 步骤 4：生成本地 Artifacts 归档包（强制必做）
+在根目录执行标准打包命令：
 ```powershell
-git status
+npm run package:artifacts
+```
+验证本地 `artifacts/` 目录结构是否完整生成：
+```text
+artifacts/
+├── 剑网3掉落工坊-vMAJOR.MINOR.PATCH/
+│   ├── index.html
+│   ├── CHANGELOG.md
+│   ├── README.md
+│   ├── LICENSE
+│   ├── VERSION.json
+│   └── RELEASE_NOTES.md
+└── jx3-loot-forge-vMAJOR.MINOR.PATCH-offline.zip
+```
+
+### 步骤 5：人工最小完整回归
+1. 双击打开本地 `artifacts/剑网3掉落工坊-vMAJOR.MINOR.PATCH/index.html`，确认断网环境离线可用、Logo 图标完好、毛玻璃与悬浮卡片美学正常；
+2. 验证工作区导入/导出、过滤、出售策略及互斥保护。
+
+### 步骤 6：提交代码与创建 Tag
+```powershell
 git add .
-git commit -m "release: v0.1.0"
-git tag -a v0.1.0 -m "Release v0.1.0"
-git status
+git commit -m "release: vMAJOR.MINOR.PATCH"
+git tag -a vMAJOR.MINOR.PATCH -m "Release vMAJOR.MINOR.PATCH"
 ```
 
-创建 tag 前必须确认版本提交和工作区状态正确。后续版本将命令中的版本号替换为实际版本；tag 创建后不得移动或覆盖。
-
-### 4.6 准备发布产物与压缩包打包规范
-
-每个正式版本必须准备规范的产物目录与离线分发压缩包：
-
-1. **产物目录结构**：
-   在 `artifacts/` 下建立带产品名与版本号的顶层目录，例如 `artifacts/剑网3掉落工坊-vMAJOR.MINOR.PATCH/`，放入以下 6 个文件：
-
-   ```text
-   剑网3掉落工坊-vMAJOR.MINOR.PATCH/
-   ├─ index.html
-   ├─ CHANGELOG.md
-   ├─ README.md
-   ├─ LICENSE
-   ├─ VERSION.json
-   └─ RELEASE_NOTES.md
-   ```
-
-2. **压缩包打包规范**：
-   * **全英文命名**：分发压缩包统一命名为 `jx3-loot-forge-vMAJOR.MINOR.PATCH-offline.zip`（例如 `jx3-loot-forge-v0.2.1-offline.zip`）。**禁止使用中文文件名作为压缩包或 Release 附件名**，防止在跨系统、浏览器下载或 GitHub API / CLI 上传时发生编码截断与乱码。
-   * **包含顶层文件夹**：压缩包**最外层必须包含该目录本身**，确保用户解压后是一个完整的 `剑网3掉落工坊-vMAJOR.MINOR.PATCH` 文件夹，避免解压时散落一地文件。
-   * **打包命令示例**（PowerShell）：
-     ```powershell
-     Compress-Archive -Path 'artifacts/剑网3掉落工坊-v0.2.1' -DestinationPath 'artifacts/jx3-loot-forge-v0.2.1-offline.zip' -Force
-     ```
-
-### 4.7 推送与发布 GitHub Release（强制固定动作）
-
-> **【强制固定动作】**：只要用户下达发版并推送到 GitHub 的指令，**在 GitHub 远端创建正式 Release 并上传离线分发压缩包（`jx3-loot-forge-vMAJOR.MINOR.PATCH-offline.zip`）是必须同步执行的固定闭环动作**。只推送 Git commit/tag 而遗漏 GitHub Release 属于发版未完成。
-
-1. **推送代码与标签**：
-   ```powershell
-   git push origin main
-   git push origin vMAJOR.MINOR.PATCH
-   ```
-
-2. **创建 GitHub Release 并上传附件（固定动作）**：
-   使用 GitHub CLI 创建正式 Release，并只上传单一的标准英文命名离线压缩包（**注意**：`RELEASE_NOTES.md` 必须严格遵循 3.1 节面向普通玩家的通俗大白话规范，绝不包含 P 级标签或内部审查代码）：
-   ```powershell
-   gh release create vMAJOR.MINOR.PATCH artifacts/jx3-loot-forge-vMAJOR.MINOR.PATCH-offline.zip --title "剑网3掉落工坊 vMAJOR.MINOR.PATCH" --notes-file "artifacts/剑网3掉落工坊-vMAJOR.MINOR.PATCH/RELEASE_NOTES.md"
-   ```
-
-3. **检查发布资产**：
-   Release 资产列表中应只包含该单一离线 zip 包，不重复上传多份或中文名称附件。发布后在项目平台核验 Release 页面展示与资产可下载性。
-
-## 5. 首次无历史仓库的特殊处理
-
-如果仓库还没有任何 commit，首次发版按两次提交处理：
-
-1. `chore: initial import`：提交完整的首版项目基线。
-2. `release: v0.1.0`：只提交版本信息、`CHANGELOG.md`、`VERSION.json`、README 当前版本及必要的发布文件。
-
-然后在第二个提交上创建 annotated tag：
-
+### 步骤 7：推送至 GitHub
 ```powershell
-git tag -a v0.1.0 -m "Release v0.1.0"
+git push origin main
+git push origin vMAJOR.MINOR.PATCH
 ```
 
-首次发版前仍必须执行本流程的自动检查和人工验收。若首次导入已经被合并为一个历史提交，应保留现有历史，不强行重写；从下一版本开始执行正常的冻结、发版提交和 tag 流程。
+### 步骤 8：发布 GitHub Release 并上传唯一 zip 附件（闭环必做）
+使用 GitHub CLI 创建正式公开 Release（注意：只上传单一全英文 zip 压缩包）：
+```powershell
+gh release create vMAJOR.MINOR.PATCH "artifacts/jx3-loot-forge-vMAJOR.MINOR.PATCH-offline.zip" --title "剑网3掉落工坊 vMAJOR.MINOR.PATCH" --notes-file "artifacts/剑网3掉落工坊-vMAJOR.MINOR.PATCH/RELEASE_NOTES.md" --latest
+```
 
-## 6. 发版记录
+---
 
-每次发版至少能够从以下内容复核结果：
+## 6. 发版防漏闭环检查清单 (Release Checklist)
 
-- 版本号、tag、发布日期和目录版本。
-- 自动检查命令及通过结果。
-- 人工验收范围及已知限制。
-- 发布产物位置和推送状态。
-- 若有例外，记录原因、影响和后续处理版本。
+发版前必须逐项核对确认：
+- [ ] 1. 5 处版本号与日期已同步（`constants.ts`、`package.json`、`VERSION.json`、`CHANGELOG.md`、`README.md`）；
+- [ ] 2. 自动化检查 `npm --prefix web run check` 全绿通过；
+- [ ] 3. 本地已执行 `npm run package:artifacts` 并生成了完整的 `artifacts/` 目录与 `.zip`；
+- [ ] 4. 本地双击离线单文件验证过 Logo 正常、毛玻璃卡片与居中样式正常；
+- [ ] 5. Git Commit 与 Annotated Tag 已推送到 GitHub；
+- [ ] 6. GitHub Release 状态为 `Latest`，且**资产列表中仅包含且只包含单一的 `jx3-loot-forge-vX.Y.Z-offline.zip`**，无任何多余或截断附件。
