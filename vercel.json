@@ -1,5 +1,5 @@
-﻿{
-  "buildCommand": "npm --prefix web run build:offline",
+{
+  "buildCommand": "npm --prefix web ci && npm --prefix web run build:offline",
   "outputDirectory": "web/dist/offline",
   "framework": null,
   "cleanUrls": true

@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "jx3-loot-forge-root",
   "version": "1.2.0",
   "private": true,
@@ -6,7 +6,7 @@
     "web"
   ],
   "scripts": {
-    "build": "npm --prefix web run build:offline",
-    "build:offline": "npm --prefix web run build:offline"
+    "build": "npm --prefix web ci && npm --prefix web run build:offline",
+    "build:offline": "npm --prefix web ci && npm --prefix web run build:offline"
   }
 }
