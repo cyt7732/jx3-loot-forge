@@ -69,4 +69,5 @@ jobs:
           draft: false
           prerelease: false
           files: artifacts/jx3-loot-forge-v${{ env.APP_VERSION }}-offline.zip
+          body_path: artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/RELEASE_NOTES.md
           generate_release_notes: false
