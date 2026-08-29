@@ -31,7 +31,8 @@ if (!scriptMatch) throw new Error('Offline build did not produce one module scri
 const javascript = await readFile(localAssetPath(scriptMatch[1]), 'utf8');
 const logoBuffer = await readFile(resolve(PROJECT_DIR, 'src/assets/logo.jpg'));
 const logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
-const inlinedJs = javascript.replaceAll('"./logo.jpg"', JSON.stringify(logoBase64));
+const inlinedJs = javascript.replace(/(["'`])\.\/logo\.jpg\1/gu, JSON.stringify(logoBase64));
+if (inlinedJs.includes('./logo.jpg')) throw new Error('Offline build failed to inline logo asset.');
 html = html.replace(scriptMatch[0], () => `<script type="module">${inlinedJs.replace(/<\/script/giu, '<\\/script')}</script>`);
 html = html.replace(/<link rel="icon"[^>]*>/u, `<link rel="icon" type="image/jpeg" href="${logoBase64}" />`);
 if (/<(?:script|link)[^>]+(?:src|href)="(?!(?:https?:)?\/\/|data:)[^"]*assets\//u.test(html)) throw new Error('Offline HTML still references external build assets.');

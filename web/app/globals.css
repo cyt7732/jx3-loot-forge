@@ -45,9 +45,10 @@ body {
 button, input, select, textarea { font-family: inherit; }
 
 .app-shell {
+  width: min(1520px, calc(100% - clamp(24px, 4vw, 64px)));
+  margin: 0 auto;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  padding: 24px 0 60px;
 }
 
 /* 顶部与主体布局 */
@@ -492,7 +493,7 @@ details[open] > summary .tree-arrow-indicator { transform: rotate(180deg); color
 }
 
 body { font-size: var(--font-body); line-height: 1.5; }
-.app-shell { width: min(1440px, calc(100% - clamp(24px, 5vw, 64px))); padding-top: clamp(16px, 3vw, 28px); }
+.app-shell { width: min(1520px, calc(100% - clamp(24px, 5vw, 64px))); margin: 0 auto; padding-top: clamp(16px, 3vw, 28px); }
 .workspace { grid-template-columns: var(--sidebar-width) minmax(0, 1fr); gap: var(--layout-gap); }
 .sidebar { padding: clamp(14px, 1.6vw, 20px); }
 .panel-heading h2, .section-heading h2 { font-size: clamp(16px, .35vw + 14px, 19px); }
@@ -581,7 +582,7 @@ body { font-size: var(--font-body); line-height: 1.5; }
 }
 
 @media (max-width: 900px) {
-  .app-shell { width: min(calc(100% - 24px), 820px); }
+  .app-shell { width: min(calc(100% - 24px), 820px); margin: 0 auto; }
   .workspace { grid-template-columns: minmax(0, 1fr); }
   .sidebar { position: static; min-height: 0; height: auto; max-height: none; }
   .summary-grid { grid-template-columns: 1fr; }
@@ -593,7 +594,7 @@ body { font-size: var(--font-body); line-height: 1.5; }
 }
 
 @media (max-width: 600px) {
-  .app-shell { width: calc(100% - 16px); padding-bottom: 104px; }
+  .app-shell { width: calc(100% - 16px); margin: 0 auto; padding-bottom: 104px; }
   .topbar { gap: 12px; margin-bottom: 16px; }
   .header-actions { width: 100%; gap: 6px; }
   .header-actions .button { flex: 1; padding-inline: 8px; }
