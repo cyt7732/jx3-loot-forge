@@ -15,7 +15,8 @@
   --red: #f87171;
   --red-soft: rgba(248, 113, 113, .14);
   --green: #63d39a;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "HarmonyOS Sans SC", "HarmonyOS Sans", "Source Han Sans SC", "Noto Sans SC", sans-serif;
+  --green-soft: rgba(99, 211, 154, .14);
+  --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "HarmonyOS Sans", "Segoe UI", "Microsoft YaHei UI", sans-serif;
   --font-mono: "Cascadia Code", "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "PingFang SC", "Microsoft YaHei UI", monospace;
   color-scheme: dark;
 }
