@@ -632,6 +632,35 @@ export function LootForgeApp() {
     }
   };
 
+  const handleSelectAllOldMaps = () => {
+    const maxLevel = Math.max(...CATALOG_LEVEL_GROUPS.map((group) => group.level ?? Number.NEGATIVE_INFINITY));
+    const lowerLevelMaps = activeSnapshot.maps.filter((map) => {
+      const level = getLevelGroup(map.expansion).level;
+      return level !== null && level < maxLevel;
+    });
+    setWorkspace((current) => ({
+      ...current,
+      selectedMapIds: lowerLevelMaps.map((map) => map.mapId),
+      selectedBossKeys: [],
+      updatedAt: new Date().toISOString(),
+    }));
+    setToast({ tone: 'success', message: `已勾选 70~120 级前尘老本用于导出（共 ${lowerLevelMaps.length} 个副本）` });
+  };
+
+  const handleFocusCurrentSeason = () => {
+    const currentSeason = levelGroups.find((g) => g.level === 130);
+    if (currentSeason) {
+      setFocusedScope({
+        type: 'level',
+        id: currentSeason.id,
+        name: currentSeason.name,
+        level: currentSeason.level,
+        mapIds: currentSeason.maps.map((m) => m.mapId),
+      });
+      setToast({ tone: 'success', message: `已聚焦查看【${currentSeason.name} (Lv.130)】副本策略` });
+    }
+  };
+
   const categoryWorkbenchSummaries = useMemo(() => {
     const summaryMap = new Map<ItemCategory, {
       category: ItemCategory;
@@ -1382,8 +1411,22 @@ export function LootForgeApp() {
             <div className="section-heading workbench-heading">
               <div className="workbench-heading-content">
                 <span className="eyebrow">CATEGORY STRATEGY</span>
-                <h2>{focusedScope.type !== 'all' ? `专属策略直选 · ${currentScopeLabel}` : '已选范围 · 分类策略直选'}</h2>
-                <p>为当前选中的 <strong>{currentScopeLabel}</strong> 批量设置策略；<strong>导出文件以左侧勾选框标记的范围为准，未勾选的年代与副本不生成配置</strong>。</p>
+                <h2>
+                  {focusedScope.type !== 'all'
+                    ? `专属策略直选 · ${currentScopeLabel}`
+                    : hasScope
+                      ? `已选范围 · 分类策略直选（已选 ${selectedMaps.size} 个副本）`
+                      : '分类策略直选'}
+                </h2>
+                <p>
+                  {focusedScope.type !== 'all' ? (
+                    <>正在单独定制本范围策略，已配置规则全局自动保存；勾选左侧方框即可加入导出名单。</>
+                  ) : hasScope ? (
+                    <>为当前勾选的 <strong>{currentScopeLabel}</strong> 批量设置策略；<strong>导出文件以左侧勾选框标记的范围为准</strong>。</>
+                  ) : (
+                    <>请在左侧选择要配置的年代或副本，或使用下方快捷入口一键载入配置。</>
+                  )}
+                </p>
               </div>
               {hasScopeInView && (
                 <div className="workbench-quick-presets">
@@ -1398,15 +1441,31 @@ export function LootForgeApp() {
             </div>
 
             {!hasScopeInView ? (
-              <div className="empty-workbench-guide">
-                <span className="guide-icon">👈</span>
-                <div>
-                  <strong>请在左侧选择要配置的年代或副本范围</strong>
-                  <p>工坊支持<strong>双模式自由组合</strong>：</p>
-                  <ul className="empty-guide-list">
-                    <li><strong>单选聚焦配置</strong>：直接点击左侧任意年代（如『丝路风语』）、难度、副本或 Boss 名称，即可单独为其定制策略，各年代策略独立保存互不干扰；</li>
-                    <li><strong>多选勾选导出</strong>：勾选左侧年代或副本前面的方框，最后点击右上角【⚡ 导出综合配置】一键打包导出所有打勾范围！</li>
-                  </ul>
+              <div className="empty-workbench-card">
+                <div className="empty-card-header">
+                  <span className="empty-card-icon">🧭</span>
+                  <div className="empty-card-text">
+                    <h3>尚未选择副本范围</h3>
+                    <p>请在左侧点击或勾选要配置的年代与副本；您也可以通过快捷入口一键载入：</p>
+                  </div>
+                </div>
+                <div className="empty-card-actions">
+                  <button
+                    type="button"
+                    className="button primary empty-quick-btn"
+                    onClick={handleSelectAllOldMaps}
+                    title="一键圈选 70~120 级所有历史秘境，自动排除 130 级当前赛季秘境"
+                  >
+                    🏰 一键全选前尘老本 (70~120级)
+                  </button>
+                  <button
+                    type="button"
+                    className="button ghost empty-quick-btn"
+                    onClick={handleFocusCurrentSeason}
+                    title="聚焦配置 130 级丝路风语最新赛季秘境"
+                  >
+                    🎯 聚焦当前赛季 (丝路风语 130级)
+                  </button>
                 </div>
               </div>
             ) : (
