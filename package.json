@@ -2,8 +2,11 @@
   "name": "jx3-loot-forge-root",
   "version": "1.2.0",
   "private": true,
+  "workspaces": [
+    "web"
+  ],
   "scripts": {
     "build": "npm --prefix web run build:offline",
-    "check": "npm --prefix web run check"
+    "build:offline": "npm --prefix web run build:offline"
   }
 }
