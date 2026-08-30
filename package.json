@@ -10,6 +10,8 @@
     "build:web": "npm --prefix web run build:web",
     "build:offline": "npm --prefix web run build:offline",
     "package:artifacts": "node web/scripts/package-artifacts.mjs",
+    "crawl:catalog": "npm --prefix web run crawl:catalog",
+    "reclassify:catalog": "npm --prefix web run reclassify:catalog",
     "check": "npm --prefix web run check"
   }
 }
