@@ -1,9 +1,9 @@
 {
   "project": "剑网3掉落工坊",
-  "appVersion": "1.2.2",
+  "appVersion": "1.3.0",
   "catalogVersion": "20260830-4296c4cde044",
   "releasedAt": "2026-08-30",
-  "tag": "v1.2.2",
+  "tag": "v1.3.0",
   "channel": "stable",
   "stability": "stable"
 }

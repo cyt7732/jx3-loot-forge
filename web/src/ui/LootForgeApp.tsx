@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   buildCatalogItems,
-  CATALOG_LEVEL_GROUPS,
   catalogSnapshot,
+  getCurrentSeasonGroup,
+  getLegacyEquipment,
+  getLegacyMaps,
   groupMapsByDifficulty,
   groupMapsByLevel,
-  getLevelGroup,
   loadCatalogSnapshot,
 } from '../catalog';
 import { buildExportBatch } from '../config/exporter';
@@ -148,7 +149,7 @@ function downloadBatchFile(file: { filename: string; bytes: Uint8Array }): void 
 export type FocusedScope =
   | { type: 'all' }
   | { type: 'custom' }
-  | { type: 'level'; id: string; name: string; level: number | null; mapIds: number[] }
+  | { type: 'level'; id: string; name: string; era?: string; eraName?: string; level: number | null; mapIds: number[] }
   | { type: 'difficulty'; levelName: string; label: string; mapIds: number[] }
   | { type: 'map'; mapId: number; name: string; difficulty: string; levelName?: string }
   | { type: 'boss'; mapId: number; mapName: string; bossName: string; levelName?: string };
@@ -405,9 +406,12 @@ export function LootForgeApp() {
             return { ...difficultyGroup, maps };
           })
           .filter((difficultyGroup) => difficultyGroup.maps.length > 0);
-        return { ...levelGroup, maps: difficultyGroups.flatMap((group) => group.maps), difficultyGroups };
+        return { ...levelGroup, maps: difficultyGroups.flatMap((group) => group.maps), difficultyGroups, levelMatches };
       })
-      .filter((group) => group.maps.length > 0);
+      .filter((group) => {
+        if (!query) return true;
+        return group.maps.length > 0 || group.levelMatches;
+      });
   }, [activeSnapshot.maps, scopeQuery]);
 
   const customCount = useMemo(() => {
@@ -600,7 +604,10 @@ export function LootForgeApp() {
 
   const currentScopeLabel = useMemo(() => {
     if (focusedScope.type === 'custom') return '✨ 用户自定义物品';
-    if (focusedScope.type === 'level') return `『${focusedScope.name}』${focusedScope.level !== null ? ` (Lv.${focusedScope.level})` : ''}`;
+    if (focusedScope.type === 'level') {
+      const eraPart = focusedScope.eraName ? `${focusedScope.eraName} · ` : '';
+      return `『${focusedScope.name}』${focusedScope.level !== null ? ` (${eraPart}Lv.${focusedScope.level})` : ''}`;
+    }
     if (focusedScope.type === 'difficulty') return `『${focusedScope.levelName}』· ${focusedScope.label}`;
     if (focusedScope.type === 'map') return `${focusedScope.name} (${focusedScope.difficulty})`;
     if (focusedScope.type === 'boss') return `${focusedScope.mapName} · ${focusedScope.bossName}`;
@@ -688,33 +695,30 @@ export function LootForgeApp() {
   };
 
   const handleSelectAllOldMaps = () => {
-    const maxLevel = Math.max(...CATALOG_LEVEL_GROUPS.map((group) => group.level ?? Number.NEGATIVE_INFINITY));
-    const lowerLevelMaps = activeSnapshot.maps.filter((map) => {
-      const level = getLevelGroup(map.expansion).level;
-      return level !== null && level < maxLevel;
-    });
+    const lowerLevelMaps = getLegacyMaps(activeSnapshot.maps);
     setWorkspace((current) => ({
       ...current,
       selectedMapIds: lowerLevelMaps.map((map) => map.mapId),
       selectedBossKeys: [],
       updatedAt: new Date().toISOString(),
     }));
-    setToast({ tone: 'success', message: `已勾选 70~120 级前尘老本用于导出（共 ${lowerLevelMaps.length} 个副本）` });
+    setToast({ tone: 'success', message: `已勾选前尘老本用于导出（共 ${lowerLevelMaps.length} 个副本，涵盖炜历全部历史秘境）` });
   };
 
   const handleFocusCurrentSeason = () => {
-    const allLevelGroups = groupMapsByLevel(activeSnapshot.maps);
-    const currentSeason = allLevelGroups.find((g) => g.level === 130);
+    const currentSeason = getCurrentSeasonGroup(activeSnapshot.maps);
     if (currentSeason) {
       setScopeQuery('');
       setFocusedScope({
         type: 'level',
         id: currentSeason.id,
         name: currentSeason.name,
+        era: currentSeason.era,
+        eraName: currentSeason.eraName,
         level: currentSeason.level,
         mapIds: currentSeason.maps.map((m) => m.mapId),
       });
-      setToast({ tone: 'success', message: `已聚焦查看【${currentSeason.name} (Lv.130)】副本策略` });
+      setToast({ tone: 'success', message: `已聚焦查看【${currentSeason.label}】副本策略` });
     }
   };
 
@@ -793,14 +797,10 @@ export function LootForgeApp() {
 
     if (kind === 'lowerLevels') {
       const officialEquipment = allItems.filter((item) => item.category === 'equipment' && !item.customOverride && !item.historical);
-      const maxLevel = Math.max(...CATALOG_LEVEL_GROUPS.map((group) => group.level ?? Number.NEGATIVE_INFINITY));
-      const lowerLevelEquipment = officialEquipment.filter((item) => {
-        const sourceLevels = item.sources.map((source) => getLevelGroup(source.expansion).level).filter((level): level is number => level !== null);
-        return sourceLevels.length > 0 && Math.max(...sourceLevels) < maxLevel;
-      });
+      const lowerLevelEquipment = getLegacyEquipment(officialEquipment, activeSnapshot.maps);
       const preview = previewBulkRules(lowerLevelEquipment, stateMap, customOverrides, createEquipmentBulkRules('autoSell'));
       if (preview.changes.length === 0) {
-        setToast({ tone: 'warning', message: '所有历史低等级装备已处于自动出售状态。' });
+        setToast({ tone: 'warning', message: '所有历史旧版本装备已处于自动出售状态。' });
         return;
       }
       commitStateMap(applyChanges(stateMap, preview.changes));
@@ -1176,27 +1176,14 @@ export function LootForgeApp() {
           <div className="scope-actions">
             <button
               type="button"
-              title="一键勾选 70~120 级所有历史前尘老副本用于导出（自动排除当前 130 级丝路风语赛季本）"
-              onClick={() => {
-                const maxLevel = Math.max(...CATALOG_LEVEL_GROUPS.map((group) => group.level ?? Number.NEGATIVE_INFINITY));
-                const lowerLevelMaps = activeSnapshot.maps.filter((map) => {
-                  const level = getLevelGroup(map.expansion).level;
-                  return level !== null && level < maxLevel;
-                });
-                setWorkspace((current) => ({
-                  ...current,
-                  selectedMapIds: lowerLevelMaps.map((map) => map.mapId),
-                  selectedBossKeys: [],
-                  updatedAt: new Date().toISOString(),
-                }));
-                setToast({ tone: 'success', message: `已勾选 70~120 级前尘老本用于导出（共 ${lowerLevelMaps.length} 个副本）` });
-              }}
+              title="一键勾选历史前尘老副本用于导出（自动排除当前最新活跃赛季）"
+              onClick={handleSelectAllOldMaps}
             >
               全选老本
             </button>
             <button
               type="button"
-              title="全选 70~130 级所有赛季副本用于导出"
+              title="全选所有赛季与纪元副本用于导出"
               onClick={() => {
                 setWorkspace((current) => ({
                   ...current,
@@ -1258,6 +1245,7 @@ export function LootForgeApp() {
             {levelGroups.map((levelGroup) => {
               const levelSelection = mapsSelection(levelGroup.maps);
               const isLevelFocused = focusedScope.type === 'level' && focusedScope.id === levelGroup.id;
+              const eraBadgeClass = levelGroup.era === 'yu' ? 'era-badge-yu' : levelGroup.era === 'wei' ? 'era-badge-wei' : 'era-badge-unknown';
               return (
                 <details className={`tree-group level-group ${isLevelFocused ? 'is-focused' : ''}`} key={levelGroup.id} open={scopeQuery ? true : undefined}>
                   <summary className={`${levelSelection.full || levelSelection.partial ? 'active' : ''} ${isLevelFocused ? 'focused-summary' : ''}`}>
@@ -1280,6 +1268,8 @@ export function LootForgeApp() {
                           type: 'level',
                           id: levelGroup.id,
                           name: levelGroup.name,
+                          era: levelGroup.era,
+                          eraName: levelGroup.eraName,
                           level: levelGroup.level,
                           mapIds: levelGroup.maps.map((m) => m.mapId),
                         }));
@@ -1290,13 +1280,19 @@ export function LootForgeApp() {
                         『{levelGroup.name}』
                         {isLevelFocused && <span className="focus-pill">正在编辑</span>}
                       </strong>
-                      <em>{levelGroup.level !== null ? `(Lv.${levelGroup.level})` : '未知等级'}</em>
+                      <em>
+                        <span className={`era-badge ${eraBadgeClass}`}>{levelGroup.eraName}</span>
+                        {levelGroup.level !== null ? `Lv.${levelGroup.level}` : '未知等级'}
+                      </em>
                     </span>
                     <small>{levelSelection.selectedMapCount}/{levelGroup.maps.length}</small>
                     <span className="tree-arrow-indicator" title="展开/收起年代详情"><ChevronIcon /></span>
                   </summary>
                   <div className="tree-children difficulty-children">
-                    {levelGroup.difficultyGroups.map((difficultyGroup) => {
+                    {levelGroup.difficultyGroups.length === 0 ? (
+                      <div className="tree-empty-hint">✨ 鱼历新纪元秘境待上线，敬请期待</div>
+                    ) : (
+                      levelGroup.difficultyGroups.map((difficultyGroup) => {
                       const difficultySelection = mapsSelection(difficultyGroup.maps);
                       const isDiffFocused = focusedScope.type === 'difficulty' && focusedScope.label === difficultyGroup.label && focusedScope.levelName === levelGroup.name;
                       return (
@@ -1416,7 +1412,7 @@ export function LootForgeApp() {
                           </div>
                         </details>
                       );
-                    })}
+                    }))}
                   </div>
                 </details>
               );
@@ -1523,17 +1519,17 @@ export function LootForgeApp() {
                     type="button"
                     className="button primary empty-quick-btn"
                     onClick={handleSelectAllOldMaps}
-                    title="一键圈选 70~120 级所有历史秘境，自动排除 130 级当前赛季秘境"
+                    title="一键圈选所有历史前尘老秘境（涵盖炜历全系列，自动排除最新赛季秘境）"
                   >
-                    🏰 一键全选前尘老本 (70~120级)
+                    🏰 一键全选前尘老本
                   </button>
                   <button
                     type="button"
                     className="button ghost empty-quick-btn"
                     onClick={handleFocusCurrentSeason}
-                    title="聚焦配置 130 级丝路风语最新赛季秘境"
+                    title="聚焦配置当前最新赛季秘境"
                   >
-                    🎯 聚焦当前赛季 (丝路风语 130级)
+                    🎯 聚焦当前赛季
                   </button>
                 </div>
               </div>

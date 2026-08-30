@@ -1,6 +1,9 @@
 import type {
   CatalogDifficultyGroup,
   CatalogDifficultyGroupId,
+  CatalogEra,
+  CatalogEraId,
+  CatalogItem,
   CatalogLevelGroup,
   CatalogLevelGroupId,
   CatalogMap,
@@ -11,38 +14,66 @@ export type LevelGroupId = CatalogLevelGroupId;
 export type DifficultyGroup = CatalogDifficultyGroup;
 export type DifficultyGroupId = CatalogDifficultyGroupId;
 
+export const ERA_DEFINITIONS: Record<CatalogEraId, CatalogEra> = {
+  yu: {
+    id: 'yu',
+    name: '鱼历',
+    badge: '鱼历',
+    description: '等级压缩新纪元 (Lv.50~)',
+    order: 1,
+  },
+  wei: {
+    id: 'wei',
+    name: '炜历',
+    badge: '炜历',
+    description: '经典前尘纪元 (Lv.70~Lv.130)',
+    order: 2,
+  },
+};
+
 const levelGroup = (
   id: Exclude<CatalogLevelGroupId, 'unknown'>,
   level: number,
   expansions: readonly string[],
+  era: CatalogEraId = 'wei',
 ): CatalogLevelGroup => {
-  // The first expansion is the game's canonical name for the level. Other
-  // expansions stay in the mapping as second-level versions, but must not
-  // make the top-level navigation label unwieldy.
+  const eraInfo = ERA_DEFINITIONS[era];
   const title = expansions[0] ?? `Lv.${level}`;
-  const label = `『${title}』（Lv.${level}）`;
-  return { id, level, name: title, title, label, expansions };
+  const label = `『${title}』（${eraInfo.name} Lv.${level}）`;
+  return {
+    id,
+    era,
+    eraName: eraInfo.name,
+    level,
+    name: title,
+    title,
+    label,
+    expansions,
+  };
 };
 
 /**
- * The canonical level order used by the catalog tree. Expansion names stay
- * intact here because they are the second-level version labels in the UI.
+ * The canonical chronological level order used by the catalog tree.
+ * Yu Era (Lv.50) is ordered first as the latest epoch, followed by the Wei Era (Lv.130 down to Lv.70).
  */
 export const LEVEL_GROUPS = [
-  levelGroup('lv-130', 130, ['丝路风语']),
-  levelGroup('lv-120', 120, ['横刀断浪']),
-  levelGroup('lv-110', 110, ['奉天证道']),
-  levelGroup('lv-100', 100, ['世外蓬莱']),
-  levelGroup('lv-95', 95, ['剑胆琴心', '风骨霸刀', '日月凌空', '重制版']),
-  levelGroup('lv-90', 90, ['安史之乱', '苍雪龙城', '血战天策', '逐鹿中原']),
-  levelGroup('lv-80', 80, ['巴蜀风云', '日月明尊', '一代宗师', '烛火燎天']),
-  levelGroup('lv-70', 70, ['风起稻香']),
+  levelGroup('yu-50', 50, ['苍生铸世', '鱼历50级', '鱼历新纪元'], 'yu'),
+  levelGroup('lv-130', 130, ['丝路风语'], 'wei'),
+  levelGroup('lv-120', 120, ['横刀断浪'], 'wei'),
+  levelGroup('lv-110', 110, ['奉天证道'], 'wei'),
+  levelGroup('lv-100', 100, ['世外蓬莱'], 'wei'),
+  levelGroup('lv-95', 95, ['剑胆琴心', '风骨霸刀', '日月凌空', '重制版'], 'wei'),
+  levelGroup('lv-90', 90, ['安史之乱', '苍雪龙城', '血战天策', '逐鹿中原'], 'wei'),
+  levelGroup('lv-80', 80, ['巴蜀风云', '日月明尊', '一代宗师', '烛火燎天'], 'wei'),
+  levelGroup('lv-70', 70, ['风起稻香'], 'wei'),
 ] as const satisfies readonly CatalogLevelGroup[];
 
 export const CATALOG_LEVEL_GROUPS = LEVEL_GROUPS;
 
 export const UNKNOWN_LEVEL_GROUP: CatalogLevelGroup = {
   id: 'unknown',
+  era: 'unknown',
+  eraName: '未知纪元',
   level: null,
   name: '未知版本',
   title: '未知版本',
@@ -91,9 +122,9 @@ function unknownGroupForMaps<TMap extends Pick<CatalogMap, 'expansion'>>(maps: r
 }
 
 /**
- * Group maps in the fixed level order. All eight canonical buckets are
- * returned, including empty ones; an unknown bucket is appended only when it
- * contains maps so that imported/future data remains visible.
+ * Group maps in the fixed level order. All canonical buckets are returned,
+ * including empty ones; an unknown bucket is appended only when it contains
+ * maps so that imported/future data remains visible.
  */
 export function groupMapsByLevel<TMap extends Pick<CatalogMap, 'expansion'>>(
   maps: readonly TMap[],
@@ -114,6 +145,69 @@ export function groupMapsByLevel<TMap extends Pick<CatalogMap, 'expansion'>>(
   }));
   if (unknownMaps.length > 0) result.push({ ...unknownGroupForMaps(unknownMaps), maps: unknownMaps });
   return result;
+}
+
+/**
+ * 获取当前活跃的最新赛季等级组。
+ * 优先在数据中查找第一个有地图的已知等级组（按时间线最新排序）；若无地图则返回时间线首个等级组。
+ */
+export function getCurrentSeasonGroup<TMap extends Pick<CatalogMap, 'expansion'>>(
+  maps: readonly TMap[],
+): MapsByLevel<TMap>;
+export function getCurrentSeasonGroup(): CatalogLevelGroup;
+export function getCurrentSeasonGroup<TMap extends Pick<CatalogMap, 'expansion'>>(
+  maps?: readonly TMap[],
+): MapsByLevel<TMap> | CatalogLevelGroup {
+  if (maps && maps.length > 0) {
+    const grouped = groupMapsByLevel(maps);
+    const activeFirst = grouped.find((g) => g.id !== 'unknown' && g.maps.length > 0);
+    if (activeFirst) return activeFirst;
+    return { ...copyLevelGroup(LEVEL_GROUPS[0]), maps: [] };
+  }
+  return LEVEL_GROUPS[0];
+}
+
+/**
+ * 判断指定等级组是否属于历史前尘老本（即非当前活跃赛季）。
+ */
+export function isLegacyLevelGroup(
+  group: Pick<CatalogLevelGroup, 'id'>,
+  currentSeasonId?: CatalogLevelGroupId,
+): boolean {
+  if (group.id === 'unknown') return false;
+  const activeId = currentSeasonId ?? LEVEL_GROUPS[0].id;
+  return group.id !== activeId;
+}
+
+/**
+ * 筛选属于前尘老副本的地图（自动排除当前活跃最新赛季）。
+ */
+export function getLegacyMaps<TMap extends Pick<CatalogMap, 'expansion'>>(
+  maps: readonly TMap[],
+): TMap[] {
+  const currentSeason = getCurrentSeasonGroup(maps);
+  return maps.filter((map) => {
+    const group = getLevelGroup(map.expansion);
+    return group.id !== 'unknown' && group.id !== currentSeason.id;
+  });
+}
+
+/**
+ * 筛选所有来源均属于前尘老本的装备（不含当前活跃赛季掉落）。
+ */
+export function getLegacyEquipment<TItem extends Pick<CatalogItem, 'sources' | 'category'>>(
+  items: readonly TItem[],
+  maps?: readonly Pick<CatalogMap, 'expansion'>[],
+): TItem[] {
+  const currentSeason = maps && maps.length > 0 ? getCurrentSeasonGroup(maps) : getCurrentSeasonGroup();
+  return items.filter((item) => {
+    if (item.category !== 'equipment') return false;
+    if (!item.sources || item.sources.length === 0) return false;
+    const groups = item.sources.map((s) => getLevelGroup(s.expansion));
+    const hasKnownSources = groups.some((g) => g.id !== 'unknown');
+    if (!hasKnownSources) return false;
+    return groups.every((g) => g.id === 'unknown' || g.id !== currentSeason.id);
+  });
 }
 
 const difficultyGroup = (

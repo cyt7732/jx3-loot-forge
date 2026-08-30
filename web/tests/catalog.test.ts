@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
   DIFFICULTY_GROUPS,
+  ERA_DEFINITIONS,
   LEVEL_GROUPS,
   classifyMapDifficulty,
   findLevelGroup,
+  getCurrentSeasonGroup,
+  getLegacyEquipment,
+  getLegacyMaps,
   groupMapsByDifficulty,
   groupMapsByLevel,
+  isLegacyLevelGroup,
 } from '../src/catalog';
 import { selectCatalogSnapshot, validateCatalogSnapshot } from '../src/storage/catalog';
-import type { CatalogMap, CatalogSnapshot } from '../src/domain/types';
+import type { CatalogItem, CatalogMap, CatalogSnapshot } from '../src/domain/types';
 
 async function catalogFixture(overrides: Partial<CatalogSnapshot> = {}): Promise<CatalogSnapshot> {
   const snapshot: CatalogSnapshot = {
@@ -99,30 +104,89 @@ function mapFixture(mapId: number, expansion: string, difficulty: string): Catal
 }
 
 describe('catalog level and difficulty grouping', () => {
-  it('keeps the eight level groups and their expansion mappings in descending order', () => {
-    expect(LEVEL_GROUPS.map((group) => group.level)).toEqual([130, 120, 110, 100, 95, 90, 80, 70]);
-    expect(LEVEL_GROUPS.map((group) => [...group.expansions])).toEqual([
-      ['丝路风语'],
-      ['横刀断浪'],
-      ['奉天证道'],
-      ['世外蓬莱'],
-      ['剑胆琴心', '风骨霸刀', '日月凌空', '重制版'],
-      ['安史之乱', '苍雪龙城', '血战天策', '逐鹿中原'],
-      ['巴蜀风云', '日月明尊', '一代宗师', '烛火燎天'],
-      ['风起稻香'],
+  it('defines Yu Era and Wei Era correctly', () => {
+    expect(ERA_DEFINITIONS.yu).toMatchObject({ id: 'yu', name: '鱼历', badge: '鱼历' });
+    expect(ERA_DEFINITIONS.wei).toMatchObject({ id: 'wei', name: '炜历', badge: '炜历' });
+  });
+
+  it('keeps the level groups ordered chronologically with Yu and Wei eras', () => {
+    expect(LEVEL_GROUPS.map((group) => ({ id: group.id, level: group.level, era: group.era }))).toEqual([
+      { id: 'yu-50', level: 50, era: 'yu' },
+      { id: 'lv-130', level: 130, era: 'wei' },
+      { id: 'lv-120', level: 120, era: 'wei' },
+      { id: 'lv-110', level: 110, era: 'wei' },
+      { id: 'lv-100', level: 100, era: 'wei' },
+      { id: 'lv-95', level: 95, era: 'wei' },
+      { id: 'lv-90', level: 90, era: 'wei' },
+      { id: 'lv-80', level: 80, era: 'wei' },
+      { id: 'lv-70', level: 70, era: 'wei' },
     ]);
-    expect(findLevelGroup('丝路风语').label).toBe('『丝路风语』（Lv.130）');
+
+    expect(findLevelGroup('丝路风语').label).toBe('『丝路风语』（炜历 Lv.130）');
+    expect(findLevelGroup('丝路风语').era).toBe('wei');
+    expect(findLevelGroup('丝路风语').eraName).toBe('炜历');
+
     expect(findLevelGroup('风骨霸刀').level).toBe(95);
-    expect(findLevelGroup('风骨霸刀').label).toBe('『剑胆琴心』（Lv.95）');
+    expect(findLevelGroup('风骨霸刀').era).toBe('wei');
+    expect(findLevelGroup('风骨霸刀').label).toBe('『剑胆琴心』（炜历 Lv.95）');
+
+    expect(findLevelGroup('苍生铸世').era).toBe('yu');
+    expect(findLevelGroup('苍生铸世').eraName).toBe('鱼历');
+    expect(findLevelGroup('苍生铸世').label).toBe('『苍生铸世』（鱼历 Lv.50）');
+    expect(findLevelGroup('鱼历50级').label).toBe('『苍生铸世』（鱼历 Lv.50）');
+  });
+
+  it('correctly determines current season and legacy maps without pure number bugs', () => {
+    // 场景 1：当前数据包只有 130 级及以下炜历副本
+    const weiMaps = [
+      mapFixture(101, '丝路风语', '25人英雄'),
+      mapFixture(102, '横刀断浪', '25人英雄'),
+      mapFixture(103, '风起稻香', '5人普通'),
+    ];
+    const currentSeasonWei = getCurrentSeasonGroup(weiMaps);
+    expect(currentSeasonWei.id).toBe('lv-130');
+    expect(isLegacyLevelGroup(currentSeasonWei, currentSeasonWei.id)).toBe(false);
+
+    const legacyMapsWei = getLegacyMaps(weiMaps);
+    expect(legacyMapsWei.map((m) => m.mapId)).toEqual([102, 103]);
+
+    // 场景 2：未来引入了鱼历 50 级新副本（苍生铸世）
+    const yuAndWeiMaps = [
+      mapFixture(201, '苍生铸世', '25人英雄'),
+      mapFixture(101, '丝路风语', '25人英雄'),
+      mapFixture(102, '横刀断浪', '25人英雄'),
+    ];
+    const currentSeasonYu = getCurrentSeasonGroup(yuAndWeiMaps);
+    expect(currentSeasonYu.id).toBe('yu-50');
+    expect(currentSeasonYu.name).toBe('苍生铸世');
+    expect(currentSeasonYu.era).toBe('yu');
+
+    // 关键断言：即使 50 < 130，鱼历 50 级是当前赛季，丝路风语 130 级正确成为老本！
+    const legacyMapsYu = getLegacyMaps(yuAndWeiMaps);
+    expect(legacyMapsYu.map((m) => m.mapId)).toEqual([101, 102]);
+  });
+
+  it('correctly filters legacy equipment drops', () => {
+    const maps = [
+      mapFixture(101, '丝路风语', '25人英雄'),
+      mapFixture(102, '横刀断浪', '25人英雄'),
+    ];
+    const items: CatalogItem[] = [
+      { id: '130装备', name: '130装备', category: 'equipment', sources: [{ mapId: 101, mapName: '丝路本', expansion: '丝路风语', difficulty: '25人英雄', bossName: 'Boss' }] },
+      { id: '120装备', name: '120装备', category: 'equipment', sources: [{ mapId: 102, mapName: '横刀本', expansion: '横刀断浪', difficulty: '25人英雄', bossName: 'Boss' }] },
+      { id: '材料', name: '材料', category: 'material', sources: [{ mapId: 102, mapName: '横刀本', expansion: '横刀断浪', difficulty: '25人英雄', bossName: 'Boss' }] },
+    ];
+    const legacyEquip = getLegacyEquipment(items, maps);
+    expect(legacyEquip.map((i) => i.id)).toEqual(['120装备']);
   });
 
   it('keeps unknown expansions in a safe fallback bucket', () => {
-    const unknown = mapFixture(999, '未来版本', '2人副本');
+    const unknown = mapFixture(999, '未来未录入版本', '2人副本');
     const groups = groupMapsByLevel([unknown]);
     const fallback = groups.find((group) => group.id === 'unknown');
     expect(fallback?.maps).toEqual([unknown]);
-    expect(fallback?.expansions).toEqual(['未来版本']);
-    expect(findLevelGroup('未来版本')).toMatchObject({ id: 'unknown', label: '『未来版本』（未知等级）' });
+    expect(fallback?.expansions).toEqual(['未来未录入版本']);
+    expect(findLevelGroup('未来未录入版本')).toMatchObject({ id: 'unknown', era: 'unknown', eraName: '未知纪元', label: '『未来未录入版本』（未知等级）' });
   });
 
   it('classifies five-person variants together and leaves unsupported difficulties in other', () => {

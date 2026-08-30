@@ -62,7 +62,18 @@ export type CatalogMap = {
   itemIds: string[];
 };
 
+export type CatalogEraId = 'yu' | 'wei';
+
+export type CatalogEra = {
+  id: CatalogEraId;
+  name: string;
+  badge: string;
+  description: string;
+  order: number;
+};
+
 export type CatalogLevelGroupId =
+  | 'yu-50'
   | 'lv-130'
   | 'lv-120'
   | 'lv-110'
@@ -75,6 +86,8 @@ export type CatalogLevelGroupId =
 
 export type CatalogLevelGroup = {
   id: CatalogLevelGroupId;
+  era: CatalogEraId | 'unknown';
+  eraName: string;
   level: number | null;
   name: string;
   title: string;

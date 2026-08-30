@@ -2,7 +2,7 @@ import type { ItemCategory, ItemState, WorkspaceFilters } from './types';
 
 export const APP_NAME = '剑网3掉落工坊';
 export const APP_NAME_EN = 'JX3 Loot Forge';
-export const APP_VERSION = '1.2.2';
+export const APP_VERSION = '1.3.0';
 export const AUTHOR = '凌千羽·龙争虎斗';
 export const CLIENT = 'std' as const;
 export const WORKSPACE_STORAGE_KEY = 'jx3-loot-forge:workspace:v1';
