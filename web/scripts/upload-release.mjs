@@ -1,6 +1,11 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const PROJECT_DIR = resolve(SCRIPT_DIR, '../..');
+const VERSION_PATH = resolve(PROJECT_DIR, 'VERSION.json');
 
 let token = process.env.GITHUB_TOKEN;
 if (!token) {
@@ -11,7 +16,7 @@ if (!token) {
   }
 }
 
-const versionData = JSON.parse(await readFile(resolve('../VERSION.json'), 'utf8'));
+const versionData = JSON.parse(await readFile(VERSION_PATH, 'utf8'));
 const repo = process.env.GITHUB_REPOSITORY || 'cyt7732/jx3-loot-forge';
 const tag = process.env.GITHUB_REF_NAME || versionData.tag || `v${versionData.appVersion}`;
 
@@ -26,6 +31,24 @@ const releaseRes = await fetch(`https://api.github.com/repos/${repo}/releases/ta
 if (!releaseRes.ok) throw new Error(`Failed to fetch release: ${releaseRes.status} ${await releaseRes.text()}`);
 const releaseData = await releaseRes.json();
 
+const releaseNotesPath = resolve(PROJECT_DIR, `artifacts/剑网3掉落工坊-v${versionData.appVersion}/RELEASE_NOTES.md`);
+try {
+  const notesContent = await readFile(releaseNotesPath, 'utf8');
+  console.log('[INFO] Updating release description from RELEASE_NOTES.md...');
+  const patchRes = await fetch(`https://api.github.com/repos/${repo}/releases/${releaseData.id}`, {
+    method: 'PATCH',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ body: notesContent }),
+  });
+  if (patchRes.ok) {
+    console.log('[SUCCESS] Release description updated successfully!');
+  } else {
+    console.error('[WARN] Failed to update release description:', patchRes.status, await patchRes.text());
+  }
+} catch (err) {
+  console.warn('[WARN] Could not read RELEASE_NOTES.md:', err.message);
+}
+
 console.log(`[INFO] Found release id ${releaseData.id}. Cleaning all existing assets...`);
 for (const asset of releaseData.assets) {
   console.log(`[INFO] Deleting asset ${asset.name} (id: ${asset.id})...`);
@@ -34,7 +57,7 @@ for (const asset of releaseData.assets) {
 
 // GitHub Releases requires ASCII asset names to prevent URL truncation / mangling
 const filesToUpload = [
-  { name: `jx3-loot-forge-${tag}-offline.zip`, path: resolve(`../artifacts/jx3-loot-forge-${tag}-offline.zip`), type: 'application/zip' },
+  { name: `jx3-loot-forge-${tag}-offline.zip`, path: resolve(PROJECT_DIR, `artifacts/jx3-loot-forge-${tag}-offline.zip`), type: 'application/zip' },
 ];
 
 for (const file of filesToUpload) {
