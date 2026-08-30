@@ -1297,7 +1297,7 @@ export function LootForgeApp() {
                   </summary>
                   <div className="tree-children difficulty-children">
                     {levelGroup.difficultyGroups.length === 0 ? (
-                      <div className="tree-empty-hint">✨ 鱼历新纪元秘境待上线，敬请期待</div>
+                      <div className="tree-empty-hint">✨ 鱼历新时代秘境待上线，敬请期待</div>
                     ) : (
                       levelGroup.difficultyGroups.map((difficultyGroup) => {
                       const difficultySelection = mapsSelection(difficultyGroup.maps);

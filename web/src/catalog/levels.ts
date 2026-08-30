@@ -19,14 +19,14 @@ export const ERA_DEFINITIONS: Record<CatalogEraId, CatalogEra> = {
     id: 'yu',
     name: '鱼历',
     badge: '鱼历',
-    description: '等级压缩新纪元 (Lv.50~)',
+    description: '等级压缩新时代 (Lv.50~)',
     order: 1,
   },
   wei: {
     id: 'wei',
     name: '炜历',
     badge: '炜历',
-    description: '经典前尘纪元 (Lv.70~Lv.130)',
+    description: '经典前尘时代 (Lv.70~Lv.130)',
     order: 2,
   },
 };
@@ -57,7 +57,7 @@ const levelGroup = (
  * Yu Era (Lv.50) is ordered first as the latest epoch, followed by the Wei Era (Lv.130 down to Lv.70).
  */
 export const LEVEL_GROUPS = [
-  levelGroup('yu-50', 50, ['苍生铸世', '鱼历50级', '鱼历新纪元'], 'yu'),
+  levelGroup('yu-50', 50, ['苍生铸世', '鱼历50级', '鱼历新时代', '鱼历全新时代'], 'yu'),
   levelGroup('lv-130', 130, ['丝路风语'], 'wei'),
   levelGroup('lv-120', 120, ['横刀断浪'], 'wei'),
   levelGroup('lv-110', 110, ['奉天证道'], 'wei'),
