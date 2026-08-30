@@ -1,6 +1,0 @@
-{
-  "buildCommand": "npm --prefix web install && npm --prefix web run build:web",
-  "outputDirectory": "web/dist/web",
-  "framework": null,
-  "cleanUrls": true
-}

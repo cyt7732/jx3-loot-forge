@@ -1,12 +1,15 @@
 # Local references and generated review artifacts
 /.learnings/
 /artifacts/
+/docs/
 /exports/
 /output/
 /.playwright-cli/
 /.tmp*/
 .tmp*
 *.xlsx
+*.bat
+.openai/
 /data/raw/*.us.jx3dat
 
 # Web build and local tooling
