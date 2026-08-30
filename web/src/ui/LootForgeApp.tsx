@@ -85,7 +85,7 @@ type ImportDraft = {
   preview: ImportPreview;
 };
 
-type DialogName = 'custom' | 'workspace' | 'import' | null;
+type DialogName = 'custom' | 'workspace' | 'import' | 'emptyExportWarning' | null;
 type Toast = { tone: 'success' | 'warning' | 'error'; message: string; id?: number } | null;
 type ItemDisposition = 'none' | 'autoSell' | 'protect';
 
@@ -191,6 +191,7 @@ export function LootForgeApp() {
   const [drawerStateView, setDrawerStateView] = useState<'all' | 'configured' | 'unconfigured' | 'protected'>('all');
   const [drawerPage, setDrawerPage] = useState(1);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [pendingExportKind, setPendingExportKind] = useState<'combined' | 'pickup' | 'sell'>('combined');
   const [focusedScope, setFocusedScope] = useState<FocusedScope>({ type: 'all' });
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -884,20 +885,22 @@ export function LootForgeApp() {
 
   const createNamedStates = () => {
     const names = new Map(allItems.map((item) => [item.id, item.name]));
-    let exportItems = allItems.filter(sourceMatchesExportScope);
-    // 如果勾选框完全为空，但当前聚焦在某个年代/难度/副本/Boss，则导出当前聚焦的范围
-    if (exportItems.length === 0 && focusedScope.type !== 'all') {
-      exportItems = allItems.filter(sourceMatchesViewScope);
-    }
+    const exportItems = allItems.filter(sourceMatchesExportScope);
     const targetIdSet = new Set(exportItems.map((item) => item.id));
     return [...stateMap.entries()]
       .filter(([id, state]) => targetIdSet.has(id) && (state.skipLoot || state.autoSell || state.protect))
       .map(([id, state]) => ({ name: names.get(id) ?? id, state }));
   };
 
-  const exportFiles = (kind: 'combined' | 'pickup' | 'sell' = 'combined') => {
+  const executeExport = (kind: 'combined' | 'pickup' | 'sell' = 'combined', force = false) => {
     try {
       if (!catalogIndexed) throw new Error('数据目录仍在建立索引，请稍候再导出。');
+      const hasExportSelection = selectedMaps.size > 0 || selectedBosses.size > 0;
+      if (!hasExportSelection && !force) {
+        setPendingExportKind(kind);
+        setDialog('emptyExportWarning');
+        return;
+      }
       const batch = buildExportBatch(createNamedStates());
       if (kind === 'combined') {
         downloadBatchFile(batch.combined);
@@ -910,6 +913,10 @@ export function LootForgeApp() {
     } catch (error) {
       setToast({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     }
+  };
+
+  const exportFiles = (kind: 'combined' | 'pickup' | 'sell' = 'combined') => {
+    executeExport(kind, false);
   };
 
   const handleConfigFile = async (file: File) => {
@@ -1209,8 +1216,8 @@ export function LootForgeApp() {
             </button>
           </div>
           <div className="scope-rule-hint" role="note">
-            <span className="hint-badge">💡 模式说明</span>
-            <span>点击名称<strong>单选聚焦配置</strong>；左侧方框<strong>打勾多选导出</strong>。</span>
+            <span className="hint-badge">💡 导出规则</span>
+            <span>仅<strong>勾选（✓）</strong>的副本与物品会写入配置文件；未勾选内容即使已配置策略也不会导出。</span>
           </div>
           <nav className="dungeon-tree" aria-label="副本范围">
             <div className={`tree-group custom-scope-group ${selectedMaps.has(CUSTOM_SCOPE_ID) ? 'active' : ''} ${focusedScope.type === 'custom' ? 'is-focused' : ''}`}>
@@ -1749,6 +1756,33 @@ export function LootForgeApp() {
       </div>
 
       {dialog && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDialog(null); }}>
+        {dialog === 'emptyExportWarning' && (
+          <Modal title="未选择导出范围" eyebrow="导出确认" onClose={() => setDialog(null)}>
+            <p className="modal-copy">当前未在左侧勾选任何副本、Boss 或自定义条目。</p>
+            <div className="empty-warning-box" role="alert">
+              <div className="warning-icon">⚠️</div>
+              <div className="warning-text">
+                <strong>将导出空规则配置文件</strong>
+                <p>若继续操作，生成的文件将不包含任何策略规则。导入游戏后不会产生任何自动拾取过滤或自动出售效果。</p>
+              </div>
+            </div>
+            <p className="storage-note">💡 如需导出对应策略，请先在左侧目录中勾选需要导出的副本，或点击【全选老本】一键圈选。</p>
+            <div className="modal-actions">
+              <button className="button primary" type="button" autoFocus onClick={() => setDialog(null)}>返回勾选范围</button>
+              <button
+                className="button ghost danger-text"
+                type="button"
+                onClick={() => {
+                  setDialog(null);
+                  executeExport(pendingExportKind ?? 'combined', true);
+                }}
+              >
+                仍要导出空白文件
+              </button>
+            </div>
+          </Modal>
+        )}
+
         {dialog === 'custom' && <Modal title="添加自定义物品" eyebrow="自定义物品库" onClose={() => setDialog(null)}>
           <p className="modal-copy">输入您想自定义管理的物品名称（每行一个）。添加后可在左侧【✨ 用户自定义】范围中单独配置其拾取与出售策略。</p>
           <textarea className="custom-textarea" value={customInput} onChange={(event) => setCustomInput(event.target.value)} rows={9} placeholder={'例如：\n水长生 ·雪银莲\n特殊装备\n金缕衣'} autoFocus />

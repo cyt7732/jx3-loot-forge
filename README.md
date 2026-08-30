@@ -6,7 +6,7 @@
 
 **全副本掉落智能管理 · 跳过拾取与自动出售一键综合配置工坊**
 
-[![Release](https://img.shields.io/badge/Release-v1.3.0-emerald.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
+[![Release](https://img.shields.io/badge/Release-v1.3.1-emerald.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
 [![Data Version](https://img.shields.io/badge/Data-丝路风语--260823-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![Platform](https://img.shields.io/badge/Platform-JX3%20旗舰端-emerald.svg?style=flat-square)](https://jx3.xoyo.com)
 [![Offline Ready](https://img.shields.io/badge/Offline-100%25%20Single--File-blueviolet.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
