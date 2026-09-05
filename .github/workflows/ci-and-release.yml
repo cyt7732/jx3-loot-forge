@@ -26,7 +26,7 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: 'web/package.json'
+          cache-dependency-path: 'web/package-lock.json'
 
       - name: Extract App Version
         id: get_version
@@ -38,21 +38,12 @@ jobs:
       - name: Install dependencies & run full checks
         working-directory: web
         run: |
-          npm install
+          npm ci
           npm run check
 
       - name: Prepare release assets
         run: |
-          mkdir -p artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}
-          cp 剑网3掉落工坊.html artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/index.html
-          cp CHANGELOG.md artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/
-          cp README.md artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/
-          cp LICENSE artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/
-          cp VERSION.json artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/
-          if [ ! -f artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/RELEASE_NOTES.md ]; then
-            echo "# 剑网3掉落工坊 v${{ env.APP_VERSION }}" > artifacts/剑网3掉落工坊-v${{ env.APP_VERSION }}/RELEASE_NOTES.md
-          fi
-          cd artifacts && zip -r ../artifacts/jx3-loot-forge-v${{ env.APP_VERSION }}-offline.zip 剑网3掉落工坊-v${{ env.APP_VERSION }} && cd ..
+          npm run package:artifacts
 
       - name: Upload offline zip artifact
         uses: actions/upload-artifact@v4
