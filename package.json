@@ -3,7 +3,8 @@
   "version": "1.4.0",
   "private": true,
   "scripts": {
-    "build": "npm --prefix web run build:web",
+    "postinstall": "npm --prefix web ci",
+    "build": "npm --prefix web ci && npm --prefix web run build:web && node -e \"const fs=require('fs'); if(fs.existsSync('web/dist/web') && !fs.existsSync('dist/web')) fs.cpSync('web/dist/web', 'dist/web', {recursive: true});\"",
     "build:web": "npm --prefix web run build:web",
     "build:offline": "npm --prefix web run build:offline",
     "package:artifacts": "node web/scripts/package-artifacts.mjs",

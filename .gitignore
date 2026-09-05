@@ -13,6 +13,7 @@
 /data/raw/*.us.jx3dat
 
 # Web build and local tooling
+/dist/
 /web/node_modules/
 /web/.next/
 /web/.vinext/
