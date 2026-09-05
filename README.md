@@ -6,7 +6,7 @@
 
 **全副本掉落智能管理 · 跳过拾取与自动出售一键综合配置工坊**
 
-[![Release](https://img.shields.io/badge/Release-v1.3.1-emerald.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
+[![Release](https://img.shields.io/badge/Release-v1.4.0-emerald.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
 [![Data Version](https://img.shields.io/badge/Data-丝路风语--260823-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![Platform](https://img.shields.io/badge/Platform-JX3%20旗舰端-emerald.svg?style=flat-square)](https://jx3.xoyo.com)
 [![Offline Ready](https://img.shields.io/badge/Offline-100%25%20Single--File-blueviolet.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
@@ -34,7 +34,8 @@
 | 🎮 **默认插件配置全量对齐** | 完美内嵌茗伊默认的 21 项珍品推荐保护与 19 项默认出售杂物，初始不预设多余跳过拾取规则，与游戏插件官方默认行为保持 100% 一致。 |
 | 🎯 **全量精准数据覆盖** | 覆盖 70~130 级全赛季 254 个副本，细化分类“装备”“兑换牌”“特殊掉落”“大铁”“小铁”“宠物”“家具”“附魔”等实用大类。 |
 | 📦 **100% 离线单文件运行** | 零网络依赖、零服务器需求，独立单文件 `剑网3掉落工坊.html` 双击即用，自带全部数据与水墨图标，极易发群分享。 |
-| ✨ **用户自定义物品体系** | 支持任意自定义物品录入，独立受控，不会被批量规则意外覆盖，左侧专属【✨ 用户自定义】顶层管理节点。 |
+| 🌗 **浅色 / 深色双模式瞬切** | 专为日间明亮与夜间沉浸场景量身打造，纯正大唐水墨配色，支持一键随心切换与浏览器本地无缝记忆。 |
+| ✨ **自定义最高优先级防覆盖** | 用户自定义数据在初始化与默认阶段始终保持勾选；自定义物品享有最高优先级保护，杜绝副本批量与单项设置意外覆盖。 |
 | 💎 **顶栏高定操作中心** | 分段按钮（Split Button）兼顾一键快速导出与细分独立导出，支持 `↶ 撤销变更` 动态秒级还原。 |
 | 🛡️ **智能防冲突与珍品保护** | 默认内置玄晶、特殊武器等珍品推荐保护；批量应用时自动检测冲突，防止珍品被意外误售。 |
 | 🎨 **正统大唐水墨美学** | 正统水墨狂草“剑”字与朱砂“叁”印章 Logo，全平台浏览器标签 Favicon 专属内嵌，纯正剑三视觉体验。 |

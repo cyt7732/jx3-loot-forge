@@ -23,17 +23,16 @@ await cp(resolve(PROJECT_DIR, 'README.md'), resolve(artDir, 'README.md'));
 await cp(resolve(PROJECT_DIR, 'LICENSE'), resolve(artDir, 'LICENSE'));
 await cp(VERSION_PATH, resolve(artDir, 'VERSION.json'));
 
-const releaseNotes = `# 剑网3掉落工坊 v${ver}
+const changelog = await readFile(resolve(PROJECT_DIR, 'CHANGELOG.md'), 'utf8');
+const versionHeaderRegex = new RegExp(`## \\[${ver.replace(/\./g, '\\.')}\\][^\n]*\n([\\s\\S]*?)(?=\\n## \\[|$)`);
+const match = changelog.match(versionHeaderRegex);
 
-### 更新亮点
-- **导出空数据二次确认弹窗拦截机制**：
-  - 当左侧未勾选任何副本、Boss 或自定义条目直接点击导出时，弹出友好的确认对话框，明确提示将生成空白规则文件；
-  - 提供【返回勾选范围】与【仍要导出空白文件】清晰路径，杜绝玩家因误操作导出空文件；
-  - 配备优雅的危险与警告卡片视觉，提升交互安全性与防御性。
-- **左侧侧边栏【导出规则】常驻说明**：
-  - 明确规范文案：“仅勾选（✓）的副本与物品会写入配置文件；未勾选内容即使已配置策略也不会导出”，消除玩家对单选聚焦与多选导出的理解歧义。
-- **全文档与全库版本号 100% 统一**：全链路统一升级至 v${ver}，离线单文件与多端产物 100% 闭环。
-`;
+let releaseNotes = `# 剑网3掉落工坊 v${ver}\n\n`;
+if (match && match[1]) {
+  releaseNotes += match[1].trim() + '\n';
+} else {
+  releaseNotes += `剑网3掉落工坊 v${ver} 正式发布。\n`;
+}
 
 await writeFile(resolve(artDir, 'RELEASE_NOTES.md'), releaseNotes, 'utf8');
 

@@ -1,4 +1,4 @@
-import { APP_VERSION, WORKSPACE_STORAGE_KEY } from '../domain/constants';
+import { APP_VERSION, CUSTOM_SCOPE_ID, WORKSPACE_STORAGE_KEY } from '../domain/constants';
 import { assertValidState, createInitialWorkspace, normalizeItemName } from '../domain/state';
 import type { Workspace } from '../domain/types';
 
@@ -150,7 +150,13 @@ export function validateWorkspace(value: unknown, catalogVersion: string): Works
     itemStates,
     customItems: source.customItems.filter((item) => item && typeof item.id === 'string' && typeof item.name === 'string').map((item) => ({ ...item, id: normalizeItemName(item.id) })),
     customOverrides: Array.isArray(source.customOverrides) ? source.customOverrides.filter((id): id is string => typeof id === 'string').map(normalizeItemName) : [],
-    selectedMapIds: Array.isArray(source.selectedMapIds) ? source.selectedMapIds.filter((id): id is number => Number.isSafeInteger(id)) : [],
+    selectedMapIds: (() => {
+      const raw = Array.isArray(source.selectedMapIds) ? source.selectedMapIds.filter((id): id is number => Number.isSafeInteger(id)) : [CUSTOM_SCOPE_ID];
+      if ((!source.appVersion || source.appVersion !== APP_VERSION) && !raw.includes(CUSTOM_SCOPE_ID)) {
+        return [CUSTOM_SCOPE_ID, ...raw];
+      }
+      return raw;
+    })(),
     selectedBossKeys: Array.isArray(source.selectedBossKeys) ? source.selectedBossKeys.filter((id): id is string => typeof id === 'string') : [],
     expandedGroups: Array.isArray(source.expandedGroups) ? source.expandedGroups.filter((id): id is string => typeof id === 'string') : [],
     favoriteScopes: Array.isArray(source.favoriteScopes) ? source.favoriteScopes

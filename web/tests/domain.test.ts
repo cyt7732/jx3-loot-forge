@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CUSTOM_SCOPE_ID,
   DEFAULT_PROTECTED_ITEMS,
   DEFAULT_SELL_ITEMS,
   DEFAULT_SKIP_LOOT_ITEMS,
@@ -39,6 +40,7 @@ describe('three-state domain model', () => {
     expect(states.get('金叶子')).toEqual({ skipLoot: false, autoSell: true, protect: false });
     expect(workspace.customItems).toHaveLength(40);
     expect(workspace.customOverrides).toHaveLength(40);
+    expect(workspace.selectedMapIds).toEqual([CUSTOM_SCOPE_ID]);
   });
 
   it('does not rewrite the workspace modification time while loading valid saved state', () => {

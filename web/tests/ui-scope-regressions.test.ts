@@ -4,6 +4,7 @@ import { groupMapsByLevel } from '../src/catalog';
 import { sourceKey } from '../src/ui/LootForgeApp';
 import type { CatalogSnapshot, Workspace } from '../src/domain/types';
 import { createInitialWorkspace } from '../src/domain/state';
+import { CUSTOM_SCOPE_ID } from '../src/domain/constants';
 
 describe('v1.2.2 UI Regressions & Scope Interactions', () => {
   const snapshot = standardCatalog as unknown as CatalogSnapshot;
@@ -37,7 +38,8 @@ describe('v1.2.2 UI Regressions & Scope Interactions', () => {
       if (bosses1.has(key)) bosses1.delete(key); else bosses1.add(key);
       const ws1: Workspace = { ...ws, selectedBossKeys: [...bosses1] };
       expect(ws1.selectedBossKeys).toContain(key);
-      expect(ws1.selectedMapIds).toHaveLength(0);
+      expect(ws1.selectedMapIds).toEqual([CUSTOM_SCOPE_ID]);
+      expect(ws1.selectedMapIds).not.toContain(mapId);
 
       const bosses2 = new Set(ws1.selectedBossKeys);
       if (bosses2.has(key)) bosses2.delete(key); else bosses2.add(key);

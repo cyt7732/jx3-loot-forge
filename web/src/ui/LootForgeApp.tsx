@@ -20,7 +20,9 @@ import {
   AUTHOR,
   CATEGORY_LABELS,
   CATEGORY_ORDER,
+  CUSTOM_SCOPE_ID,
   DEFAULT_PROTECTED_ITEMS,
+  THEME_STORAGE_KEY,
 } from '../domain/constants';
 import {
   applyChanges,
@@ -69,7 +71,7 @@ import {
 } from '../storage/workspace';
 import { downloadBytes, downloadText } from '../utils/download';
 
-const CUSTOM_SCOPE_ID = -1;
+export type ThemeMode = 'light' | 'dark';
 
 type ViewItem = CatalogItem & {
   isCustom: boolean;
@@ -193,11 +195,47 @@ export function LootForgeApp() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [pendingExportKind, setPendingExportKind] = useState<'combined' | 'pickup' | 'sell'>('combined');
   const [focusedScope, setFocusedScope] = useState<FocusedScope>({ type: 'all' });
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null;
+      return saved === 'light' ? 'light' : 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const configInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
   const dataPackInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute('data-theme', theme);
+      const meta = document.querySelector('meta[name="color-scheme"]');
+      if (meta) meta.setAttribute('content', theme);
+    } catch {
+      // 忽略 DOM 属性同步异常
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    const nextTheme: ThemeMode = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+      document.documentElement.setAttribute('data-theme', nextTheme);
+      const meta = document.querySelector('meta[name="color-scheme"]');
+      if (meta) meta.setAttribute('content', nextTheme);
+    } catch {
+      // 忽略存储异常
+    }
+    setToast({
+      tone: 'success',
+      message: nextTheme === 'light' ? '已切换至浅色模式' : '已切换至深色模式',
+    });
+  };
 
   useEffect(() => {
     if (!exportMenuOpen) return;
@@ -364,6 +402,7 @@ export function LootForgeApp() {
   const selectedMaps = useMemo(() => new Set(workspace.selectedMapIds), [workspace.selectedMapIds]);
   const selectedBosses = useMemo(() => new Set(workspace.selectedBossKeys), [workspace.selectedBossKeys]);
   const hasScope = selectedMaps.size > 0 || selectedBosses.size > 0;
+  const hasDungeonScope = useMemo(() => [...selectedMaps].some((id) => id !== CUSTOM_SCOPE_ID) || selectedBosses.size > 0, [selectedMaps, selectedBosses]);
 
   const mapSelection = (map: CatalogMap) => {
     if (selectedMaps.has(map.mapId)) return { full: true, partial: false };
@@ -449,7 +488,7 @@ export function LootForgeApp() {
     return sourceMatchesExportScope(item);
   };
 
-  const hasScopeInView = focusedScope.type !== 'all' || hasScope;
+  const hasScopeInView = focusedScope.type !== 'all' || hasDungeonScope;
 
   const availableCategories = useMemo(() => {
     const counts = Object.fromEntries(CATEGORY_ORDER.map((category) => [category, 0])) as Record<ItemCategory, number>;
@@ -511,6 +550,13 @@ export function LootForgeApp() {
   };
 
   const toggleItemState = (item: ViewItem, field: StateField) => {
+    if (focusedScope.type !== 'custom' && (item.customOverride || customOverrides.has(item.id))) {
+      setToast({
+        tone: 'warning',
+        message: `“${item.name}”已在【用户自定义】中维护（享有最高优先级），副本内设置不生效。如需修改请前往【用户自定义】。`,
+      });
+      return;
+    }
     const next = new Map(stateMap);
     const before = cloneState(next.get(item.id));
     next.set(item.id, setStateField(before, field, !before[field]));
@@ -518,6 +564,13 @@ export function LootForgeApp() {
   };
 
   const setItemDisposition = (item: ViewItem, disposition: ItemDisposition) => {
+    if (focusedScope.type !== 'custom' && (item.customOverride || customOverrides.has(item.id))) {
+      setToast({
+        tone: 'warning',
+        message: `“${item.name}”已在【用户自定义】中维护（享有最高优先级），副本内设置不生效。如需修改请前往【用户自定义】。`,
+      });
+      return;
+    }
     const next = new Map(stateMap);
     let nextState = cloneState(next.get(item.id));
     if (disposition === 'autoSell') {
@@ -699,7 +752,10 @@ export function LootForgeApp() {
     const lowerLevelMaps = getLegacyMaps(activeSnapshot.maps);
     setWorkspace((current) => ({
       ...current,
-      selectedMapIds: lowerLevelMaps.map((map) => map.mapId),
+      selectedMapIds: [
+        ...(current.selectedMapIds.includes(CUSTOM_SCOPE_ID) ? [CUSTOM_SCOPE_ID] : [CUSTOM_SCOPE_ID]),
+        ...lowerLevelMaps.map((map) => map.mapId),
+      ],
       selectedBossKeys: [],
       updatedAt: new Date().toISOString(),
     }));
@@ -1101,6 +1157,14 @@ export function LootForgeApp() {
               ↶ 撤销变更
             </button>
           )}
+          <button
+            className="button ghost theme-toggle-btn"
+            type="button"
+            title={theme === 'dark' ? '切换为浅色模式' : '切换为深色模式'}
+            onClick={toggleTheme}
+          >
+            {theme === 'dark' ? '☀️ 浅色' : '🌙 深色'}
+          </button>
           <button className="button ghost" type="button" onClick={() => setDialog('custom')}>＋ 自定义物品</button>
           <button className="button ghost" type="button" onClick={() => setDialog('workspace')}>工作区</button>
           <button className="button ghost" type="button" onClick={() => configInputRef.current?.click()}>导入配置</button>
@@ -1190,11 +1254,14 @@ export function LootForgeApp() {
             </button>
             <button
               type="button"
-              title="全选所有赛季与纪元副本用于导出"
+              title="全选所有赛季与年代副本用于导出"
               onClick={() => {
                 setWorkspace((current) => ({
                   ...current,
-                  selectedMapIds: activeSnapshot.maps.map((map) => map.mapId),
+                  selectedMapIds: [
+                    CUSTOM_SCOPE_ID,
+                    ...activeSnapshot.maps.map((map) => map.mapId),
+                  ],
                   selectedBossKeys: [],
                   updatedAt: new Date().toISOString(),
                 }));
@@ -1205,10 +1272,15 @@ export function LootForgeApp() {
             </button>
             <button
               type="button"
-              title="清除左侧所有副本和 Boss 的勾选标记，主区显示完整目录"
+              title="清除左侧所有副本和 Boss 的勾选标记，保留用户自定义勾选，主区显示完整目录"
               aria-label="清除范围并查看全部副本"
               onClick={() => {
-                setWorkspace((current) => ({ ...current, selectedMapIds: [], selectedBossKeys: [], updatedAt: new Date().toISOString() }));
+                setWorkspace((current) => ({
+                  ...current,
+                  selectedMapIds: current.selectedMapIds.includes(CUSTOM_SCOPE_ID) ? [CUSTOM_SCOPE_ID] : [CUSTOM_SCOPE_ID],
+                  selectedBossKeys: [],
+                  updatedAt: new Date().toISOString(),
+                }));
                 setFocusedScope({ type: 'all' });
               }}
             >
@@ -1706,13 +1778,21 @@ export function LootForgeApp() {
                             {visibleDrawerItems.map((item) => {
                               const state = cloneState(stateMap.get(item.id));
                               const source = item.sources[0];
+                              const isCustomLocked = focusedScope.type !== 'custom' && Boolean(item.customOverride || customOverrides.has(item.id));
+                              const lockedTitle = `“${item.name}”已在【用户自定义】中维护（最高优先级），副本内设置不生效。如需修改请前往【用户自定义】。`;
                               return (
-                                <div className={`item-row ${item.customOverride ? 'custom-row' : ''} ${item.historical ? 'historical-row' : ''}`} role="row" key={item.id}>
+                                <div className={`item-row ${item.customOverride ? 'custom-row' : ''} ${item.historical ? 'historical-row' : ''} ${isCustomLocked ? 'custom-locked' : ''}`} role="row" key={item.id}>
                                   <div className="item-name">
                                     <strong>
                                       {item.name}
                                       {item.systemSeed && <span className="seed-badge">推荐保护</span>}
-                                      {item.customOverride && <span className="custom-badge">自定义</span>}
+                                      {item.customOverride && (
+                                        isCustomLocked ? (
+                                          <span className="custom-badge priority-badge" title="已在【用户自定义】中维护（最高优先级），副本内设置不生效">🔒 自定义优先</span>
+                                        ) : (
+                                          <span className="custom-badge">自定义</span>
+                                        )
+                                      )}
                                       {item.historical && <span className="history-badge">历史</span>}
                                     </strong>
                                     <small title={item.sources.map((entry) => `${entry.expansion} / ${entry.mapName} / ${entry.bossName}`).join('\n')}>
@@ -1724,8 +1804,8 @@ export function LootForgeApp() {
                                   <span className={`category-pill quality-${item.qualityMax ?? item.quality ?? 0}`}>
                                     {item.subtype ? `${item.subtype} · ` : ''}{item.itemLevelMax ? `${item.itemLevelMin === item.itemLevelMax ? item.itemLevelMax : `${item.itemLevelMin}–${item.itemLevelMax}`}品` : `品质 ${item.qualityMax ?? item.quality ?? 0}`}
                                   </span>
-                                  <StateButton state={state} onClick={() => toggleItemState(item, 'skipLoot')} />
-                                  <DispositionSelector disposition={itemDisposition(state)} onChange={(disposition) => setItemDisposition(item, disposition)} />
+                                  <StateButton state={state} onClick={() => toggleItemState(item, 'skipLoot')} locked={isCustomLocked} lockedTitle={lockedTitle} />
+                                  <DispositionSelector disposition={itemDisposition(state)} onChange={(disposition) => setItemDisposition(item, disposition)} locked={isCustomLocked} lockedTitle={lockedTitle} />
                                 </div>
                               );
                             })}
@@ -1869,38 +1949,39 @@ export function LootForgeApp() {
   );
 }
 
-function StateButton({ state, onClick }: { state: ItemState; onClick: () => void }) {
+function StateButton({ state, onClick, locked, lockedTitle }: { state: ItemState; onClick: () => void; locked?: boolean; lockedTitle?: string }) {
   const enabled = state.skipLoot;
   return (
     <button
-      className={`state-toggle skipLoot ${enabled ? 'checked' : ''}`}
+      className={`state-toggle skipLoot ${enabled ? 'checked' : ''} ${locked ? 'is-locked' : ''}`}
       aria-pressed={enabled}
       aria-label={`跳过拾取：${enabled ? '已开启' : '未开启'}`}
       onClick={onClick}
       type="button"
-      title={enabled ? '已加入跳过拾取名单（掉落时不拾取）' : '未跳过（掉落时正常拾取）'}
+      title={locked ? lockedTitle : (enabled ? '已加入跳过拾取名单（掉落时不拾取）' : '未跳过（掉落时正常拾取）')}
     >
       <i />
       <span>{enabled ? '已跳过' : '正常拾取'}</span>
+      {locked && <span className="lock-indicator" title="自定义最高优先级">🔒</span>}
     </button>
   );
 }
 
-function DispositionSelector({ disposition, onChange }: { disposition: ItemDisposition; onChange: (disposition: ItemDisposition) => void }) {
+function DispositionSelector({ disposition, onChange, locked, lockedTitle }: { disposition: ItemDisposition; onChange: (disposition: ItemDisposition) => void; locked?: boolean; lockedTitle?: string }) {
   const options: Array<[ItemDisposition, string, string]> = [
     ['none', '未处理', '不自动出售，也不加入保护名单'],
     ['autoSell', '自动出售', '加入自动出售名单 (MY_AutoSell.tSellItem)'],
     ['protect', '保护不出售', '加入保护名单，防止被误卖 (MY_AutoSell.tProtectItem)'],
   ];
   return (
-    <div className="segmented disposition-selector" role="group" aria-label="出售策略">
+    <div className={`segmented disposition-selector ${locked ? 'is-locked' : ''}`} role="group" aria-label="出售策略">
       {options.map(([value, label, desc]) => (
         <button
           className={`disposition-option ${value} ${disposition === value ? 'on' : ''}`}
           type="button"
           key={value}
           aria-pressed={disposition === value}
-          title={`出售策略：${label}（${desc}）`}
+          title={locked ? lockedTitle : `出售策略：${label}（${desc}）`}
           onClick={() => onChange(value)}
         >
           {label}
