@@ -2,9 +2,6 @@
   "name": "jx3-loot-forge-root",
   "version": "1.4.0",
   "private": true,
-  "workspaces": [
-    "web"
-  ],
   "scripts": {
     "build": "npm --prefix web run build:web",
     "build:web": "npm --prefix web run build:web",
