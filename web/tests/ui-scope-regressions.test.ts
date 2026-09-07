@@ -109,4 +109,64 @@ describe('v1.2.2 UI Regressions & Scope Interactions', () => {
       expect(matchC).toBe(false);
     });
   });
+
+  describe('Clear Scope & Custom Scope Retention Semantics', () => {
+    it('preserves custom scope when selected prior to clearing scope', () => {
+      const currentWorkspace: Workspace = {
+        ...createInitialWorkspace('test'),
+        selectedMapIds: [CUSTOM_SCOPE_ID, 101, 102],
+        selectedBossKeys: ['101_Boss1'],
+      };
+
+      const clearedWorkspace: Workspace = {
+        ...currentWorkspace,
+        selectedMapIds: currentWorkspace.selectedMapIds.includes(CUSTOM_SCOPE_ID) ? [CUSTOM_SCOPE_ID] : [],
+        selectedBossKeys: [],
+        updatedAt: new Date().toISOString(),
+      };
+
+      expect(clearedWorkspace.selectedMapIds).toEqual([CUSTOM_SCOPE_ID]);
+      expect(clearedWorkspace.selectedBossKeys).toHaveLength(0);
+    });
+
+    it('does NOT restore custom scope if user explicitly unchecked custom scope prior to clearing', () => {
+      const currentWorkspace: Workspace = {
+        ...createInitialWorkspace('test'),
+        selectedMapIds: [101, 102], // Custom scope unchecked by user
+        selectedBossKeys: ['101_Boss1'],
+      };
+
+      const clearedWorkspace: Workspace = {
+        ...currentWorkspace,
+        selectedMapIds: currentWorkspace.selectedMapIds.includes(CUSTOM_SCOPE_ID) ? [CUSTOM_SCOPE_ID] : [],
+        selectedBossKeys: [],
+        updatedAt: new Date().toISOString(),
+      };
+
+      expect(clearedWorkspace.selectedMapIds).toEqual([]);
+      expect(clearedWorkspace.selectedBossKeys).toHaveLength(0);
+      expect(clearedWorkspace.selectedMapIds).not.toContain(CUSTOM_SCOPE_ID);
+    });
+
+    it('does NOT restore custom scope when selecting all legacy maps if user unchecked custom scope', () => {
+      const currentWorkspace: Workspace = {
+        ...createInitialWorkspace('test'),
+        selectedMapIds: [101], // Custom scope unchecked
+        selectedBossKeys: [],
+      };
+      const legacyMapIds = [201, 202, 203];
+
+      const updatedWorkspace: Workspace = {
+        ...currentWorkspace,
+        selectedMapIds: [
+          ...(currentWorkspace.selectedMapIds.includes(CUSTOM_SCOPE_ID) ? [CUSTOM_SCOPE_ID] : []),
+          ...legacyMapIds,
+        ],
+        selectedBossKeys: [],
+      };
+
+      expect(updatedWorkspace.selectedMapIds).not.toContain(CUSTOM_SCOPE_ID);
+      expect(updatedWorkspace.selectedMapIds).toEqual(legacyMapIds);
+    });
+  });
 });

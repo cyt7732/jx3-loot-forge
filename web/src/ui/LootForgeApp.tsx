@@ -231,10 +231,6 @@ export function LootForgeApp() {
     } catch {
       // 忽略存储异常
     }
-    setToast({
-      tone: 'success',
-      message: nextTheme === 'light' ? '已切换至浅色模式' : '已切换至深色模式',
-    });
   };
 
   useEffect(() => {
@@ -309,7 +305,7 @@ export function LootForgeApp() {
 
   useEffect(() => {
     if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 4200);
+    const timer = window.setTimeout(() => setToast(null), 3000);
     return () => window.clearTimeout(timer);
   }, [toast]);
 
@@ -753,7 +749,7 @@ export function LootForgeApp() {
     setWorkspace((current) => ({
       ...current,
       selectedMapIds: [
-        ...(current.selectedMapIds.includes(CUSTOM_SCOPE_ID) ? [CUSTOM_SCOPE_ID] : [CUSTOM_SCOPE_ID]),
+        ...(current.selectedMapIds.includes(CUSTOM_SCOPE_ID) ? [CUSTOM_SCOPE_ID] : []),
         ...lowerLevelMaps.map((map) => map.mapId),
       ],
       selectedBossKeys: [],
@@ -1160,10 +1156,10 @@ export function LootForgeApp() {
           <button
             className="button ghost theme-toggle-btn"
             type="button"
-            title={theme === 'dark' ? '切换为浅色模式' : '切换为深色模式'}
+            title={theme === 'dark' ? '当前为深色模式（点击切换为浅色模式）' : '当前为浅色模式（点击切换为深色模式）'}
             onClick={toggleTheme}
           >
-            {theme === 'dark' ? '☀️ 浅色' : '🌙 深色'}
+            {theme === 'dark' ? '🌙 深色' : '☀️ 浅色'}
           </button>
           <button className="button ghost" type="button" onClick={() => setDialog('custom')}>＋ 自定义物品</button>
           <button className="button ghost" type="button" onClick={() => setDialog('workspace')}>工作区</button>
@@ -1277,7 +1273,7 @@ export function LootForgeApp() {
               onClick={() => {
                 setWorkspace((current) => ({
                   ...current,
-                  selectedMapIds: current.selectedMapIds.includes(CUSTOM_SCOPE_ID) ? [CUSTOM_SCOPE_ID] : [CUSTOM_SCOPE_ID],
+                  selectedMapIds: current.selectedMapIds.includes(CUSTOM_SCOPE_ID) ? [CUSTOM_SCOPE_ID] : [],
                   selectedBossKeys: [],
                   updatedAt: new Date().toISOString(),
                 }));
@@ -1798,7 +1794,16 @@ export function LootForgeApp() {
                                     <small title={item.sources.map((entry) => `${entry.expansion} / ${entry.mapName} / ${entry.bossName}`).join('\n')}>
                                       {source ? `${source.expansion} · ${source.mapName} · ${source.bossName}${item.sources.length > 1 ? ` 等 ${item.sources.length} 个来源` : ''}` : item.subtype ?? '手动维护'}
                                     </small>
-                                    {item.customOverride && <button className="text-action" type="button" onClick={() => removeCustomOverride(item.id)}>{catalogIdSet.has(item.id) ? '恢复官方批量管理' : '移出自定义库'}</button>}
+                                    {item.customOverride && (
+                                       <button
+                                         className="text-action"
+                                         type="button"
+                                         onClick={() => removeCustomOverride(item.id)}
+                                         title={catalogIdSet.has(item.id) ? '从自定义库移除（后续可继续随所属副本批量规则管理）' : '从自定义库移除'}
+                                       >
+                                         移除
+                                       </button>
+                                     )}
                                     {item.historical && <button className="text-action" type="button" onClick={() => removeHistoricalState(item.id)}>清除历史状态并停止导出</button>}
                                   </div>
                                   <span className={`category-pill quality-${item.qualityMax ?? item.quality ?? 0}`}>
