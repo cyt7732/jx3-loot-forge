@@ -5,10 +5,16 @@ import { fileURLToPath } from 'node:url';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = resolve(SCRIPT_DIR, '..');
-const OUTPUT_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.std.json');
-const TEMP_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.std.json.tmp');
-const PUBLIC_SNAPSHOT_PATH = resolve(PROJECT_DIR, 'public/data/catalog.std.json');
-const PUBLIC_MANIFEST_PATH = resolve(PROJECT_DIR, 'public/data/manifest.json');
+
+const args = process.argv.slice(2);
+const clientArg = args.find((a) => a.startsWith('--client='))?.split('=')[1] ?? (args.includes('origin') ? 'origin' : 'std');
+const CLIENT = clientArg === 'origin' ? 'origin' : 'std';
+
+const OUTPUT_PATH = resolve(PROJECT_DIR, `src/catalog/catalog.${CLIENT}.json`);
+const TEMP_PATH = resolve(PROJECT_DIR, `src/catalog/catalog.${CLIENT}.json.tmp`);
+const PUBLIC_SNAPSHOT_PATH = resolve(PROJECT_DIR, `public/data/catalog.${CLIENT}.json`);
+const PUBLIC_MANIFEST_PATH = resolve(PROJECT_DIR, `public/data/manifest.${CLIENT}.json`);
+const LEGACY_MANIFEST_PATH = resolve(PROJECT_DIR, 'public/data/manifest.json');
 const TYPE_LABEL_RULES_PATH = resolve(PROJECT_DIR, 'src/catalog/type-label-rules.json');
 const BASE_URL = 'https://node.jx3box.com';
 const CONCURRENCY = 4;
@@ -188,7 +194,7 @@ async function fetchMetadata(drops) {
   for (let index = 0; index < keys.length; index += 50) chunks.push(keys.slice(index, index + 50));
   let metadataChunksDone = 0;
   const responses = await mapPool(chunks, async (chunk) => {
-    const value = await fetchJson(`/item_merged/id/${chunk.join(',')}?client=std&per=50`);
+    const value = await fetchJson(`/item_merged/id/${chunk.join(',')}?client=${CLIENT}&per=50`);
     if (!value || typeof value !== 'object' || !Array.isArray(value.list)) throw new Error('item_merged id response has invalid envelope.');
     metadataChunksDone += 1;
     if (metadataChunksDone % 25 === 0 || metadataChunksDone === chunks.length) process.stdout.write(`metadata ${metadataChunksDone}/${chunks.length}\n`);
@@ -219,7 +225,7 @@ async function fetchMetadata(drops) {
   const missingEntries = [...missingNames.entries()];
   let fallbackDone = 0;
   await mapPool(missingEntries, async ([name]) => {
-    const value = await fetchJson(`/item_merged/name/${encodeURIComponent(name)}?client=std&strict=1&per=50`);
+    const value = await fetchJson(`/item_merged/name/${encodeURIComponent(name)}?client=${CLIENT}&strict=1&per=50`);
     const list = value && typeof value === 'object' && Array.isArray(value.list) ? value.list.filter((meta) => meta.Name === name) : [];
     const signatures = new Set(list.map(metadataSignature));
     if (list.length > 0 && signatures.size === 1) fallbackByName.set(name, list[0]);
@@ -231,7 +237,7 @@ async function fetchMetadata(drops) {
 }
 
 async function main() {
-  const rawInfo = assertArray(await fetchJson('/fb/info?client=std'), 'fb/info');
+  const rawInfo = assertArray(await fetchJson(`/fb/info?client=${CLIENT}`), 'fb/info');
   // JX3BOX currently prefixes one documented empty sentinel row (MapID=0).
   // Accept only that exact shape; never silently drop other malformed rows.
   const sentinels = rawInfo.filter((row) => row?.MapID === 0);
@@ -249,8 +255,8 @@ async function main() {
   const fetched = await mapPool(info, async (mapRow) => {
     try {
       const [bosses, drops] = await Promise.all([
-        fetchJson(`/fb/boss?MapID=${mapRow.MapID}&client=std`),
-        fetchJson(`/fb/drop/v2/${mapRow.MapID}?client=std`),
+        fetchJson(`/fb/boss?MapID=${mapRow.MapID}&client=${CLIENT}`),
+        fetchJson(`/fb/drop/v2/${mapRow.MapID}?client=${CLIENT}`),
       ]);
       const result = { mapRow, bosses: assertArray(bosses, `boss ${mapRow.MapID}`), drops: assertArray(drops, `drop ${mapRow.MapID}`) };
       mapsDone += 1;
@@ -347,14 +353,31 @@ async function main() {
   maps.sort((a, b) => compareText(a.expansion, b.expansion) || compareText(a.name, b.name) || a.mapId - b.mapId);
   items.sort((a, b) => compareText(a.name, b.name));
 
+  function resolveCatalogVersionTag(client, mapList, date = new Date()) {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Shanghai', year: '2-digit', month: '2-digit', day: '2-digit',
+    }).formatToParts(date).map((part) => [part.type, part.value]));
+    const yymmdd = `${parts.year}${parts.month}${parts.day}`;
+    if (client === 'origin') {
+      const hasFenglei = mapList.some((m) => m.name.includes('风雷刀谷'));
+      const season = hasFenglei ? 'v2' : 'v1';
+      return `data.缘起_剑胆琴心_${season}_${yymmdd}`;
+    }
+    const hasCangsheng = mapList.some((m) => m.expansion?.includes('苍生铸世') || m.name?.includes('洛阳之战'));
+    if (hasCangsheng) {
+      return `data.旗舰_苍生铸世_v1_${yymmdd}`;
+    }
+    return `data.旗舰_丝路风语_v4_${yymmdd}`;
+  }
+
   const generatedAt = new Date().toISOString();
   const snapshot = {
     schemaVersion: 1,
-    client: 'std',
+    client: CLIENT,
     catalogVersion: '',
     generatedAt,
     contentHash: '',
-    source: `${BASE_URL}/fb/info?client=std`,
+    source: `${BASE_URL}/fb/info?client=${CLIENT}`,
     stats: { maps: maps.length, bosses: bossCount, drops: allDrops.length, uniqueItems: items.length },
     completeness: {
       status: 'complete', expectedMapCount: info.length, fetchedMapCount: rows.length,
@@ -369,7 +392,7 @@ async function main() {
   const stablePayload = JSON.stringify({ ...snapshot, catalogVersion: '', generatedAt: '', contentHash: '' });
   const hash = createHash('sha256').update(stablePayload).digest('hex');
   snapshot.contentHash = hash;
-  snapshot.catalogVersion = `${generatedAt.slice(0, 10).replaceAll('-', '')}-${hash.slice(0, 12)}`;
+  snapshot.catalogVersion = resolveCatalogVersionTag(CLIENT, maps, new Date(generatedAt));
 
   const serialized = `${JSON.stringify(snapshot)}\n`;
   await mkdir(dirname(OUTPUT_PATH), { recursive: true });
@@ -378,7 +401,8 @@ async function main() {
   await unlink(OUTPUT_PATH).catch((error) => { if (error.code !== 'ENOENT') throw error; });
   await rename(TEMP_PATH, OUTPUT_PATH);
   await writeFile(PUBLIC_SNAPSHOT_PATH, serialized, 'utf8');
-  await writeFile(PUBLIC_MANIFEST_PATH, `${JSON.stringify({
+
+  const manifestContent = `${JSON.stringify({
     schemaVersion: 1,
     client: snapshot.client,
     catalogVersion: snapshot.catalogVersion,
@@ -388,8 +412,13 @@ async function main() {
     completeness: snapshot.completeness,
     source: snapshot.source,
     hashAlgorithm: 'sha256-json-v1-excluding-generatedAt-catalogVersion-contentHash',
-    snapshotUrl: './catalog.std.json',
-  }, null, 2)}\n`, 'utf8');
+    snapshotUrl: `./catalog.${CLIENT}.json`,
+  }, null, 2)}\n`;
+
+  await writeFile(PUBLIC_MANIFEST_PATH, manifestContent, 'utf8');
+  if (CLIENT === 'std') {
+    await writeFile(LEGACY_MANIFEST_PATH, manifestContent, 'utf8');
+  }
   process.stdout.write(`${JSON.stringify(snapshot.stats)} hash=${hash}\n`);
 }
 

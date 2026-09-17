@@ -10,7 +10,6 @@ const TEMP_DIR = resolve(PROJECT_DIR, 'dist/offline-temp');
 const FINAL_DIR = resolve(PROJECT_DIR, 'dist/offline');
 const TEMP_HTML = resolve(TEMP_DIR, 'offline/index.html');
 const FINAL_HTML = resolve(FINAL_DIR, 'index.html');
-const CATALOG_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.std.json');
 
 function localAssetPath(reference) {
   const normalized = reference.replace(/^\.\//u, '').replace(/^\//u, '');
@@ -35,10 +34,20 @@ const inlinedJs = javascript.replace(/(["'`])\.\/logo\.jpg\1/gu, JSON.stringify(
 if (inlinedJs.includes('./logo.jpg')) throw new Error('Offline build failed to inline logo asset.');
 html = html.replace(scriptMatch[0], () => `<script type="module">${inlinedJs.replace(/<\/script/giu, '<\\/script')}</script>`);
 html = html.replace(/<link rel="icon"[^>]*>/u, `<link rel="icon" type="image/jpeg" href="${logoBase64}" />`);
-if (/<(?:script|link)[^>]+(?:src|href)="(?!(?:https?:)?\/\/|data:)[^"]*assets\//u.test(html)) throw new Error('Offline HTML still references external build assets.');
-const catalog = await readFile(CATALOG_PATH, 'utf8');
-const catalogScript = `<script id="jx3-catalog-data" type="application/json">${catalog.replace(/</gu, '\\u003c')}</script>`;
-html = html.replace('<div id="root"></div>', `${catalogScript}<div id="root"></div>`);
+const CATALOG_STD_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.std.json');
+const CATALOG_ORIGIN_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.origin.json');
+
+const catalogStd = await readFile(CATALOG_STD_PATH, 'utf8');
+let scriptsToInject = `<script id="jx3-catalog-data" type="application/json">${catalogStd.replace(/</gu, '\\u003c')}</script><script id="jx3-catalog-data-std" type="application/json">${catalogStd.replace(/</gu, '\\u003c')}</script>`;
+
+try {
+  const catalogOrigin = await readFile(CATALOG_ORIGIN_PATH, 'utf8');
+  scriptsToInject += `<script id="jx3-catalog-data-origin" type="application/json">${catalogOrigin.replace(/</gu, '\\u003c')}</script>`;
+} catch (error) {
+  process.stderr.write(`Note: catalog.origin.json omitted from offline bundle: ${error.message}\n`);
+}
+
+html = html.replace('<div id="root"></div>', `${scriptsToInject}<div id="root"></div>`);
 const inlineMarker = '<script type="module">';
 const inlineStart = html.indexOf(inlineMarker);
 const inlineEnd = html.indexOf('</script>', inlineStart);

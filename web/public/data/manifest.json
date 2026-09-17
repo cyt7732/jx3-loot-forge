@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
   "client": "std",
-  "catalogVersion": "20260830-4296c4cde044",
-  "generatedAt": "2026-08-30T02:38:15.542Z",
-  "contentHash": "4296c4cde044937b2f6c8066f2ceb6295f9aecd60b980aecf73c6323fff6a67a",
+  "catalogVersion": "data.旗舰_丝路风语_v4_260917",
+  "generatedAt": "2026-09-17T15:18:14.133Z",
+  "contentHash": "df1ecf11537a9daf304a217a39617f5229c45c699d36fd16cdf5d98b27de165e",
   "stats": {
-    "maps": 254,
-    "bosses": 981,
+    "maps": 265,
+    "bosses": 1023,
     "drops": 43033,
     "uniqueItems": 16571
   },
   "completeness": {
     "status": "complete",
-    "expectedMapCount": 254,
-    "fetchedMapCount": 254,
+    "expectedMapCount": 265,
+    "fetchedMapCount": 265,
     "metadataMissing": 24,
     "metadataMismatch": 6,
     "failures": []

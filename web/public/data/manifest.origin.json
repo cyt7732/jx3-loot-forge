@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "client": "origin",
+  "catalogVersion": "data.缘起_剑胆琴心_v2_260917",
+  "generatedAt": "2026-09-17T14:41:59.898Z",
+  "contentHash": "5164e22b78ff6f15b2df294aaa2e8016a14b65807f4046e926d797c47ddc4802",
+  "stats": {
+    "maps": 125,
+    "bosses": 462,
+    "drops": 46662,
+    "uniqueItems": 10619
+  },
+  "completeness": {
+    "status": "complete",
+    "expectedMapCount": 125,
+    "fetchedMapCount": 125,
+    "metadataMissing": 735,
+    "metadataMismatch": 5,
+    "failures": []
+  },
+  "source": "https://node.jx3box.com/fb/info?client=origin",
+  "hashAlgorithm": "sha256-json-v1-excluding-generatedAt-catalogVersion-contentHash",
+  "snapshotUrl": "./catalog.origin.json"
+}

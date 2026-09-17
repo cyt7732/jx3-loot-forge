@@ -150,20 +150,22 @@ describe('catalog level and difficulty grouping', () => {
     const legacyMapsWei = getLegacyMaps(weiMaps);
     expect(legacyMapsWei.map((m) => m.mapId)).toEqual([102, 103]);
 
-    // 场景 2：未来引入了鱼历 50 级新副本（苍生铸世）
+    // 场景 2：前瞻植入了鱼历 50 级新副本（苍生铸世包含五人本与团队秘境）
     const yuAndWeiMaps = [
       mapFixture(201, '苍生铸世', '25人英雄'),
+      mapFixture(202, '苍生铸世', '5人普通'),
+      mapFixture(203, '苍生铸世', '5人英雄'),
       mapFixture(101, '丝路风语', '25人英雄'),
       mapFixture(102, '横刀断浪', '25人英雄'),
     ];
-    const currentSeasonYu = getCurrentSeasonGroup(yuAndWeiMaps);
-    expect(currentSeasonYu.id).toBe('yu-50');
-    expect(currentSeasonYu.name).toBe('苍生铸世');
-    expect(currentSeasonYu.era).toBe('yu');
+    // 关键断言：当前赛季依然锁定为丝路风语，苍生铸世不作为当前赛季
+    const currentSeasonYu = getCurrentSeasonGroup(yuAndWeiMaps, 'std');
+    expect(currentSeasonYu.id).toBe('lv-130');
+    expect(currentSeasonYu.name).toBe('丝路风语');
 
-    // 关键断言：即使 50 < 130，鱼历 50 级是当前赛季，丝路风语 130 级正确成为老本！
+    // 关键断言：全选老本时，既不选当前赛季（101），也不选前瞻版本的苍生铸世团队本（201）与五人本（202, 203），仅选中历史老本（102）！
     const legacyMapsYu = getLegacyMaps(yuAndWeiMaps);
-    expect(legacyMapsYu.map((m) => m.mapId)).toEqual([101, 102]);
+    expect(legacyMapsYu.map((m) => m.mapId)).toEqual([102]);
   });
 
   it('correctly filters legacy equipment drops', () => {
@@ -231,5 +233,33 @@ describe('catalog level and difficulty grouping', () => {
     expect(groups.find((group) => group.id === '25-hero')?.maps.map((map) => map.mapId)).toEqual([404, 202]);
     expect(groups.find((group) => group.id === 'five')?.maps.map((map) => map.mapId)).toEqual([505, 606]);
     expect(groups.find((group) => group.id === 'other')?.maps.map((map) => map.mapId)).toEqual([707, 808]);
+  });
+
+  it('provides clean level groups without era labels for origin client', () => {
+    const originMaps = [
+      mapFixture(263, '剑胆琴心', '10人普通'),
+      mapFixture(240, '剑胆琴心', '10人普通'),
+      mapFixture(46, '风起稻香', '25人英雄'),
+    ];
+    // 默认旗舰版含有纪元与 130/50 桶
+    const stdGroups = groupMapsByLevel(originMaps, 'std');
+    expect(stdGroups.some((g) => g.id === 'yu-50')).toBe(true);
+
+    // 缘起端只包含 95~70 级分组，且完全没有鱼历/炜历时代标签
+    const originGroups = groupMapsByLevel(originMaps, 'origin');
+    expect(originGroups.some((g) => g.id === 'yu-50')).toBe(false);
+    expect(originGroups.some((g) => g.id === 'lv-130')).toBe(false);
+    expect(originGroups.map((g) => g.id)).toEqual(['lv-95', 'lv-90', 'lv-80', 'lv-70']);
+
+    for (const group of originGroups) {
+      expect(group.era).toBe('unknown');
+      expect(group.eraName).toBe('');
+      expect(group.label).not.toContain('鱼历');
+      expect(group.label).not.toContain('炜历');
+    }
+
+    const currentSeason = getCurrentSeasonGroup(originMaps, 'origin');
+    expect(currentSeason.id).toBe('lv-95');
+    expect(currentSeason.name).toBe('剑胆琴心');
   });
 });

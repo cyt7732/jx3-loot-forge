@@ -1,4 +1,4 @@
-import { APP_VERSION, CUSTOM_SCOPE_ID, WORKSPACE_STORAGE_KEY } from '../domain/constants';
+import { APP_VERSION, CUSTOM_SCOPE_ID, getWorkspaceStorageKey, type GameClient } from '../domain/constants';
 import { assertValidState, createInitialWorkspace, normalizeItemName } from '../domain/state';
 import type { Workspace } from '../domain/types';
 
@@ -21,14 +21,15 @@ export async function readWorkspaceBackupFile(
   return importWorkspaceBackup(text, catalogVersion);
 }
 
-export function loadWorkspace(catalogVersion: string): Workspace {
+export function loadWorkspace(catalogVersion: string, client: GameClient = 'std'): Workspace {
   if (typeof window === 'undefined') return createInitialWorkspace(catalogVersion);
-  const raw = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
+  const storageKey = getWorkspaceStorageKey(client);
+  const raw = window.localStorage.getItem(storageKey);
   if (!raw) return createInitialWorkspace(catalogVersion);
   try {
     return validateWorkspace(JSON.parse(raw), catalogVersion);
   } catch (error) {
-    const quarantineKey = `${WORKSPACE_STORAGE_KEY}:corrupted:${Date.now()}`;
+    const quarantineKey = `${storageKey}:corrupted:${Date.now()}`;
     let quarantined = false;
     try {
       window.localStorage.setItem(quarantineKey, raw);
@@ -43,11 +44,12 @@ export function loadWorkspace(catalogVersion: string): Workspace {
   }
 }
 
-export function saveWorkspace(workspace: Workspace): boolean {
+export function saveWorkspace(workspace: Workspace, client: GameClient = 'std'): boolean {
   if (typeof window === 'undefined') return false;
   try {
     const validated = validateWorkspace(workspace, workspace.catalogVersion);
-    window.localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(validated));
+    const storageKey = getWorkspaceStorageKey(client);
+    window.localStorage.setItem(storageKey, JSON.stringify(validated));
     return true;
   } catch (error) {
     console.error('保存工作区失败:', error);
@@ -68,9 +70,10 @@ export interface WorkspaceInitResult {
 export function handleWorkspaceInitialization(
   catalogVersion: string,
   onNotify?: (notif: PersistenceNotification) => void,
+  client: GameClient = 'std',
 ): WorkspaceInitResult {
   try {
-    const ws = loadWorkspace(catalogVersion);
+    const ws = loadWorkspace(catalogVersion, client);
     return { workspace: ws, persistenceEnabled: true };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -90,9 +93,10 @@ export function executeDebouncedSave(
   persistenceEnabled: boolean,
   hydrated: boolean,
   onNotify?: (notif: PersistenceNotification) => void,
+  client: GameClient = 'std',
 ): boolean {
   if (!hydrated || !persistenceEnabled) return false;
-  const success = saveWorkspace(workspace);
+  const success = saveWorkspace(workspace, client);
   if (!success) {
     onNotify?.({
       tone: 'error',
@@ -102,9 +106,9 @@ export function executeDebouncedSave(
   return success;
 }
 
-export function resetWorkspace(catalogVersion: string): Workspace {
+export function resetWorkspace(catalogVersion: string, client: GameClient = 'std'): Workspace {
   const next = createInitialWorkspace(catalogVersion);
-  saveWorkspace(next);
+  saveWorkspace(next, client);
   return next;
 }
 

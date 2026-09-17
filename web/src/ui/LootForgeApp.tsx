@@ -20,9 +20,11 @@ import {
   AUTHOR,
   CATEGORY_LABELS,
   CATEGORY_ORDER,
+  CLIENT_STORAGE_KEY,
   CUSTOM_SCOPE_ID,
   DEFAULT_PROTECTED_ITEMS,
   THEME_STORAGE_KEY,
+  type GameClient,
 } from '../domain/constants';
 import {
   applyChanges,
@@ -65,6 +67,7 @@ import {
   executeDebouncedSave,
   exportWorkspaceBackup,
   handleWorkspaceInitialization,
+  saveWorkspace,
   MAX_DATA_PACK_BYTES,
   readWorkspaceBackupFile,
   resetWorkspace,
@@ -137,11 +140,15 @@ function shanghaiDateStamp(now = new Date()): string {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-function formatCatalogVersion(version: string): string {
+function formatCatalogVersion(version: string, client: GameClient = 'std'): string {
   if (!version || version === 'loading') return 'Data.载入中…';
+  if (version.startsWith('data.')) return version;
   const match = /^(?:20)?(\d{2})(\d{2})(\d{2})/u.exec(version);
   const dateSuffix = match ? `${match[1]}${match[2]}${match[3]}` : version.slice(0, 6);
-  return `Data.丝路风语-${dateSuffix}`;
+  if (client === 'origin') {
+    return `data.缘起_剑胆琴心_v2_${dateSuffix}`;
+  }
+  return `data.旗舰_丝路风语_v4_${dateSuffix}`;
 }
 
 function downloadBatchFile(file: { filename: string; bytes: Uint8Array }): void {
@@ -205,6 +212,16 @@ export function LootForgeApp() {
     }
   });
 
+  const [client, setClient] = useState<GameClient>(() => {
+    if (typeof window === 'undefined') return 'std';
+    try {
+      const saved = localStorage.getItem(CLIENT_STORAGE_KEY) as GameClient | null;
+      return saved === 'origin' ? 'origin' : 'std';
+    } catch {
+      return 'std';
+    }
+  });
+
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const configInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
@@ -220,6 +237,14 @@ export function LootForgeApp() {
     }
   }, [theme]);
 
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute('data-client', client);
+    } catch {
+      // 忽略 DOM 属性同步异常
+    }
+  }, [client]);
+
   const toggleTheme = () => {
     const nextTheme: ThemeMode = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
@@ -230,6 +255,40 @@ export function LootForgeApp() {
       if (meta) meta.setAttribute('content', nextTheme);
     } catch {
       // 忽略存储异常
+    }
+  };
+
+  const switchClient = async (targetClient: GameClient) => {
+    if (targetClient === client) return;
+    try {
+      if (hydrated && persistenceEnabled) {
+        saveWorkspace(workspace, client);
+      }
+      setClient(targetClient);
+      localStorage.setItem(CLIENT_STORAGE_KEY, targetClient);
+      document.documentElement.setAttribute('data-client', targetClient);
+
+      const nextSnapshot = await loadCatalogSnapshot(targetClient);
+      setEmbeddedSnapshot(nextSnapshot);
+      setActiveSnapshot(nextSnapshot);
+
+      const { workspace: restoredWorkspace, persistenceEnabled: isPersistent } = handleWorkspaceInitialization(
+        nextSnapshot.catalogVersion,
+        (notif) => setToast(notif),
+        targetClient,
+      );
+      setWorkspace(restoredWorkspace);
+      setPersistenceEnabled(isPersistent);
+      setFocusedScope({ type: 'all' });
+      setToast({
+        tone: 'success',
+        message: `已切换至「${targetClient === 'origin' ? '缘起怀旧服' : '旗舰正式服'}」数据`,
+      });
+    } catch (error) {
+      setToast({
+        tone: 'error',
+        message: `切换客户端失败：${error instanceof Error ? error.message : String(error)}`,
+      });
     }
   };
 
@@ -249,8 +308,9 @@ export function LootForgeApp() {
     let cancelIndexing: () => void = () => undefined;
     const initialize = async () => {
       try {
+        const initialClient = client;
         const [embedded, override] = await Promise.all([
-          loadCatalogSnapshot(),
+          loadCatalogSnapshot(initialClient),
           loadCatalogOverride().catch(() => null),
         ]);
         if (cancelled) return;
@@ -260,6 +320,7 @@ export function LootForgeApp() {
         const { workspace: restoredWorkspace, persistenceEnabled: isPersistent } = handleWorkspaceInitialization(
           selection.snapshot.catalogVersion,
           (notif) => setToast(notif),
+          initialClient,
         );
         setWorkspace(selection.usedOverride
           ? { ...restoredWorkspace, catalogVersion: selection.snapshot.catalogVersion, updatedAt: new Date().toISOString() }
@@ -291,6 +352,7 @@ export function LootForgeApp() {
       cancelled = true;
       cancelIndexing();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const activeCatalogItems = useMemo(() => (catalogIndexed ? buildCatalogItems(activeSnapshot) : []), [activeSnapshot, catalogIndexed]);
@@ -298,10 +360,10 @@ export function LootForgeApp() {
   useEffect(() => {
     if (!hydrated || !persistenceEnabled) return;
     const timer = window.setTimeout(() => {
-      executeDebouncedSave(workspace, persistenceEnabled, hydrated, (notif) => setToast(notif));
+      executeDebouncedSave(workspace, persistenceEnabled, hydrated, (notif) => setToast(notif), client);
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [workspace, hydrated, persistenceEnabled]);
+  }, [workspace, hydrated, persistenceEnabled, client]);
 
   useEffect(() => {
     if (!toast) return;
@@ -422,7 +484,7 @@ export function LootForgeApp() {
 
   const levelGroups = useMemo(() => {
     const query = scopeQuery.trim();
-    return groupMapsByLevel(activeSnapshot.maps)
+    return groupMapsByLevel(activeSnapshot.maps, client)
       .map((levelGroup) => {
         const levelMatches = !query
           || levelGroup.label.includes(query)
@@ -448,7 +510,7 @@ export function LootForgeApp() {
         if (!query) return true;
         return group.maps.length > 0 || group.levelMatches;
       });
-  }, [activeSnapshot.maps, scopeQuery]);
+  }, [activeSnapshot.maps, client, scopeQuery]);
 
   const customCount = useMemo(() => {
     return allItems.filter((item) => item.isCustom || item.customOverride || item.historical).length;
@@ -1085,11 +1147,12 @@ export function LootForgeApp() {
   const doResetWorkspace = () => {
     if (!window.confirm('确定重置整个工作区吗？物品状态、自定义物品和筛选偏好都会清除。')) return;
     setUndoWorkspace(workspace);
-    setWorkspace(resetWorkspace(activeSnapshot.catalogVersion));
+    setWorkspace(resetWorkspace(activeSnapshot.catalogVersion, client));
     setDialog(null);
     setToast({ tone: 'warning', message: '工作区已恢复首次启动状态。' });
   };
 
+  /* 收藏组合功能暂时注释
   const saveFavoriteScope = () => {
     if (!hasScope) {
       setToast({ tone: 'warning', message: '当前是全部范围，请先选择副本或 Boss。' });
@@ -1109,6 +1172,7 @@ export function LootForgeApp() {
     if (!favorite) return;
     setWorkspace((current) => ({ ...current, selectedMapIds: [...favorite.mapIds], selectedBossKeys: [...(favorite.bossKeys ?? [])], updatedAt: new Date().toISOString() }));
   };
+  */
 
   return (
     <main className="app-shell">
@@ -1125,7 +1189,7 @@ export function LootForgeApp() {
               <h1>{APP_NAME}</h1>
               <span className="version-pill" title={`工坊软件版本：v${APP_VERSION}`}>v{APP_VERSION}</span>
               <span className="data-version-pill" title={`副本数据库版本：${activeSnapshot.catalogVersion}（共 ${activeSnapshot.stats.maps} 个副本 · ${activeSnapshot.stats.uniqueItems.toLocaleString('zh-CN')} 件物品）`}>
-                {formatCatalogVersion(activeSnapshot.catalogVersion)}
+                {formatCatalogVersion(activeSnapshot.catalogVersion, client)}
               </span>
             </div>
             <div className="brand-sub">
@@ -1138,7 +1202,25 @@ export function LootForgeApp() {
           </div>
         </div>
         <div className="header-actions">
-          <span className="data-badge" title={activeSnapshot.contentHash}><i /> {catalogIndexed ? `旗舰端 · ${activeSnapshot.stats.uniqueItems.toLocaleString('zh-CN')} 项` : '目录载入中…'}</span>
+          <div className="client-switcher" role="group" aria-label="客户端版本切换">
+            <button
+              type="button"
+              className={`client-tab ${client === 'std' ? 'active' : ''}`}
+              title="切换至 剑网3 旗舰正式服 数据与工作区"
+              onClick={() => void switchClient('std')}
+            >
+              旗舰版
+            </button>
+            <button
+              type="button"
+              className={`client-tab ${client === 'origin' ? 'active' : ''}`}
+              title="切换至 剑网3 缘起怀旧服 数据与工作区"
+              onClick={() => void switchClient('origin')}
+            >
+              缘起版
+            </button>
+          </div>
+          <span className="data-badge" title={activeSnapshot.contentHash}><i /> {catalogIndexed ? `${client === 'origin' ? '缘起端' : '旗舰端'} · ${activeSnapshot.stats.uniqueItems.toLocaleString('zh-CN')} 项` : '目录载入中…'}</span>
           {undoWorkspace && (
             <button
               className="button ghost undo-btn"
@@ -1231,15 +1313,19 @@ export function LootForgeApp() {
         <aside className="sidebar glass-panel">
           <div className="panel-heading">
             <div><span className="eyebrow">DROP SCOPE</span><h2>选择副本范围</h2></div>
+            {/* 收藏组合功能暂时注释
             <button className="icon-button" type="button" aria-label="保存当前副本组合" onClick={saveFavoriteScope}>☆</button>
+            */}
           </div>
           <label className="search-box"><span aria-hidden="true">⌕</span><input value={scopeQuery} onChange={(event) => setScopeQuery(event.target.value)} placeholder="搜索版本、副本或 Boss" /></label>
+          {/* 收藏组合功能暂时注释
           {workspace.favoriteScopes.length > 0 && (
             <select className="favorite-select" defaultValue="" onChange={(event) => { restoreFavorite(event.target.value); event.currentTarget.value = ''; }} aria-label="载入收藏组合">
               <option value="" disabled>载入收藏组合…</option>
               {workspace.favoriteScopes.map((favorite) => <option value={favorite.id} key={favorite.id}>{favorite.name}</option>)}
             </select>
           )}
+          */}
           <div className="scope-actions">
             <button
               type="button"
@@ -1356,7 +1442,9 @@ export function LootForgeApp() {
                         {isLevelFocused && <span className="focus-pill">正在编辑</span>}
                       </strong>
                       <em>
-                        <span className={`era-badge ${eraBadgeClass}`}>{levelGroup.eraName}</span>
+                        {client === 'std' && levelGroup.eraName && (
+                          <span className={`era-badge ${eraBadgeClass}`}>{levelGroup.eraName}</span>
+                        )}
                         {levelGroup.level !== null ? `Lv.${levelGroup.level}` : '未知等级'}
                       </em>
                     </span>

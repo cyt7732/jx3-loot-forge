@@ -2,10 +2,15 @@ import type { ItemCategory, ItemState, WorkspaceFilters } from './types';
 
 export const APP_NAME = '剑网3掉落工坊';
 export const APP_NAME_EN = 'JX3 Loot Forge';
-export const APP_VERSION = '1.4.1';
+export const APP_VERSION = '1.5.0';
 export const AUTHOR = '凌千羽·龙争虎斗';
+export type GameClient = 'std' | 'origin';
 export const CLIENT = 'std' as const;
+export const CLIENT_STORAGE_KEY = 'jx3-loot-forge:client';
 export const WORKSPACE_STORAGE_KEY = 'jx3-loot-forge:workspace:v1';
+export function getWorkspaceStorageKey(client: GameClient): string {
+  return client === 'origin' ? `${WORKSPACE_STORAGE_KEY}:origin` : WORKSPACE_STORAGE_KEY;
+}
 export const THEME_STORAGE_KEY = 'jx3-loot-forge:theme';
 export const CUSTOM_SCOPE_ID = -1;
 export const CATALOG_MANIFEST_URL = '/data/manifest.json';

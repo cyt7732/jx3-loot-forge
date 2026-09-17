@@ -1,4 +1,4 @@
-export type Client = 'std';
+export type Client = 'std' | 'origin';
 
 export type ItemCategory =
   | 'equipment'

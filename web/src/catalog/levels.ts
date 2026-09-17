@@ -121,6 +121,49 @@ function unknownGroupForMaps<TMap extends Pick<CatalogMap, 'expansion'>>(maps: r
   return { ...UNKNOWN_LEVEL_GROUP, expansions };
 }
 
+export const ORIGIN_LEVEL_GROUPS: readonly CatalogLevelGroup[] = [
+  {
+    id: 'lv-95',
+    era: 'unknown',
+    eraName: '',
+    level: 95,
+    name: '剑胆琴心',
+    title: '剑胆琴心',
+    label: '『剑胆琴心』（Lv.95）',
+    expansions: ['剑胆琴心', '风骨霸刀', '日月凌空', '重制版'],
+  },
+  {
+    id: 'lv-90',
+    era: 'unknown',
+    eraName: '',
+    level: 90,
+    name: '安史之乱',
+    title: '安史之乱',
+    label: '『安史之乱』（Lv.90）',
+    expansions: ['安史之乱', '苍雪龙城', '血战天策', '逐鹿中原'],
+  },
+  {
+    id: 'lv-80',
+    era: 'unknown',
+    eraName: '',
+    level: 80,
+    name: '巴蜀风云',
+    title: '巴蜀风云',
+    label: '『巴蜀风云』（Lv.80）',
+    expansions: ['巴蜀风云', '日月明尊', '一代宗师', '烛火燎天'],
+  },
+  {
+    id: 'lv-70',
+    era: 'unknown',
+    eraName: '',
+    level: 70,
+    name: '风起稻香',
+    title: '风起稻香',
+    label: '『风起稻香』（Lv.70）',
+    expansions: ['风起稻香'],
+  },
+];
+
 /**
  * Group maps in the fixed level order. All canonical buckets are returned,
  * including empty ones; an unknown bucket is appended only when it contains
@@ -128,18 +171,20 @@ function unknownGroupForMaps<TMap extends Pick<CatalogMap, 'expansion'>>(maps: r
  */
 export function groupMapsByLevel<TMap extends Pick<CatalogMap, 'expansion'>>(
   maps: readonly TMap[],
+  client: 'std' | 'origin' = 'std',
 ): MapsByLevel<TMap>[] {
+  const groups = client === 'origin' ? ORIGIN_LEVEL_GROUPS : LEVEL_GROUPS;
   const buckets = new Map<CatalogLevelGroupId, TMap[]>();
-  for (const group of LEVEL_GROUPS) buckets.set(group.id, []);
+  for (const group of groups) buckets.set(group.id, []);
   const unknownMaps: TMap[] = [];
 
   for (const map of maps) {
     const group = getLevelGroup(map.expansion);
-    if (group.id === 'unknown') unknownMaps.push(map);
+    if (group.id === 'unknown' || !buckets.has(group.id)) unknownMaps.push(map);
     else buckets.get(group.id)?.push(map);
   }
 
-  const result = LEVEL_GROUPS.map((group) => ({
+  const result = groups.map((group) => ({
     ...copyLevelGroup(group),
     maps: buckets.get(group.id) ?? [],
   }));
@@ -153,34 +198,47 @@ export function groupMapsByLevel<TMap extends Pick<CatalogMap, 'expansion'>>(
  */
 export function getCurrentSeasonGroup<TMap extends Pick<CatalogMap, 'expansion'>>(
   maps: readonly TMap[],
+  client?: 'std' | 'origin',
 ): MapsByLevel<TMap>;
-export function getCurrentSeasonGroup(): CatalogLevelGroup;
+export function getCurrentSeasonGroup(client?: 'std' | 'origin'): CatalogLevelGroup;
 export function getCurrentSeasonGroup<TMap extends Pick<CatalogMap, 'expansion'>>(
-  maps?: readonly TMap[],
+  mapsOrClient?: readonly TMap[] | 'std' | 'origin',
+  clientArg?: 'std' | 'origin',
 ): MapsByLevel<TMap> | CatalogLevelGroup {
+  const maps = Array.isArray(mapsOrClient) ? mapsOrClient : undefined;
+  const client = (typeof mapsOrClient === 'string' ? mapsOrClient : clientArg) ?? 'std';
+  // 旗舰端当前处于丝路风语赛季（lv-130），苍生铸世（yu-50）为前瞻植入阶段，默认与活跃赛季锁定为 lv-130
+  const defaultGroup = client === 'origin'
+    ? ORIGIN_LEVEL_GROUPS[0]
+    : (LEVEL_GROUPS.find((g) => g.id === 'lv-130') ?? LEVEL_GROUPS[1]);
+
   if (maps && maps.length > 0) {
-    const grouped = groupMapsByLevel(maps);
-    const activeFirst = grouped.find((g) => g.id !== 'unknown' && g.maps.length > 0);
+    const grouped = groupMapsByLevel(maps, client);
+    if (client !== 'origin') {
+      const activeSeason = grouped.find((g) => g.id === 'lv-130' && g.maps.length > 0);
+      if (activeSeason) return activeSeason;
+    }
+    const activeFirst = grouped.find((g) => g.id !== 'unknown' && g.id !== 'yu-50' && g.maps.length > 0);
     if (activeFirst) return activeFirst;
-    return { ...copyLevelGroup(LEVEL_GROUPS[0]), maps: [] };
+    return { ...copyLevelGroup(defaultGroup), maps: [] };
   }
-  return LEVEL_GROUPS[0];
+  return defaultGroup;
 }
 
 /**
- * 判断指定等级组是否属于历史前尘老本（即非当前活跃赛季）。
+ * 判断指定等级组是否属于历史前尘老本（即非当前活跃赛季且非未来前瞻赛季）。
  */
 export function isLegacyLevelGroup(
   group: Pick<CatalogLevelGroup, 'id'>,
   currentSeasonId?: CatalogLevelGroupId,
 ): boolean {
-  if (group.id === 'unknown') return false;
-  const activeId = currentSeasonId ?? LEVEL_GROUPS[0].id;
+  if (group.id === 'unknown' || group.id === 'yu-50') return false;
+  const activeId = currentSeasonId ?? (LEVEL_GROUPS.find((g) => g.id === 'lv-130')?.id ?? LEVEL_GROUPS[1].id);
   return group.id !== activeId;
 }
 
 /**
- * 筛选属于前尘老副本的地图（自动排除当前活跃最新赛季）。
+ * 筛选属于前尘老副本的地图（自动排除当前活跃最新赛季及尚未公测的前瞻版本）。
  */
 export function getLegacyMaps<TMap extends Pick<CatalogMap, 'expansion'>>(
   maps: readonly TMap[],
@@ -188,12 +246,12 @@ export function getLegacyMaps<TMap extends Pick<CatalogMap, 'expansion'>>(
   const currentSeason = getCurrentSeasonGroup(maps);
   return maps.filter((map) => {
     const group = getLevelGroup(map.expansion);
-    return group.id !== 'unknown' && group.id !== currentSeason.id;
+    return group.id !== 'unknown' && group.id !== currentSeason.id && group.id !== 'yu-50';
   });
 }
 
 /**
- * 筛选所有来源均属于前尘老本的装备（不含当前活跃赛季掉落）。
+ * 筛选所有来源均属于前尘老本的装备（不含当前活跃赛季及前瞻版本掉落）。
  */
 export function getLegacyEquipment<TItem extends Pick<CatalogItem, 'sources' | 'category'>>(
   items: readonly TItem[],
@@ -206,7 +264,7 @@ export function getLegacyEquipment<TItem extends Pick<CatalogItem, 'sources' | '
     const groups = item.sources.map((s) => getLevelGroup(s.expansion));
     const hasKnownSources = groups.some((g) => g.id !== 'unknown');
     if (!hasKnownSources) return false;
-    return groups.every((g) => g.id === 'unknown' || g.id !== currentSeason.id);
+    return groups.every((g) => g.id === 'unknown' || (g.id !== currentSeason.id && g.id !== 'yu-50'));
   });
 }
 

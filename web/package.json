@@ -1,6 +1,6 @@
 {
   "name": "jx3-loot-forge",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -14,7 +14,9 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
-    "crawl:catalog": "node scripts/crawl-catalog.mjs",
+    "crawl:catalog": "node scripts/crawl-catalog.mjs --client=std",
+    "crawl:catalog:std": "node scripts/crawl-catalog.mjs --client=std",
+    "crawl:catalog:origin": "node scripts/crawl-catalog.mjs --client=origin",
     "reclassify:catalog": "node scripts/reclassify-catalog.mjs",
     "package:artifacts": "node scripts/package-artifacts.mjs",
     "check": "npm run typecheck && npm run lint && npm run test && npm run build:web && npm run build:offline"
