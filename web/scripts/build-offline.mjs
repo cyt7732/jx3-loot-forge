@@ -33,10 +33,7 @@ const logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
 const inlinedJs = javascript.replace(/(["'`])\.\/logo\.jpg\1/gu, JSON.stringify(logoBase64));
 if (inlinedJs.includes('./logo.jpg')) throw new Error('Offline build failed to inline logo asset.');
 html = html.replace(scriptMatch[0], () => `<script type="module">${inlinedJs.replace(/<\/script/giu, '<\\/script')}</script>`);
-const faviconBuffer = await readFile(resolve(PROJECT_DIR, 'public/favicon.svg'));
-const faviconBase64 = `data:image/svg+xml;base64,${faviconBuffer.toString('base64')}`;
-html = html.replace(/<link rel="icon"[^>]*>/u, `<link rel="icon" type="image/svg+xml" href="${faviconBase64}" />`);
-html = html.replace(/<link rel="alternate icon"[^>]*>/u, '');
+html = html.replace(/<link rel="icon"[^>]*>/u, `<link rel="icon" type="image/jpeg" href="${logoBase64}" />`);
 const CATALOG_STD_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.std.json');
 const CATALOG_ORIGIN_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.origin.json');
 
