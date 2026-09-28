@@ -221,20 +221,20 @@ describe('P0-02: Default Items Lifecycle & Zero-Ghost Export Prevention (40 Item
     expect(items[0].id).toBe('官方掉落剑');
   });
 
-  // Dynamically extract the 8 official drops that match DEFAULT_PROTECTED_ITEMS from actual catalog.std.json
+  // Dynamically extract the 9 official drops that match DEFAULT_PROTECTED_ITEMS from actual catalog.std.json
   const realCatalogItems = standardCatalog.items as CatalogItem[];
   const protectedNameSet = new Set<string>(DEFAULT_PROTECTED_ITEMS);
-  const official8CatalogItems = realCatalogItems.filter((item) => protectedNameSet.has(item.name));
+  const officialProtectedCatalogItems = realCatalogItems.filter((item) => protectedNameSet.has(item.name));
 
-  it('verifies exactly 8 default protected items exist in real catalog.std.json', () => {
-    expect(official8CatalogItems).toHaveLength(8);
-    const equipmentNames = official8CatalogItems.filter((i) => i.category === 'equipment').map((i) => i.name);
-    const petNames = official8CatalogItems.filter((i) => i.category === 'pet').map((i) => i.name);
-    expect(equipmentNames.sort()).toEqual(['圆月双角', '炎枪重黎', '腾空'].sort());
+  it('verifies exactly 9 default protected items exist in real catalog.std.json', () => {
+    expect(officialProtectedCatalogItems).toHaveLength(9);
+    const specialWeaponNames = officialProtectedCatalogItems.filter((i) => i.category === 'specialWeapon').map((i) => i.name);
+    const petNames = officialProtectedCatalogItems.filter((i) => i.category === 'pet').map((i) => i.name);
+    expect(specialWeaponNames.sort()).toEqual(['五相斩', '圆月双角', '炎枪重黎', '腾空'].sort());
     expect(petNames.sort()).toEqual(['秋声烛影', '秋声烛影·鸿', '金红狩命', '金红狩命·鸿', '钧天·鸿'].sort());
   });
 
-  it.each(official8CatalogItems)('dynamically allows official item "$name" ($category) to be batch managed after custom override removal', (item) => {
+  it.each(officialProtectedCatalogItems)('dynamically allows official item "$name" ($category) to be batch managed after custom override removal', (item) => {
     const initialWs = createInitialWorkspace('test-cat');
     // Ensure item starts with custom override in workspace
     expect(initialWs.customOverrides.includes(item.id)).toBe(true);
@@ -262,7 +262,7 @@ describe('P0-02: Default Items Lifecycle & Zero-Ghost Export Prevention (40 Item
 
     const protectedItem = validated.customItems.find((item) => item.name === '炎枪重黎');
     expect(protectedItem).toBeDefined();
-    expect(protectedItem?.category).toBe('specialDrop');
+    expect(protectedItem?.category).toBe('specialWeapon');
     expect(protectedItem?.note).toBe('插件推荐保护');
 
     const sellItem = validated.customItems.find((item) => item.name === '金叶子');

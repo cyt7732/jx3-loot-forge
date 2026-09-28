@@ -2,7 +2,7 @@ import type { ItemCategory, ItemState, WorkspaceFilters } from './types';
 
 export const APP_NAME = '剑网3掉落工坊';
 export const APP_NAME_EN = 'JX3 Loot Forge';
-export const APP_VERSION = '1.5.0';
+export const APP_VERSION = '1.5.1';
 export const AUTHOR = '凌千羽·龙争虎斗';
 export type GameClient = 'std' | 'origin';
 export const CLIENT = 'std' as const;
@@ -36,6 +36,7 @@ export const DEFAULT_FILTERS: WorkspaceFilters = Object.freeze({
 export const CATEGORY_LABELS: Record<ItemCategory, string> = {
   equipment: '装备',
   equipmentExchange: '装备兑换牌',
+  specialWeapon: '特效武器/升级道具',
   material: '材料',
   specialDrop: '特殊掉落',
   recipe: '书籍',
@@ -58,7 +59,7 @@ export const DEFAULT_PROTECTED_ITEMS = [
   '炎枪重黎',
   '腾空',
   '圆月双角',
-  '五项斩',
+  '五相斩',
   '麒王逐魂',
   '金红狩命',
   '秋声烛影',

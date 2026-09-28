@@ -126,11 +126,24 @@ function hasEquipmentPartSegment(name) {
   return name.split('·').some((part) => endsWithEquipmentPart(part) !== undefined);
 }
 
+const SPECIAL_WEAPON_SET = new Set((TYPE_LABEL_RULES.secondaryRules.specialWeaponNames ?? []).map((value) => normalizeLabel(value)));
+
 function classifyFromTypeLabel(meta, retrieval = 'metadata', itemName = '') {
   const metadata = meta && typeof meta === 'object' ? meta : {};
   const typeLabel = normalizeLabel(metadata.TypeLabel);
   const typeLabels = typeLabel ? [typeLabel] : [];
   const name = normalizeLabel(metadata.Name, itemName);
+
+  if (SPECIAL_WEAPON_SET.has(name)) {
+    const isExactlyOther = typeLabels.length === 1 && typeLabel === TYPE_LABEL_RULES.otherTypeLabel;
+    const isMissingTypeLabel = typeLabel.length === 0;
+    const classification = !isExactlyOther && !isMissingTypeLabel
+      ? 'type-label'
+      : isExactlyOther
+        ? 'type-label-other-rule'
+        : 'type-label-missing-fallback';
+    return { category: 'specialWeapon', classification, typeLabels };
+  }
 
   for (const [category, labels] of Object.entries(TYPE_LABEL_RULES.primaryTypeLabels)) {
     if (typeLabel && labels?.includes(typeLabel)) {
@@ -296,7 +309,7 @@ async function main() {
       const category = classificationResult.category;
       const slot = slotFor(meta);
       const quality = Number.isFinite(drop.ItemQuality) ? drop.ItemQuality : Number.isFinite(meta?.Quality) ? meta.Quality : undefined;
-      const level = category === 'equipment' && Number.isFinite(meta?.Level) ? meta.Level : undefined;
+      const level = (category === 'equipment' || category === 'specialWeapon') && Number.isFinite(meta?.Level) ? meta.Level : undefined;
       const source = {
         mapId: mapRow.MapID,
         mapName,

@@ -6,9 +6,9 @@
 
 **全副本掉落智能管理 · 跳过拾取与自动出售一键综合配置工坊**
 
-[![Release](https://img.shields.io/badge/Release-v1.4.1-emerald.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
-[![Data Version](https://img.shields.io/badge/Data-丝路风语--260823-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
-[![Platform](https://img.shields.io/badge/Platform-JX3%20旗舰端-emerald.svg?style=flat-square)](https://jx3.xoyo.com)
+[![Release](https://img.shields.io/badge/Release-v1.5.1-emerald.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
+[![Data Version](https://img.shields.io/badge/Data-丝路风语__v4__260928-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
+[![Platform](https://img.shields.io/badge/Platform-JX3%20旗舰端%20%2F%20缘起端-emerald.svg?style=flat-square)](https://jx3.xoyo.com)
 [![Offline Ready](https://img.shields.io/badge/Offline-100%25%20Single--File-blueviolet.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-orange.svg?style=flat-square)](LICENSE)
 
@@ -20,9 +20,9 @@
 
 ## 📖 项目简介
 
-《**剑网3掉落工坊**》（JX3 Loot Forge）是一款专为《剑侠情缘网络版叁》旗舰端玩家与团长打造的现代化副本掉落管理工具。
+《**剑网3掉落工坊**》（JX3 Loot Forge）是一款专为《剑侠情缘网络版叁》旗舰端与缘起端玩家、团长打造的现代化副本掉落管理工具。
 
-通过完整整理自 70 级「风起稻香」至 130 级「丝路风语」全赛季 **254 个副本、981 个 Boss、16,571 件去重物品**，提供多维筛选、可视化策略直选、用户自定义物品库，并独家支持**【跳过拾取】与【自动出售 / 珍品保护】一键导出为单一综合配置文件**。游戏内仅需一次导入，所有策略立即全部生效！
+通过完整整理旗舰端与缘起怀旧服全赛季秘境与掉落数据，提供多维筛选、可视化策略直选、用户自定义物品库，并独家支持**【跳过拾取】与【自动出售 / 珍品保护】一键导出为单一综合配置文件**。游戏内仅需一次导入，所有策略立即全部生效！
 
 ---
 
@@ -32,7 +32,7 @@
 | :--- | :--- |
 | ⚡ **综合配置导出 (独家)** | 将跳过拾取（`MY_GKPLoot`）与自动出售/保护（`MY_AutoSell`）合并为单一 `.us.jx3dat` 文件，游戏内点击一次导入全部生效。 |
 | 🎮 **默认插件配置全量对齐** | 完美内嵌茗伊默认的 21 项珍品推荐保护与 19 项默认出售杂物，初始不预设多余跳过拾取规则，与游戏插件官方默认行为保持 100% 一致。 |
-| 🎯 **全量精准数据覆盖** | 覆盖 70~130 级全赛季 254 个副本，细化分类“装备”“兑换牌”“特殊掉落”“大铁”“小铁”“宠物”“家具”“附魔”等实用大类。 |
+| 🎯 **全量精准数据覆盖** | 覆盖旗舰端与缘起端全赛季副本，细化分类“装备”“装备兑换牌”“特效武器/升级道具”“特殊掉落”“大铁”“小铁”“宠物”“家具”“附魔”等实用大类。 |
 | 📦 **100% 离线单文件运行** | 零网络依赖、零服务器需求，独立单文件 `剑网3掉落工坊.html` 双击即用，自带全部数据与水墨图标，极易发群分享。 |
 | 🌗 **浅色 / 深色双模式瞬切** | 专为日间明亮与夜间沉浸场景量身打造，纯正大唐水墨配色，支持一键随心切换与浏览器本地无缝记忆。 |
 | ✨ **自定义最高优先级防覆盖** | 用户自定义数据在初始化与默认阶段始终保持勾选；自定义物品享有最高优先级保护，杜绝副本批量与单项设置意外覆盖。 |

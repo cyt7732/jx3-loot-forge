@@ -39,6 +39,7 @@ type TypeLabelRules = {
   secondaryRules: {
     petWhenEquipWithoutExplicitSlot: boolean;
     unknownSlotValues: readonly string[];
+    specialWeaponNames: readonly string[];
     nameSuffixes: {
       bigIron: string;
       smallIron: string;
@@ -53,6 +54,7 @@ type TypeLabelRules = {
 export const TYPE_LABEL_RULES = rulesJson as TypeLabelRules;
 
 const equipmentExchangeCategory: ItemCategory = 'equipmentExchange';
+const specialWeaponSet = new Set(TYPE_LABEL_RULES.secondaryRules.specialWeaponNames);
 
 function hasExplicitSlot(input: ClassificationInput): boolean {
   const values = [input.slot, ...(input.slots ?? [])];
@@ -115,11 +117,31 @@ function secondaryCategory(input: ClassificationInput, allowSpecialDropFallback 
 /**
  * Classifies one catalog item from its raw TypeLabel values and optional
  * metadata. This function is pure: it neither mutates its argument nor the
- * JSON rules, and it only permits name rules for an exactly single `其他`
- * TypeLabel.
+ * JSON rules, and it only permits general name rules for an exactly single
+ * `其他` TypeLabel (while authoritative `specialWeaponNames` match across all
+ * TypeLabels).
  */
 export function classifyItem(input: ClassificationInput): ClassificationResult {
   const typeLabels = [...(input.typeLabels ?? [])];
+  const normalizedName = input.name.normalize('NFC').trim();
+
+  if (specialWeaponSet.has(normalizedName)) {
+    const primarySubtype = typeLabels.find((label) => label && label !== TYPE_LABEL_RULES.otherTypeLabel);
+    const isExactlyOther = typeLabels.length === 1 && typeLabels[0] === TYPE_LABEL_RULES.otherTypeLabel;
+    const isMissingTypeLabel = typeLabels.length === 0 || typeLabels.every((label) => label.trim().length === 0);
+    return {
+      category: 'specialWeapon',
+      classification: primarySubtype
+        ? 'type-label'
+        : isExactlyOther
+          ? 'type-label-other-rule'
+          : isMissingTypeLabel
+            ? 'type-label-missing-fallback'
+            : 'type-label',
+      ...(primarySubtype ? { subtype: primarySubtype } : {}),
+      typeLabels,
+    };
+  }
 
   for (const typeLabel of typeLabels) {
     if (!typeLabel || typeLabel === TYPE_LABEL_RULES.otherTypeLabel) continue;

@@ -1,3 +1,4 @@
+import { classifyItem } from '../catalog/classification';
 import {
   APP_VERSION,
   CATEGORY_LABELS,
@@ -67,13 +68,16 @@ export function createInitialWorkspace(catalogVersion: string, now = new Date())
 
   // 3. 将默认保护和默认出售物品注册到用户自定义物品库中，确保在前端界面直观展示与自由管理
   const customItems: CustomItem[] = [
-    ...DEFAULT_PROTECTED_ITEMS.map((name) => ({
-      id: normalizeItemName(name),
-      name,
-      category: 'specialDrop' as ItemCategory,
-      note: '插件推荐保护',
-      createdAt: timestamp,
-    })),
+    ...DEFAULT_PROTECTED_ITEMS.map((name) => {
+      const matched = classifyItem({ name });
+      return {
+        id: normalizeItemName(name),
+        name,
+        category: (matched.category === 'specialWeapon' ? 'specialWeapon' : 'specialDrop') as ItemCategory,
+        note: '插件推荐保护',
+        createdAt: timestamp,
+      };
+    }),
     ...DEFAULT_SELL_ITEMS.map((name) => ({
       id: normalizeItemName(name),
       name,

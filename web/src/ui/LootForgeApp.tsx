@@ -97,6 +97,7 @@ type ItemDisposition = 'none' | 'autoSell' | 'protect';
 const CATEGORY_ICONS: Record<ItemCategory, string> = {
   equipment: '⚔️',
   equipmentExchange: '🎫',
+  specialWeapon: '🗡️',
   material: '🪵',
   specialDrop: '💎',
   recipe: '📜',
@@ -930,6 +931,8 @@ export function LootForgeApp() {
       rules.equipment.autoSell = 'enable';
       rules.equipment.protect = 'disable';
       rules.equipmentExchange.skipLoot = 'enable';
+      rules.specialWeapon.protect = 'enable';
+      rules.specialWeapon.autoSell = 'disable';
       rules.specialDrop.protect = 'enable';
       rules.specialDrop.autoSell = 'disable';
       rules.pet.protect = 'enable';

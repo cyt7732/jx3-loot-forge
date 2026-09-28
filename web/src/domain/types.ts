@@ -3,6 +3,7 @@ export type Client = 'std' | 'origin';
 export type ItemCategory =
   | 'equipment'
   | 'equipmentExchange'
+  | 'specialWeapon'
   | 'material'
   | 'specialDrop'
   | 'recipe'

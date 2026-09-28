@@ -44,8 +44,27 @@ function hasEquipmentPartSegment(name) {
   return name.split('·').some((part) => endsWithEquipmentPart(part) !== undefined);
 }
 
+const SPECIAL_WEAPON_SET = new Set((rules.secondaryRules.specialWeaponNames ?? []).map(normalizeText));
+
 function classifyByRules(item, typeLabels) {
   const typeLabel = typeLabels.length === 1 ? typeLabels[0] : '';
+  const normalizedName = normalizeText(item.name);
+
+  if (SPECIAL_WEAPON_SET.has(normalizedName)) {
+    const isExactlyOther = typeLabels.length === 1 && typeLabel === rules.otherTypeLabel;
+    const isMissingTypeLabel = typeLabels.length === 0;
+    const primarySubtype = typeLabels.find((label) => label && label !== rules.otherTypeLabel);
+    return {
+      category: 'specialWeapon',
+      classification: primarySubtype
+        ? 'type-label'
+        : isExactlyOther
+          ? 'type-label-other-rule'
+          : isMissingTypeLabel
+            ? 'type-label-missing-fallback'
+            : 'type-label',
+    };
+  }
 
   for (const [category, labels] of Object.entries(rules.primaryTypeLabels)) {
     if (typeLabel && labels?.includes(typeLabel)) {
@@ -103,8 +122,8 @@ function reclassifyItem(item) {
   };
 }
 
-function validateSnapshot(value) {
-  if (!value || value.schemaVersion !== 1 || value.client !== 'std') throw new Error('目录版本或客户端类型不受支持。');
+function validateSnapshot(value, expectedClient) {
+  if (!value || value.schemaVersion !== 1 || value.client !== expectedClient) throw new Error('目录版本或客户端类型不受支持。');
   if (!Array.isArray(value.maps) || !Array.isArray(value.items)) throw new Error('目录缺少 maps/items 数组。');
   const itemIds = new Set(value.items.map((item) => item.id));
   for (const map of value.maps) {
@@ -117,39 +136,61 @@ function validateSnapshot(value) {
   }
 }
 
-validateSnapshot(snapshot);
-snapshot.items = snapshot.items.map(reclassifyItem);
-validateSnapshot(snapshot);
+async function reclassifyClient(client) {
+  const sourcePath = resolve(PROJECT_DIR, `src/catalog/catalog.${client}.json`);
+  const publicSnapshotPath = resolve(PROJECT_DIR, `public/data/catalog.${client}.json`);
+  const publicManifestPath = resolve(PROJECT_DIR, `public/data/manifest.${client}.json`);
 
-// Keep the existing generatedAt so repeated offline migrations are byte-stable.
-// The catalog hash intentionally excludes generatedAt/catalogVersion/contentHash.
-const stablePayload = JSON.stringify({ ...snapshot, catalogVersion: '', generatedAt: '', contentHash: '' });
-const contentHash = createHash('sha256').update(stablePayload).digest('hex');
-const generatedAt = typeof snapshot.generatedAt === 'string' && snapshot.generatedAt ? snapshot.generatedAt : '1970-01-01T00:00:00.000Z';
-snapshot.generatedAt = generatedAt;
-snapshot.contentHash = contentHash;
-snapshot.catalogVersion = `${generatedAt.slice(0, 10).replaceAll('-', '')}-${contentHash.slice(0, 12)}`;
+  const currentSnapshot = JSON.parse(await readFile(sourcePath, 'utf8'));
+  validateSnapshot(currentSnapshot, client);
+  currentSnapshot.items = currentSnapshot.items.map(reclassifyItem);
+  validateSnapshot(currentSnapshot, client);
 
-const serialized = `${JSON.stringify(snapshot)}\n`;
-await writeFile(SOURCE_PATH, serialized, 'utf8');
-await writeFile(PUBLIC_SNAPSHOT_PATH, serialized, 'utf8');
+  const stablePayload = JSON.stringify({ ...currentSnapshot, catalogVersion: '', generatedAt: '', contentHash: '' });
+  const contentHash = createHash('sha256').update(stablePayload).digest('hex');
+  const generatedAt = typeof currentSnapshot.generatedAt === 'string' && currentSnapshot.generatedAt ? currentSnapshot.generatedAt : '1970-01-01T00:00:00.000Z';
+  currentSnapshot.generatedAt = generatedAt;
+  currentSnapshot.contentHash = contentHash;
+  const dateParts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai', year: '2-digit', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date()).map((part) => [part.type, part.value]));
+  const yymmdd = `${dateParts.year}${dateParts.month}${dateParts.day}`;
+  if (typeof currentSnapshot.catalogVersion === 'string' && currentSnapshot.catalogVersion.startsWith('data.')) {
+    currentSnapshot.catalogVersion = currentSnapshot.catalogVersion.replace(/_\d{6}$/u, `_${yymmdd}`);
+  } else {
+    currentSnapshot.catalogVersion = client === 'origin'
+      ? `data.缘起_剑胆琴心_v2_${yymmdd}`
+      : `data.旗舰_丝路风语_v4_${yymmdd}`;
+  }
 
-const manifest = {
-  schemaVersion: 1,
-  client: snapshot.client,
-  catalogVersion: snapshot.catalogVersion,
-  generatedAt: snapshot.generatedAt,
-  contentHash: snapshot.contentHash,
-  stats: snapshot.stats,
-  completeness: snapshot.completeness,
-  source: snapshot.source,
-  hashAlgorithm: 'sha256-json-v1-excluding-generatedAt-catalogVersion-contentHash',
-  snapshotUrl: './catalog.std.json',
-};
-await writeFile(PUBLIC_MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  const serialized = `${JSON.stringify(currentSnapshot)}\n`;
+  await writeFile(sourcePath, serialized, 'utf8');
+  await writeFile(publicSnapshotPath, serialized, 'utf8');
 
-const categoryCounts = Object.fromEntries(
-  [...snapshot.items.reduce((counts, item) => counts.set(item.category, (counts.get(item.category) ?? 0) + 1), new Map())]
-    .sort(([left], [right]) => left.localeCompare(right)),
-);
-process.stdout.write(`${JSON.stringify({ ...snapshot.stats, categoryCounts })} hash=${contentHash} catalogVersion=${snapshot.catalogVersion}\n`);
+  const manifest = {
+    schemaVersion: 1,
+    client: currentSnapshot.client,
+    catalogVersion: currentSnapshot.catalogVersion,
+    generatedAt: currentSnapshot.generatedAt,
+    contentHash: currentSnapshot.contentHash,
+    stats: currentSnapshot.stats,
+    completeness: currentSnapshot.completeness,
+    source: currentSnapshot.source,
+    hashAlgorithm: 'sha256-json-v1-excluding-generatedAt-catalogVersion-contentHash',
+    snapshotUrl: `./catalog.${client}.json`,
+  };
+  const manifestSerialized = `${JSON.stringify(manifest, null, 2)}\n`;
+  await writeFile(publicManifestPath, manifestSerialized, 'utf8');
+  if (client === 'std') {
+    await writeFile(PUBLIC_MANIFEST_PATH, manifestSerialized, 'utf8');
+  }
+
+  const categoryCounts = Object.fromEntries(
+    [...currentSnapshot.items.reduce((counts, item) => counts.set(item.category, (counts.get(item.category) ?? 0) + 1), new Map())]
+      .sort(([left], [right]) => left.localeCompare(right)),
+  );
+  process.stdout.write(`[${client}] ${JSON.stringify({ ...currentSnapshot.stats, categoryCounts })} hash=${contentHash} catalogVersion=${currentSnapshot.catalogVersion}\n`);
+}
+
+await reclassifyClient('std');
+await reclassifyClient('origin');

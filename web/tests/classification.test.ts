@@ -175,3 +175,45 @@ describe('classification purity and raw-label preservation', () => {
     expect(classify('普通玄晶名称', ['未知上游标签'])).toMatchObject({ category: 'unknown' });
   });
 });
+
+describe('specialWeapon classification (特效武器/胚子/升级道具)', () => {
+  it('classifies sect special weapons and pre-weapons as specialWeapon while preserving equipment subtype', () => {
+    expect(classify('血影天宇舞姬', ['双兵'])).toMatchObject({
+      category: 'specialWeapon',
+      classification: 'type-label',
+      subtype: '双兵',
+      typeLabels: ['双兵'],
+    });
+    expect(classify('蝎心忘情', ['毒经'])).toMatchObject({
+      category: 'specialWeapon',
+      classification: 'type-label',
+      subtype: '毒经',
+    });
+    expect(classify('炎枪重黎', ['长兵'])).toMatchObject({
+      category: 'specialWeapon',
+      classification: 'type-label',
+      subtype: '长兵',
+    });
+    expect(classify('五相斩', ['重剑'])).toMatchObject({
+      category: 'specialWeapon',
+      classification: 'type-label',
+      subtype: '重剑',
+    });
+  });
+
+  it('classifies quest tokens and upgrade items with 其他 or empty TypeLabel as specialWeapon', () => {
+    expect(classify('天玄冰', ['其他'])).toMatchObject({
+      category: 'specialWeapon',
+      classification: 'type-label-other-rule',
+    });
+    expect(classify('火正令牌', ['其他'])).toMatchObject({
+      category: 'specialWeapon',
+      classification: 'type-label-other-rule',
+    });
+    expect(classify('陨海晶', [])).toMatchObject({
+      category: 'specialWeapon',
+      classification: 'type-label-missing-fallback',
+    });
+  });
+});
+

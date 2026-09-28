@@ -6,7 +6,7 @@ import { APP_VERSION, DEFAULT_PROTECTED_ITEMS } from '../src/domain/constants';
 import { decodeGbk, encodeGbk } from '../src/encoding/gbk';
 
 const EXPECTED_PROTECTED_ITEMS = [
-  '炎枪重黎', '腾空', '圆月双角', '五项斩', '麒王逐魂', '金红狩命', '秋声烛影',
+  '炎枪重黎', '腾空', '圆月双角', '五相斩', '麒王逐魂', '金红狩命', '秋声烛影',
   '旧禅镇', '相映红', '石剑·溟灵', '秋露白', '曳影残剑', '赐清平', '卦预乾坤',
   '朝露昙华', '夜话白鹭·鸿', '金红狩命·鸿', '秋声烛影·鸿', '钧天·鸿',
   '水长生 ·雪银莲', '溯·鸿',
