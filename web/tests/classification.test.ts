@@ -194,10 +194,10 @@ describe('specialWeapon classification (特效武器/胚子/升级道具)', () =
       classification: 'type-label',
       subtype: '长兵',
     });
-    expect(classify('五相斩', ['重剑'])).toMatchObject({
+    expect(classify('五相斩', ['傲霜刀'])).toMatchObject({
       category: 'specialWeapon',
       classification: 'type-label',
-      subtype: '重剑',
+      subtype: '傲霜刀',
     });
   });
 
