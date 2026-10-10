@@ -1,7 +1,6 @@
 # Local references and generated review artifacts
 /.learnings/
 /artifacts/
-/docs/
 /exports/
 /output/
 /.playwright-cli/
