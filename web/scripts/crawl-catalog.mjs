@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import versionRulesJson from '../src/catalog/version-rules.json';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = resolve(SCRIPT_DIR, '..');
@@ -20,6 +21,7 @@ const BASE_URL = 'https://node.jx3box.com';
 const CONCURRENCY = 4;
 
 const TYPE_LABEL_RULES = JSON.parse(await readFile(TYPE_LABEL_RULES_PATH, 'utf8'));
+const VERSION_RULES = versionRulesJson;
 
 const SLOT_LABELS = new Map([
   ['上衣', 'chest'], ['帽子', 'head'], ['腰带', 'belt'], ['下装', 'legs'], ['鞋子', 'feet'], ['护腕', 'wrists'],
@@ -371,16 +373,17 @@ async function main() {
       timeZone: 'Asia/Shanghai', year: '2-digit', month: '2-digit', day: '2-digit',
     }).formatToParts(date).map((part) => [part.type, part.value]));
     const yymmdd = `${parts.year}${parts.month}${parts.day}`;
+    const rule = VERSION_RULES[client];
     if (client === 'origin') {
       const hasFenglei = mapList.some((m) => m.name.includes('风雷刀谷'));
       const season = hasFenglei ? 'v2' : 'v1';
-      return `data.缘起_剑胆琴心_${season}_${yymmdd}`;
+      return `data.${rule.client}_${rule.expansion}_${season}_${yymmdd}`;
     }
     const hasCangsheng = mapList.some((m) => m.expansion?.includes('苍生铸世') || m.name?.includes('洛阳之战'));
     if (hasCangsheng) {
-      return `data.旗舰_苍生铸世_v1_${yymmdd}`;
+      return `data.${rule.client}_苍生铸世_v1_${yymmdd}`;
     }
-    return `data.旗舰_丝路风语_v4_${yymmdd}`;
+    return `data.${rule.client}_${rule.expansion}_${rule.season}_${yymmdd}`;
   }
 
   const generatedAt = new Date().toISOString();

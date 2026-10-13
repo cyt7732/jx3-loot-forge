@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   buildCatalogItems,
   catalogSnapshot,
+  formatCatalogVersion,
   getCurrentSeasonGroup,
   getLegacyEquipment,
   getLegacyMaps,
@@ -141,16 +142,6 @@ function shanghaiDateStamp(now = new Date()): string {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-function formatCatalogVersion(version: string, client: GameClient = 'std'): string {
-  if (!version || version === 'loading') return 'Data.载入中…';
-  if (version.startsWith('data.')) return version;
-  const match = /^(?:20)?(\d{2})(\d{2})(\d{2})/u.exec(version);
-  const dateSuffix = match ? `${match[1]}${match[2]}${match[3]}` : version.slice(0, 6);
-  if (client === 'origin') {
-    return `data.缘起_剑胆琴心_v2_${dateSuffix}`;
-  }
-  return `data.旗舰_丝路风语_v4_${dateSuffix}`;
-}
 
 function downloadBatchFile(file: { filename: string; bytes: Uint8Array }): void {
   downloadBytes(file.filename, file.bytes);

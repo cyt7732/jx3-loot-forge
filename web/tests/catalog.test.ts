@@ -10,6 +10,7 @@ import {
   getLegacyMaps,
   groupMapsByDifficulty,
   groupMapsByLevel,
+  formatCatalogVersion,
   isLegacyLevelGroup,
 } from '../src/catalog';
 import { selectCatalogSnapshot, validateCatalogSnapshot } from '../src/storage/catalog';
@@ -58,6 +59,20 @@ describe('catalog data-pack validation', () => {
       maps: [{ mapId: 1, name: '副本', expansion: '版本', difficulty: '难度', bossNames: ['首领'], itemIds: ['不存在'] }],
     });
     await expect(validateCatalogSnapshot(dangling)).rejects.toThrow('不存在的物品');
+  });
+});
+
+describe('catalog version formatting', () => {
+  it('keeps standardized data-pack names unchanged', () => {
+    const version = 'data.旗舰_苍生铸世_v1_260930';
+    expect(formatCatalogVersion(version, 'std')).toBe(version);
+  });
+
+  it('derives fallback names from the shared version rules', () => {
+    expect(formatCatalogVersion('legacy-version', 'std', new Date('2026-10-13T00:00:00Z')))
+      .toBe('data.旗舰_丝路风语_v4_261013');
+    expect(formatCatalogVersion('legacy-version', 'origin', new Date('2026-10-13T00:00:00Z')))
+      .toBe('data.缘起_剑胆琴心_v1_261013');
   });
 });
 

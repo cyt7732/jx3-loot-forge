@@ -445,20 +445,11 @@ npm run crawl:catalog:std
 npm run crawl:catalog:origin
 ```
 
-数据会保存到 `data/catalog-std.json` 和 `data/catalog-origin.json`
+数据会保存到 `web/src/catalog/catalog.std.json`、`web/src/catalog/catalog.origin.json`，并同步生成 `web/public/data/` 下的快照与 manifest。
 
 **② 检查数据质量**
 
-```bash
-# 查看物品总数
-jq '.items | length' data/catalog-std.json
-
-# 查看副本列表
-jq '.maps[].name' data/catalog-std.json
-
-# 检查是否有未分类物品
-jq '.items[] | select(.category == "unknown") | .name' data/catalog-std.json
-```
+数据抓取脚本本身会校验完整性；如需人工复核，可检查 `web/src/catalog/catalog.std.json` / `catalog.origin.json` 与对应 `web/public/data/manifest.*.json` 中的 `catalogVersion`、`stats`、`completeness` 字段。
 
 **③ 重新分类（如果更新了分类规则）**
 
@@ -474,10 +465,7 @@ npm test
 
 **⑤ 更新版本号**
 
-```typescript
-// web/src/domain/constants.ts
-export const CATALOG_VERSION = '260928';  // ← 更新日期
-```
+数据包版本不再需要手工修改 `web/src/domain/constants.ts`。抓取脚本会按 `data.<客户端>_<资料片名>_v<赛季序号>_<YYMMDD>` 自动写入快照与 manifest；若只重分类已有数据，`npm run reclassify:catalog` 会沿用标准化版本并刷新日期后缀。
 
 **⑥ 重新构建**
 
@@ -512,7 +500,7 @@ npm run reclassify:catalog
 
 ```bash
 # 检查特效武器分类数量
-jq '.items[] | select(.category == "specialWeapon") | .name' data/catalog-std.json | wc -l
+jq '.items[] | select(.category == "specialWeapon") | .name' web/src/catalog/catalog.std.json | wc -l
 ```
 
 **④ 运行测试**

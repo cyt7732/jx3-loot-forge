@@ -250,6 +250,31 @@ export function getLegacyMaps<TMap extends Pick<CatalogMap, 'expansion'>>(
   });
 }
 
+function shanghaiShortDate(now: Date): string {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai', year: '2-digit', month: '2-digit', day: '2-digit',
+  }).formatToParts(now).map((part) => [part.type, part.value]));
+  return `${parts.year}${parts.month}${parts.day}`;
+}
+
+/**
+ * Rebuilds the standardized data-pack name for legacy snapshots and unknown
+ * versions. Newly crawled snapshots already carry a crawl-time version tag.
+ */
+export function formatCatalogVersion(
+  version: string,
+  client: 'std' | 'origin' = 'std',
+  now: Date = new Date(),
+): string {
+  if (!version || version === 'loading') return 'Data.载入中…';
+  if (version.startsWith('data.')) return version;
+
+  const current = getCurrentSeasonGroup(client);
+  const dateSuffix = shanghaiShortDate(now);
+  const legacySeason = client === 'origin' ? 'v1' : 'v4';
+  return `data.${client === 'origin' ? '缘起' : '旗舰'}_${current.name}_${legacySeason}_${dateSuffix}`;
+}
+
 /**
  * 筛选所有来源均属于前尘老本的装备（不含当前活跃赛季及前瞻版本掉落）。
  */

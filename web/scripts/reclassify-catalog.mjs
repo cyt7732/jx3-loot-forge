@@ -2,15 +2,13 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { formatCatalogVersion } from '../src/catalog/levels.ts';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = resolve(SCRIPT_DIR, '..');
-const SOURCE_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.std.json');
-const PUBLIC_SNAPSHOT_PATH = resolve(PROJECT_DIR, 'public/data/catalog.std.json');
 const PUBLIC_MANIFEST_PATH = resolve(PROJECT_DIR, 'public/data/manifest.json');
 const TYPE_LABEL_RULES_PATH = resolve(PROJECT_DIR, 'src/catalog/type-label-rules.json');
 
-const snapshot = JSON.parse(await readFile(SOURCE_PATH, 'utf8'));
 const rules = JSON.parse(await readFile(TYPE_LABEL_RULES_PATH, 'utf8'));
 
 function normalizeText(value) {
@@ -151,17 +149,10 @@ async function reclassifyClient(client) {
   const generatedAt = typeof currentSnapshot.generatedAt === 'string' && currentSnapshot.generatedAt ? currentSnapshot.generatedAt : '1970-01-01T00:00:00.000Z';
   currentSnapshot.generatedAt = generatedAt;
   currentSnapshot.contentHash = contentHash;
-  const dateParts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai', year: '2-digit', month: '2-digit', day: '2-digit',
-  }).formatToParts(new Date()).map((part) => [part.type, part.value]));
-  const yymmdd = `${dateParts.year}${dateParts.month}${dateParts.day}`;
-  if (typeof currentSnapshot.catalogVersion === 'string' && currentSnapshot.catalogVersion.startsWith('data.')) {
-    currentSnapshot.catalogVersion = currentSnapshot.catalogVersion.replace(/_\d{6}$/u, `_${yymmdd}`);
-  } else {
-    currentSnapshot.catalogVersion = client === 'origin'
-      ? `data.缘起_剑胆琴心_v2_${yymmdd}`
-      : `data.旗舰_丝路风语_v4_${yymmdd}`;
-  }
+  currentSnapshot.catalogVersion = formatCatalogVersion(
+    typeof currentSnapshot.catalogVersion === 'string' ? currentSnapshot.catalogVersion : '',
+    client,
+  );
 
   const serialized = `${JSON.stringify(currentSnapshot)}\n`;
   await writeFile(sourcePath, serialized, 'utf8');
