@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "client": "std",
-  "catalogVersion": "data.旗舰_丝路风语_v4_260928",
-  "generatedAt": "2026-09-17T15:18:14.133Z",
-  "contentHash": "0b02e40cd08136d6e4e91cf5f3284b0978826472caadabac7614ed565a799bb1",
+  "catalogVersion": "data.旗舰_苍生铸世_v1_261031",
+  "generatedAt": "2026-10-31T12:15:53.699Z",
+  "contentHash": "705be380fc2c161e2305736aad110226f07f597974c30f93d049edb6db2492ea",
   "stats": {
     "maps": 265,
-    "bosses": 1023,
-    "drops": 43033,
-    "uniqueItems": 16571
+    "bosses": 1020,
+    "drops": 52153,
+    "uniqueItems": 17966
   },
   "completeness": {
     "status": "complete",
     "expectedMapCount": 265,
     "fetchedMapCount": 265,
-    "metadataMissing": 24,
-    "metadataMismatch": 6,
+    "metadataMissing": 1,
+    "metadataMismatch": 2,
     "failures": []
   },
   "source": "https://node.jx3box.com/fb/info?client=std",

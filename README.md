@@ -6,8 +6,8 @@
 
 副本掉落配置管理工具，支持旗舰端与缘起端
 
-[![Release](https://img.shields.io/badge/Release-v1.5.1-emerald.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
-[![Data Version](https://img.shields.io/badge/Data-丝路风语__v4__260928-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
+[![Release](https://img.shields.io/badge/Release-v1.6.0-emerald.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
+[![Data Version](https://img.shields.io/badge/Data-苍生铸世__v1__261031-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![Platform](https://img.shields.io/badge/Platform-JX3%20旗舰端%20%2F%20缘起端-emerald.svg?style=flat-square)](https://jx3.xoyo.com)
 [![Offline Ready](https://img.shields.io/badge/Offline-100%25%20Single--File-blueviolet.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-orange.svg?style=flat-square)](LICENSE)
@@ -124,7 +124,7 @@ jx3-loot-forge/
 
 ### 数据版本
 
-- 旗舰端：`data.旗舰_丝路风语_v4_260928`
+- 旗舰端：`data.旗舰_苍生铸世_v1_261031`
 - 缘起端：`data.缘起_剑胆琴心_v2_260928`
 
 ### 隐私与安全

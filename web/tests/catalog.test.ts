@@ -69,10 +69,10 @@ describe('catalog version formatting', () => {
   });
 
   it('derives fallback names from the shared version rules', () => {
-    expect(formatCatalogVersion('legacy-version', 'std', new Date('2026-10-13T00:00:00Z')))
-      .toBe('data.旗舰_丝路风语_v4_261013');
-    expect(formatCatalogVersion('legacy-version', 'origin', new Date('2026-10-13T00:00:00Z')))
-      .toBe('data.缘起_剑胆琴心_v1_261013');
+    expect(formatCatalogVersion('legacy-version', 'std', new Date('2026-10-31T00:00:00Z')))
+      .toBe('data.旗舰_苍生铸世_v1_261031');
+    expect(formatCatalogVersion('legacy-version', 'origin', new Date('2026-10-31T00:00:00Z')))
+      .toBe('data.缘起_剑胆琴心_v1_261031');
   });
 });
 
@@ -165,7 +165,7 @@ describe('catalog level and difficulty grouping', () => {
     const legacyMapsWei = getLegacyMaps(weiMaps);
     expect(legacyMapsWei.map((m) => m.mapId)).toEqual([102, 103]);
 
-    // 场景 2：前瞻植入了鱼历 50 级新副本（苍生铸世包含五人本与团队秘境）
+    // 场景 2：苍生铸世（鱼历 50 级）正式公测上线，作为当前活跃赛季
     const yuAndWeiMaps = [
       mapFixture(201, '苍生铸世', '25人英雄'),
       mapFixture(202, '苍生铸世', '5人普通'),
@@ -173,14 +173,14 @@ describe('catalog level and difficulty grouping', () => {
       mapFixture(101, '丝路风语', '25人英雄'),
       mapFixture(102, '横刀断浪', '25人英雄'),
     ];
-    // 关键断言：当前赛季依然锁定为丝路风语，苍生铸世不作为当前赛季
+    // 关键断言：当前赛季为苍生铸世（鱼历 50 级）
     const currentSeasonYu = getCurrentSeasonGroup(yuAndWeiMaps, 'std');
-    expect(currentSeasonYu.id).toBe('lv-130');
-    expect(currentSeasonYu.name).toBe('丝路风语');
+    expect(currentSeasonYu.id).toBe('yu-50');
+    expect(currentSeasonYu.name).toBe('苍生铸世');
 
-    // 关键断言：全选老本时，既不选当前赛季（101），也不选前瞻版本的苍生铸世团队本（201）与五人本（202, 203），仅选中历史老本（102）！
+    // 关键断言：全选老本时，不选当前赛季（201, 202, 203），选中历史老本（101, 102）！
     const legacyMapsYu = getLegacyMaps(yuAndWeiMaps);
-    expect(legacyMapsYu.map((m) => m.mapId)).toEqual([102]);
+    expect(legacyMapsYu.map((m) => m.mapId)).toEqual([101, 102]);
   });
 
   it('correctly filters legacy equipment drops', () => {

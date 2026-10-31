@@ -25,6 +25,8 @@
 .DS_Store
 Thumbs.db
 *.log
+.deepseek-harness/
+.dsh-acl/
 
 # Tauri desktop build artifacts
 /web/src-tauri/target/

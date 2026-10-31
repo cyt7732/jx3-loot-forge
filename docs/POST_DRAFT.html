@@ -1,0 +1,156 @@
+<p>众所周知，作为一个每周风雨无阻奔波在各大前尘老本里摸大铁、摸奇遇、摸挂件的刷本狂魔，最痛苦的事情是：</p>
+<p>每个 Boss 打完掉一地破烂，背包分分钟被各种低级装备和破铜烂铁塞得满满当当，得一遍一遍手动卖。校服牌子还卖不掉，得手动销毁。虽然茗伊插件有【跳过拾取】和【自动售卖】功能，但是苦于要手动添加所有的物品名称，太牢了<img class="t-emotion" style="max-width: 60px; max-height: 60px;" src="https://img.jx3box.com/emotion/output/默认/0_22__流汗.png" alt="流汗" /></p>
+<h1><span style="font-size: 20px;">💡 灵感与渊源</span></h1>
+<p>其实关于副本掉落数据这块，社区里一直有大佬在探索：</p>
+<ul>
+<li><strong><a href="https://www.jx3box.com/author/182505" target="_blank" rel="noopener">荷花鲤</a></strong> 大佬的《剑三插件数据文件解析》（<a href="https://www.jx3box.com/tool/60356" target="_blank" rel="noopener">tool/60356</a>），是最早能够获取到的快速导出物品的工具，最初就是在大佬的工具上导出数据；</li>
+<li>后来 <strong><a href="https://www.jx3box.com/author/19325" target="_blank" rel="noopener">柳阮阮</a></strong> 在 <a href="https://www.jx3box.com/tool/64676" target="_blank" rel="noopener">tool/64676</a> 帖子里分享的魔盒 API 抓包遍历思路（通过 <code>fb/boss?MapID</code> 遍历副本 Boss，再抓取 <code>fb/drop/v2/</code> 的全量掉落），也点亮了自动化爬虫的路子。</li>
+</ul>
+<p>但问题也摆在眼前：<br />总不能让普通玩家每次都去抓包、或者拿记事本改 lua 数据吧？而且【跳过拾取】和【自动出售】始终得分两次导入，对于我这种极致懒狗来说，还是不够省事。</p>
+<p><strong>既然数据源和底层格式都摸透了，为什么不写一个网页工具，把全赛季所有副本的掉落全自动整理好？同时把【跳过拾取】和【自动出售】导出成一个文件，进游戏点一次导入直接全解决？！</strong></p>
+<h1><span style="font-size: 20px;">🤖 拉出新牛马组合通宵大战</span></h1>
+<p>说干就干。这次我换上了新工具人组合：<strong>Codex + Google Antigravity</strong>，把魔盒全量 API 爬虫逻辑、多级分类规则以及茗伊 <code>.us.jx3dat</code> 的二进制/文本编码规范一股脑甩给了它们。</p>
+<p>经过抓包清洗、分类整理、防冲突逻辑、配色调整与离线打包优化后：</p>
+<p style="text-align: center;"><span style="font-size: 24px; color: #e6a23c;"><strong>🗡️『剑网3掉落工坊』上线！✨</strong></span></p>
+<p style="text-align: center;"><img src="https://cdn.jx3box.com/upload/post/2026/9/18/20606_7367662.png" /></p>
+<div style="background-color: rgba(230, 162, 60, 0.08); border: 1px solid rgba(230, 162, 60, 0.4); border-radius: 8px; padding: 14px 18px; margin: 16px 0; line-height: 1.8;">
+<p style="margin: 0; font-size: 16px; font-weight: bold; color: #e6a23c;">🌐 在线版：</p>
+<p style="margin: 4px 0 0 0; font-size: 14px;">⚡ 主镜像：<a href="https://jx3-loot-forge.pages.dev" target="_blank" rel="noopener"><strong>https://jx3-loot-forge.pages.dev</strong></a><br />🛡️ 备用镜像：<a href="https://cyt7732.github.io/jx3-loot-forge/" target="_blank" rel="noopener"><strong>https://cyt7732.github.io/jx3-loot-forge/</strong></a></p>
+<p style="margin: 8px 0 0 0; font-size: 12.5px; color: #909399;"><em>※ 注：如果在线版受网络波动影响，请直接在本发布页下载离线版，纯本地零依赖运行，功能 100% 相同。</em></p>
+</div>
+<h1><span style="font-size: 20px;">核心功能（真正为你省心）</span></h1>
+<ol>
+<li><span style="font-size: 16px;"><strong>⚡ 一份综合配置，进游戏一键导入</strong>：将【跳过拾取】（<code>MY_GKPLoot</code>）与【自动出售/珍品保护】（<code>MY_AutoSell</code>）<strong>合并打包为一个综合配置文件（<code>.us.jx3dat</code>）</strong>。进游戏打开茗伊只需点一次导入，团队拾取过滤与自动出售规则瞬时全部生效，不用来回导两次。</span></li>
+<li><span style="font-size: 16px;"><strong>🎮 旗舰版（正式服）与缘起版（怀旧服）双端无缝切换</strong>：顶栏一键切换客户端！旗舰端与缘起端<strong>拥有各自独立的工作区与存储空间</strong>，配置互不干扰；缘起端收录纯正 70~95 级经典掉落，智能屏蔽“鱼历/炜历”等正式服概念，双端通吃！</span></li>
+<li><span style="font-size: 16px;"><strong>🎯 全赛季数百个秘境全量收录，大类批量配置</strong>：完整收录各客户端全部副本、Boss 及数万件精确去重物品。细分出“装备”、“兑换牌”、“大铁”、“小铁”、“宠物”、“家具”、“特殊掉落”、“附魔”等大类，想卖哪个勾哪个、想留哪个保哪个，告别手动打字加名字。</span></li>
+<li><span style="font-size: 16px;"><strong>🗡️ 特效武器/升级道具独立大类，刷本摸金防误售联动</strong>：全面收录 73 项全门派心法可成长特效武器成品（血影天宇舞姬、岚尘金蛇、蝎心忘情、炎枪重黎、五相斩等 22 把）、前置胚子武器（17 把）、合成任务信物（24 项）与升品道具。分类引擎享有最高识别优先级，并在【推荐预设（刷本摸金模式）】中默认开启珍品保护 + 禁用自动出售，彻底杜绝手抖误卖！</span></li>
+<li><span style="font-size: 16px;"><strong>🏰 一键全选历史老本，自动避开当前赛季</strong>：提供【全选老本】快捷键，一键圈选历史全部老本，<strong>自动排除当前赛季最新秘境</strong>；已前瞻植入新资料片『苍生铸世』全套团队秘境与大战 5 人本占位，智能识别时代，绝不误选未上线的 50 级新本。</span></li>
+<li><span style="font-size: 16px;"><strong>🎨 华贵暗金 vs 温润青玉，四重深浅模式瞬切</strong>：旗舰端标配国风华贵暗金，缘起端量身定制翡翠青玉配色；每套色彩均支持日间浅色与沉浸深色无缝瞬切，通知浮岛不遮挡按钮。</span></li>
+<li><span style="font-size: 16px;"><strong>🛡️ 用户自定义优先保护，不覆盖个人配置</strong>：预置茗伊默认推荐的 21 项珍品保护（大铁、玄晶、特殊武器等）与 19 项杂物；校准纠正霸刀特效武器「五相斩」等错字；副本掉落中若包含自定义物品，自动锁定保护防止被批量规则误改；清除范围时绝不强行勾回已取消的自定义，尊重个人设置。</span></li>
+<li><span style="font-size: 16px;"><strong>⚡ 零网络外链秒开 + 100% 纯本地离线单文件</strong>：彻底移除外部切片字体包，首屏网络开销直接归零，杜绝文字闪烁；除在线版外，更提供单个 <code>剑网3掉落工坊.html</code> 离线文件，下载直接双击就用，断网零依赖秒开。</span></li>
+</ol>
+<h1><span style="font-size: 20px;">游戏内使用方法（极简两步）</span></h1>
+<ol>
+<li>在工坊右上角点击 <strong>【⚡ 导出综合配置】</strong>，把下载的 <code>掉落工坊_综合配置_YYYYMMDD-HHMMSS.us.jx3dat</code> 文件保存在<strong>桌面</strong>或下载目录；</li>
+<li>进游戏按 <code>Ctrl + M</code> 打开 <strong>茗伊插件集</strong> -&gt; <strong>【系统】</strong> -&gt; <strong>【全局设置】</strong> -&gt; <strong>【导入配置】</strong> -&gt; 直接从<strong>桌面</strong>选择刚才的文件点导入。收工！</li>
+</ol>
+<h1><span style="font-size: 20px;">更新日志</span></h1>
+<div class="e-summary">更新日志</div>
+<div class="e-details">
+<table style="border-collapse: collapse; width: 100%;" border="1">
+<tbody>
+<tr style="background-color: #fafafa;">
+<td style="width: 12%; text-align: center; font-weight: bold; padding: 8px;">版本号</td>
+<td style="width: 15%; text-align: center; font-weight: bold; padding: 8px;">更新日期</td>
+<td style="width: 73%; font-weight: bold; padding: 8px;">说明</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px; color: #e6a23c;">v1.6.0</td>
+<td style="text-align: center; padding: 8px; color: #e6a23c; font-weight: bold;">2026.10.31</td>
+<td style="padding: 8px;">1. <strong>《苍生铸世》（鱼历 50 级）新赛季正式数据包上线</strong>：全面同步 JX3BOX 上游最新掉落数据，正式收录团队秘境「洛阳之战」（10人普通、25人普通、25人英雄，5 位首领）及 4 座大战秘境「昊渊极」「大阳津」「玄元观」「南山马场」（各含普通与英雄难度共 8 份模式），替换前瞻占位 ID，补齐数千件全新掉落装备与物品；<br />2. <strong>赛季体系与老本逻辑同步升级</strong>：当前活跃赛季正式切换为《苍生铸世》（鱼历 50 级），「丝路风语」及历史版本自动纳入历史老本判定，全选老本与当前赛季隔离更加精准；<br />3. <strong>标准化数据包版本更新</strong>：旗舰端数据包升级为 <code>data.旗舰_苍生铸世_v1_261031</code>，单文件离线版同步内联构建。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.5.2</td>
+<td style="text-align: center; padding: 8px;">2026.10.13</td>
+<td style="padding: 8px;">1. <strong>全链路统一数据包版本命名配置</strong>：新增共享版本规则配置（<code>version-rules.json</code>），抓取脚本、离线重分类与前端界面完全统一读取标准化客户端/资料片/赛季版本定义，彻底消除多端硬编码导致的赛季版本漂移；<br />2. <strong>核心版本格式化逻辑抽象与稳定性加固</strong>：将 <code>formatCatalogVersion</code> 迁移至 catalog 公共模块，保留已有 <code>data.*</code> 标准化指纹，避免版本被历史规则覆盖；<br />3. <strong>开发体系与离线包同步更新</strong>：全面对齐项目架构与开发规范，同步生成 v1.5.2 单文件离线版与 ZIP 分发包。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.5.1</td>
+<td style="text-align: center; padding: 8px;">2026.09.28</td>
+<td style="padding: 8px;">1. <strong>新增【🗡️ 特效武器/升级道具】独立大类</strong>：全面梳理收录 73 项全门派心法特效武器（血影天宇舞姬、岚尘金蛇、蝎心忘情、炎枪重黎、五相斩等 22 把成品）、前置胚子（17 把）、任务信物（24 项）与升阶道具（10 项），支持单独筛选与批量管控；<br />2. <strong>刷本摸金预设安全联动</strong>：【推荐预设】中特效武器与升级道具默认开启「保护不出售」并禁用自动出售，彻底杜绝摸金刷本时误卖特效武器胚子与升级信物；<br />3. <strong>双端数据包全量重分类升级</strong>：旗舰端与缘起端数据包全面同步，旗舰端精准归类 62 项、缘起端精准归类 46 项特效武器物品，版本升级为 <code>data.旗舰_丝路风语_v4_260928</code> / <code>data.缘起_剑胆琴心_v2_260928</code>；<br />4. <strong>默认推荐保护错字纠偏</strong>：修正默认推荐保护列表中霸刀特效武器错字（「五项斩」纠正为「五相斩」），100% 精准匹配官方掉落字典。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.5.0</td>
+<td style="text-align: center; padding: 8px;">2026.09.18</td>
+<td style="padding: 8px;">1. <strong>支持怀旧服（缘起版）双端无缝切换</strong>：顶栏新增客户端切换器，全量收录缘起 70~95 级经典秘境与掉落，屏蔽纪元标签；两端工作区完全独立，配置互不干扰；<br />2. <strong>缘起版专属「青玉翠绿」配色体系</strong>：量身打造青玉深浅双模式，彻底清除残留色差，与旗舰版暗金各美其美；<br />3. <strong>前瞻植入《苍生铸世》（50级）全套秘境</strong>：提前收录团队本「洛阳之战」与大战秘境「昊渊极」「南山马场」「玄元观」「大阳津」（共 11 个秘境模式），全选老本安全隔离，当前赛季锁定丝路风语；<br />4. <strong>首屏加载速度极致飞跃（零外链字体）</strong>：彻底移除外部切片字体包，改用系统原生字体栈，网络请求归零，彻底消灭字体闪烁与卡顿，页面 0ms 秒开；<br />5. <strong>Logo 资源缩减 98.5% 与单文件瘦身</strong>：超大原图高质量重采样压缩至 10.4KB，单文件离线包净减重 1.86MB，标签页图标与顶栏视觉完美统一。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.4.1</td>
+<td style="text-align: center; padding: 8px;">2026.09.07</td>
+<td style="padding: 8px;">1. <strong>浅色模式配色提亮</strong>：主按钮、复选框与策略按钮改为明亮轻盈色调，彻底消除灰暗浊感；<br />2. <strong>主题切换交互优化</strong>：切换按钮改为显示当前模式；去除切换时的弹窗提示，避免遮挡按钮；全局提示条移至屏幕底部，不遮挡顶部操作；<br />3. <strong>清除范围逻辑修复</strong>：若手动取消勾选用户自定义，点击&ldquo;清除范围&rdquo;或&ldquo;全选老本&rdquo;时不再自动勾回；<br />4. <strong>自定义库操作文案统一</strong>：将&ldquo;恢复官方批量管理&rdquo;与&ldquo;移出自定义库&rdquo;统一为清晰直观的「移除」。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.4.0</td>
+<td style="text-align: center; padding: 8px;">2026.09.05</td>
+<td style="padding: 8px;">1. <strong>新增浅色与深色模式</strong>：顶栏右上角支持一键切换日间浅色与夜间深色模式，浏览器本地记忆；<br />2. <strong>用户自定义默认勾选</strong>：初始启动和重置时自定义库默认勾选导出；清除范围时默认保留自定义勾选；<br />3. <strong>自定义物品防误改保护</strong>：副本掉落中若出现自定义库已有物品，标记锁定，防止被副本批量规则覆盖。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.3.1</td>
+<td style="text-align: center; padding: 8px;">2026.08.30</td>
+<td style="padding: 8px;">1. <strong>左侧增加常驻导出规则提示</strong>：明确&ldquo;仅勾选（✓）的副本会写入文件&rdquo;；<br />2. <strong>未勾选导出弹窗提醒</strong>：若未勾选任何副本直接点击导出，弹窗提醒将生成空白文件，防止误操作。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.3.0</td>
+<td style="text-align: center; padding: 8px;">2026.08.30</td>
+<td style="padding: 8px;">1. <strong>划分「炜历」与「鱼历」</strong>：适配 828 等级压缩，划分 70~130 级（炜历）与 50 级新时代（鱼历），预置新版本『苍生铸世』；<br />2. <strong>重写老本判定逻辑</strong>：避免 50 级新版本因数字较小被误判为历史老本；<br />3. <strong>简化左侧年代与等级标签排版</strong>。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.2.2</td>
+<td style="text-align: center; padding: 8px;">2026.08.30</td>
+<td style="padding: 8px;">1. 修复搜索状态下点击&ldquo;聚焦当前赛季&rdquo;无响应的问题；<br />2. 支持在侧栏 Boss 节点上双击或右键快速切换勾选，支持单独剔除某个 Boss；<br />3. 规范离线 ZIP 包目录结构。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.2.1</td>
+<td style="text-align: center; padding: 8px;">2026.08.30</td>
+<td style="padding: 8px;">1. 未选副本时主区增加【极速开始】快捷引导面板；<br />2. 适配 1080P/2K/4K 居中对称展示；<br />3. 字体异步加载优化；离线单文件内置 Logo。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.2.0</td>
+<td style="text-align: center; padding: 8px;">2026.08.29</td>
+<td style="padding: 8px;">1. 支持单选某个年代或副本单独配置策略，策略全局自动保存；<br />2. 查看策略与勾选导出解耦分离，互不影响；<br />3. 上线在线网页版；优化左侧栏折叠动画；增加正在编辑范围的顶部提示。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.1.0</td>
+<td style="text-align: center; padding: 8px;">2026.08.29</td>
+<td style="padding: 8px;">1. 增加【全选老本】功能，一键勾选历史副本；<br />2. 规范导出名称为「综合配置」；严格仅导出勾选副本的规则。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.0.5</td>
+<td style="text-align: center; padding: 8px;">2026.08.27</td>
+<td style="padding: 8px;">1. 放大界面字体，优化排版；<br />2. 副本名称与等级分两行整齐排列；精简按钮提示。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.0.4</td>
+<td style="text-align: center; padding: 8px;">2026.08.27</td>
+<td style="padding: 8px;">1. 增加存储异常时的只读保护与备份机制；<br />2. 移出自定义库的物品彻底从导出名单中清除。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.0.3</td>
+<td style="text-align: center; padding: 8px;">2026.08.25</td>
+<td style="padding: 8px;">默认内置茗伊官方推荐的 21 项珍品保护与 19 项出售杂物。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v1.0.0</td>
+<td style="text-align: center; padding: 8px;">2026.08.25</td>
+<td style="padding: 8px;">正式版发布，支持两插件合一导出，支持一键撤销，全量收录 254 个副本，单文件离线版同步上线。</td>
+</tr>
+<tr>
+<td style="text-align: center; font-weight: bold; padding: 8px;">v0.1.0 ~ v0.3.0</td>
+<td style="text-align: center; padding: 8px;">2026.08.24 ~ 08.25</td>
+<td style="padding: 8px;">早期版本开发：抓取魔盒全量数据，建立物品分类体系与基础导出功能。</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h1><span style="font-size: 20px;">未来规划</span></h1>
+<ol>
+<li><span style="color: #67c23a;">✅ 在线版双镜像发布与自动同步</span></li>
+<li><span style="color: #67c23a;">✅ 宽屏居中适配与首屏打开速度优化</span></li>
+<li><span style="color: #67c23a;">✅ 适配等级压缩时代划分与老本判定</span></li>
+<li><span style="color: #67c23a;">✅ 浅色与深色双模式</span></li>
+<li><span style="color: #67c23a;">✅ 自定义库优先保护机制</span></li>
+<li><span style="color: #67c23a;">✅ 浅色模式配色提亮与交互优化</span></li>
+<li><span style="color: #67c23a;">✅ 支持怀旧服（缘起版）双端数据与独立工作区</span></li>
+<li><span style="color: #67c23a;">✅ 彻底移除外链切片字体，实现零网络开销秒开</span></li>
+<li><span style="color: #67c23a;">✅ 植入新资料片《苍生铸世》全套秘境纯净占位</span></li>
+<li><span style="color: #67c23a;">✅ 补齐特效武器、升级道具与合成信物全门派精细分类（73 项权威词表）</span></li>
+<li><span style="color: #67c23a;">✅ 全链路统一数据包版本命名与规则配置（v1.5.2）</span></li>
+<li><span style="color: #67c23a;">✅ 《苍生铸世》正式公测全量掉落与秘境实装（v1.6.0）</span></li>
+<li>有其他需求欢迎评论区留言。</li>
+</ol>
+<h1><span style="font-size: 20px;">鸣谢</span></h1>
+<p>感谢 <strong><a href="https://www.jx3box.com/author/182505" target="_blank" rel="noopener">荷花鲤</a></strong> 大佬（<a href="https://www.jx3box.com/tool/60356" target="_blank" rel="noopener">tool/60356</a>）的数据解析工具与底层启发！</p>
+<p>感谢 <strong><a href="https://www.jx3box.com/author/19325" target="_blank" rel="noopener">柳阮阮</a></strong> 大佬（<a href="https://www.jx3box.com/tool/64676" target="_blank" rel="noopener">tool/64676</a>）分享的魔盒 API 抓包与数据遍历思路！</p>
+<p>感谢 <strong>魔盒（JX3BOX）</strong> 开放的 API 数据支持！</p>
+<p>感谢加班的牛马 Codex &amp; Antigravity 同学。</p>
+<p>开源仓库：<a href="https://github.com/cyt7732/jx3-loot-forge" target="_blank" rel="noopener">https://github.com/cyt7732/jx3-loot-forge</a></p>

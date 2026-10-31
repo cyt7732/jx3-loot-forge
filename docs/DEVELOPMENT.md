@@ -544,8 +544,8 @@ npm run build:offline
 
 # ✅ 6. 提交代码
 git add .
-git commit -m "release: v1.5.2"
-git tag v1.5.2
+git commit -m "release: v1.6.0"
+git tag v1.6.0
 git push origin main --tags
 
 # ✅ 7. 创建GitHub Release
@@ -559,7 +559,7 @@ git push origin main --tags
 npm run package:artifacts
 ```
 
-会在 `artifacts/剑网3掉落工坊-v1.5.2/` 生成：
+会在 `artifacts/剑网3掉落工坊-v1.6.0/` 生成：
 
 - `剑网3掉落工坊.html` - 单文件离线版
 - `README.md` - 使用说明

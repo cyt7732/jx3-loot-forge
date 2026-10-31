@@ -207,18 +207,18 @@ export function getCurrentSeasonGroup<TMap extends Pick<CatalogMap, 'expansion'>
 ): MapsByLevel<TMap> | CatalogLevelGroup {
   const maps = Array.isArray(mapsOrClient) ? mapsOrClient : undefined;
   const client = (typeof mapsOrClient === 'string' ? mapsOrClient : clientArg) ?? 'std';
-  // 旗舰端当前处于丝路风语赛季（lv-130），苍生铸世（yu-50）为前瞻植入阶段，默认与活跃赛季锁定为 lv-130
+  // 旗舰端当前处于苍生铸世赛季（yu-50），默认活跃赛季为 yu-50
   const defaultGroup = client === 'origin'
     ? ORIGIN_LEVEL_GROUPS[0]
-    : (LEVEL_GROUPS.find((g) => g.id === 'lv-130') ?? LEVEL_GROUPS[1]);
+    : (LEVEL_GROUPS.find((g) => g.id === 'yu-50') ?? LEVEL_GROUPS[0]);
 
   if (maps && maps.length > 0) {
     const grouped = groupMapsByLevel(maps, client);
     if (client !== 'origin') {
-      const activeSeason = grouped.find((g) => g.id === 'lv-130' && g.maps.length > 0);
+      const activeSeason = grouped.find((g) => g.id === 'yu-50' && g.maps.length > 0);
       if (activeSeason) return activeSeason;
     }
-    const activeFirst = grouped.find((g) => g.id !== 'unknown' && g.id !== 'yu-50' && g.maps.length > 0);
+    const activeFirst = grouped.find((g) => g.id !== 'unknown' && g.maps.length > 0);
     if (activeFirst) return activeFirst;
     return { ...copyLevelGroup(defaultGroup), maps: [] };
   }
@@ -226,19 +226,19 @@ export function getCurrentSeasonGroup<TMap extends Pick<CatalogMap, 'expansion'>
 }
 
 /**
- * 判断指定等级组是否属于历史前尘老本（即非当前活跃赛季且非未来前瞻赛季）。
+ * 判断指定等级组是否属于历史前尘老本（即非当前活跃赛季）。
  */
 export function isLegacyLevelGroup(
   group: Pick<CatalogLevelGroup, 'id'>,
   currentSeasonId?: CatalogLevelGroupId,
 ): boolean {
-  if (group.id === 'unknown' || group.id === 'yu-50') return false;
-  const activeId = currentSeasonId ?? (LEVEL_GROUPS.find((g) => g.id === 'lv-130')?.id ?? LEVEL_GROUPS[1].id);
+  if (group.id === 'unknown') return false;
+  const activeId = currentSeasonId ?? (LEVEL_GROUPS.find((g) => g.id === 'yu-50')?.id ?? LEVEL_GROUPS[0].id);
   return group.id !== activeId;
 }
 
 /**
- * 筛选属于前尘老副本的地图（自动排除当前活跃最新赛季及尚未公测的前瞻版本）。
+ * 筛选属于前尘老副本的地图（自动排除当前活跃最新赛季）。
  */
 export function getLegacyMaps<TMap extends Pick<CatalogMap, 'expansion'>>(
   maps: readonly TMap[],
@@ -246,7 +246,7 @@ export function getLegacyMaps<TMap extends Pick<CatalogMap, 'expansion'>>(
   const currentSeason = getCurrentSeasonGroup(maps);
   return maps.filter((map) => {
     const group = getLevelGroup(map.expansion);
-    return group.id !== 'unknown' && group.id !== currentSeason.id && group.id !== 'yu-50';
+    return group.id !== 'unknown' && group.id !== currentSeason.id;
   });
 }
 
@@ -271,12 +271,12 @@ export function formatCatalogVersion(
 
   const current = getCurrentSeasonGroup(client);
   const dateSuffix = shanghaiShortDate(now);
-  const legacySeason = client === 'origin' ? 'v1' : 'v4';
+  const legacySeason = 'v1';
   return `data.${client === 'origin' ? '缘起' : '旗舰'}_${current.name}_${legacySeason}_${dateSuffix}`;
 }
 
 /**
- * 筛选所有来源均属于前尘老本的装备（不含当前活跃赛季及前瞻版本掉落）。
+ * 筛选所有来源均属于前尘老本的装备（不含当前活跃赛季掉落）。
  */
 export function getLegacyEquipment<TItem extends Pick<CatalogItem, 'sources' | 'category'>>(
   items: readonly TItem[],
@@ -289,7 +289,7 @@ export function getLegacyEquipment<TItem extends Pick<CatalogItem, 'sources' | '
     const groups = item.sources.map((s) => getLevelGroup(s.expansion));
     const hasKnownSources = groups.some((g) => g.id !== 'unknown');
     if (!hasKnownSources) return false;
-    return groups.every((g) => g.id === 'unknown' || (g.id !== currentSeason.id && g.id !== 'yu-50'));
+    return groups.every((g) => g.id === 'unknown' || g.id !== currentSeason.id);
   });
 }
 

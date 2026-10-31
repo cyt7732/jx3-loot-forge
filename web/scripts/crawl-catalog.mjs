@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import versionRulesJson from '../src/catalog/version-rules.json';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = resolve(SCRIPT_DIR, '..');
@@ -17,11 +16,12 @@ const PUBLIC_SNAPSHOT_PATH = resolve(PROJECT_DIR, `public/data/catalog.${CLIENT}
 const PUBLIC_MANIFEST_PATH = resolve(PROJECT_DIR, `public/data/manifest.${CLIENT}.json`);
 const LEGACY_MANIFEST_PATH = resolve(PROJECT_DIR, 'public/data/manifest.json');
 const TYPE_LABEL_RULES_PATH = resolve(PROJECT_DIR, 'src/catalog/type-label-rules.json');
+const VERSION_RULES_PATH = resolve(PROJECT_DIR, 'src/catalog/version-rules.json');
 const BASE_URL = 'https://node.jx3box.com';
 const CONCURRENCY = 4;
 
 const TYPE_LABEL_RULES = JSON.parse(await readFile(TYPE_LABEL_RULES_PATH, 'utf8'));
-const VERSION_RULES = versionRulesJson;
+const VERSION_RULES = JSON.parse(await readFile(VERSION_RULES_PATH, 'utf8'));
 
 const SLOT_LABELS = new Map([
   ['上衣', 'chest'], ['帽子', 'head'], ['腰带', 'belt'], ['下装', 'legs'], ['鞋子', 'feet'], ['护腕', 'wrists'],
