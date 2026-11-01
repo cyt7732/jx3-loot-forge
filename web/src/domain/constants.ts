@@ -2,7 +2,7 @@ import type { ItemCategory, ItemState, WorkspaceFilters } from './types';
 
 export const APP_NAME = '剑网3掉落工坊';
 export const APP_NAME_EN = 'JX3 Loot Forge';
-export const APP_VERSION = '1.6.0';
+export const APP_VERSION = '1.6.1';
 export const AUTHOR = '凌千羽·龙争虎斗';
 export type GameClient = 'std' | 'origin';
 export const CLIENT = 'std' as const;
@@ -47,7 +47,8 @@ export const CATEGORY_LABELS: Record<ItemCategory, string> = {
   bigEnchant: '大附魔',
   consumable: '消耗品',
   task: '任务物品',
-  currency: '货币 / 兑换',
+  currency: '数值 / 货币',
+  companion: '侠客养成',
   pet: '宠物',
   other: '其他',
   unknown: '未分类',

@@ -39,6 +39,8 @@ type TypeLabelRules = {
   secondaryRules: {
     petWhenEquipWithoutExplicitSlot: boolean;
     unknownSlotValues: readonly string[];
+    companionItemNames?: readonly string[];
+    currencyItemNames?: readonly string[];
     specialWeaponNames: readonly string[];
     nameSuffixes: {
       bigIron: string;
@@ -55,6 +57,8 @@ export const TYPE_LABEL_RULES = rulesJson as TypeLabelRules;
 
 const equipmentExchangeCategory: ItemCategory = 'equipmentExchange';
 const specialWeaponSet = new Set(TYPE_LABEL_RULES.secondaryRules.specialWeaponNames);
+const companionItemSet = new Set(TYPE_LABEL_RULES.secondaryRules.companionItemNames ?? []);
+const currencyItemSet = new Set(TYPE_LABEL_RULES.secondaryRules.currencyItemNames ?? []);
 
 function hasExplicitSlot(input: ClassificationInput): boolean {
   const values = [input.slot, ...(input.slots ?? [])];
@@ -131,6 +135,42 @@ export function classifyItem(input: ClassificationInput): ClassificationResult {
     const isMissingTypeLabel = typeLabels.length === 0 || typeLabels.every((label) => label.trim().length === 0);
     return {
       category: 'specialWeapon',
+      classification: primarySubtype
+        ? 'type-label'
+        : isExactlyOther
+          ? 'type-label-other-rule'
+          : isMissingTypeLabel
+            ? 'type-label-missing-fallback'
+            : 'type-label',
+      ...(primarySubtype ? { subtype: primarySubtype } : {}),
+      typeLabels,
+    };
+  }
+
+  if (companionItemSet.has(normalizedName)) {
+    const primarySubtype = typeLabels.find((label) => label && label !== TYPE_LABEL_RULES.otherTypeLabel);
+    const isExactlyOther = typeLabels.length === 1 && typeLabels[0] === TYPE_LABEL_RULES.otherTypeLabel;
+    const isMissingTypeLabel = typeLabels.length === 0 || typeLabels.every((label) => label.trim().length === 0);
+    return {
+      category: 'companion',
+      classification: primarySubtype
+        ? 'type-label'
+        : isExactlyOther
+          ? 'type-label-other-rule'
+          : isMissingTypeLabel
+            ? 'type-label-missing-fallback'
+            : 'type-label',
+      ...(primarySubtype ? { subtype: primarySubtype } : {}),
+      typeLabels,
+    };
+  }
+
+  if (currencyItemSet.has(normalizedName)) {
+    const primarySubtype = typeLabels.find((label) => label && label !== TYPE_LABEL_RULES.otherTypeLabel);
+    const isExactlyOther = typeLabels.length === 1 && typeLabels[0] === TYPE_LABEL_RULES.otherTypeLabel;
+    const isMissingTypeLabel = typeLabels.length === 0 || typeLabels.every((label) => label.trim().length === 0);
+    return {
+      category: 'currency',
       classification: primarySubtype
         ? 'type-label'
         : isExactlyOther

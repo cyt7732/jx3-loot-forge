@@ -43,6 +43,8 @@ function hasEquipmentPartSegment(name) {
 }
 
 const SPECIAL_WEAPON_SET = new Set((rules.secondaryRules.specialWeaponNames ?? []).map(normalizeText));
+const COMPANION_ITEM_SET = new Set((rules.secondaryRules.companionItemNames ?? []).map(normalizeText));
+const CURRENCY_ITEM_SET = new Set((rules.secondaryRules.currencyItemNames ?? []).map(normalizeText));
 
 function classifyByRules(item, typeLabels) {
   const typeLabel = typeLabels.length === 1 ? typeLabels[0] : '';
@@ -54,6 +56,38 @@ function classifyByRules(item, typeLabels) {
     const primarySubtype = typeLabels.find((label) => label && label !== rules.otherTypeLabel);
     return {
       category: 'specialWeapon',
+      classification: primarySubtype
+        ? 'type-label'
+        : isExactlyOther
+          ? 'type-label-other-rule'
+          : isMissingTypeLabel
+            ? 'type-label-missing-fallback'
+            : 'type-label',
+    };
+  }
+
+  if (COMPANION_ITEM_SET.has(normalizedName)) {
+    const isExactlyOther = typeLabels.length === 1 && typeLabel === rules.otherTypeLabel;
+    const isMissingTypeLabel = typeLabels.length === 0;
+    const primarySubtype = typeLabels.find((label) => label && label !== rules.otherTypeLabel);
+    return {
+      category: 'companion',
+      classification: primarySubtype
+        ? 'type-label'
+        : isExactlyOther
+          ? 'type-label-other-rule'
+          : isMissingTypeLabel
+            ? 'type-label-missing-fallback'
+            : 'type-label',
+    };
+  }
+
+  if (CURRENCY_ITEM_SET.has(normalizedName)) {
+    const isExactlyOther = typeLabels.length === 1 && typeLabel === rules.otherTypeLabel;
+    const isMissingTypeLabel = typeLabels.length === 0;
+    const primarySubtype = typeLabels.find((label) => label && label !== rules.otherTypeLabel);
+    return {
+      category: 'currency',
       classification: primarySubtype
         ? 'type-label'
         : isExactlyOther

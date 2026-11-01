@@ -129,6 +129,8 @@ function hasEquipmentPartSegment(name) {
 }
 
 const SPECIAL_WEAPON_SET = new Set((TYPE_LABEL_RULES.secondaryRules.specialWeaponNames ?? []).map((value) => normalizeLabel(value)));
+const COMPANION_ITEM_SET = new Set((TYPE_LABEL_RULES.secondaryRules.companionItemNames ?? []).map((value) => normalizeLabel(value)));
+const CURRENCY_ITEM_SET = new Set((TYPE_LABEL_RULES.secondaryRules.currencyItemNames ?? []).map((value) => normalizeLabel(value)));
 
 function classifyFromTypeLabel(meta, retrieval = 'metadata', itemName = '') {
   const metadata = meta && typeof meta === 'object' ? meta : {};
@@ -145,6 +147,28 @@ function classifyFromTypeLabel(meta, retrieval = 'metadata', itemName = '') {
         ? 'type-label-other-rule'
         : 'type-label-missing-fallback';
     return { category: 'specialWeapon', classification, typeLabels };
+  }
+
+  if (COMPANION_ITEM_SET.has(name)) {
+    const isExactlyOther = typeLabels.length === 1 && typeLabel === TYPE_LABEL_RULES.otherTypeLabel;
+    const isMissingTypeLabel = typeLabel.length === 0;
+    const classification = !isExactlyOther && !isMissingTypeLabel
+      ? 'type-label'
+      : isExactlyOther
+        ? 'type-label-other-rule'
+        : 'type-label-missing-fallback';
+    return { category: 'companion', classification, typeLabels };
+  }
+
+  if (CURRENCY_ITEM_SET.has(name)) {
+    const isExactlyOther = typeLabels.length === 1 && typeLabel === TYPE_LABEL_RULES.otherTypeLabel;
+    const isMissingTypeLabel = typeLabel.length === 0;
+    const classification = !isExactlyOther && !isMissingTypeLabel
+      ? 'type-label'
+      : isExactlyOther
+        ? 'type-label-other-rule'
+        : 'type-label-missing-fallback';
+    return { category: 'currency', classification, typeLabels };
   }
 
   for (const [category, labels] of Object.entries(TYPE_LABEL_RULES.primaryTypeLabels)) {

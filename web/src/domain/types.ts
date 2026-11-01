@@ -15,6 +15,7 @@ export type ItemCategory =
   | 'consumable'
   | 'task'
   | 'currency'
+  | 'companion'
   | 'pet'
   | 'other'
   | 'unknown';

@@ -112,6 +112,7 @@ const CATEGORY_ICONS: Record<ItemCategory, string> = {
   consumable: '🧪',
   task: '📜',
   currency: '🪙',
+  companion: '🥋',
   other: '📦',
 };
 const STATE_LABELS: Record<StateField, string> = {

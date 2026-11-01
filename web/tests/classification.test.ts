@@ -215,5 +215,39 @@ describe('specialWeapon classification (特效武器/胚子/升级道具)', () =
       classification: 'type-label-missing-fallback',
     });
   });
+
+  it('classifies currency/numeric items (pills, vouchers, tea cakes) into currency', () => {
+    expect(classify('九花玉露散', ['其他'])).toMatchObject({
+      category: 'currency',
+      classification: 'type-label-other-rule',
+    });
+    expect(classify('匡义符·月', ['其他'])).toMatchObject({
+      category: 'currency',
+      classification: 'type-label-other-rule',
+    });
+    expect(classify('炼气丸', [])).toMatchObject({
+      category: 'currency',
+      classification: 'type-label-missing-fallback',
+    });
+    expect(classify('维峰丹', [])).toMatchObject({
+      category: 'currency',
+      classification: 'type-label-missing-fallback',
+    });
+    expect(classify('上品茶饼·兑', [])).toMatchObject({
+      category: 'currency',
+      classification: 'type-label-missing-fallback',
+    });
+  });
+
+  it('classifies companion skill scrolls into companion', () => {
+    expect(classify('《冰心诀·秘卷》', [])).toMatchObject({
+      category: 'companion',
+      classification: 'type-label-missing-fallback',
+    });
+    expect(classify('《纵横之剑·捭》', [])).toMatchObject({
+      category: 'companion',
+      classification: 'type-label-missing-fallback',
+    });
+  });
 });
 
