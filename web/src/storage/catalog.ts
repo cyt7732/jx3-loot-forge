@@ -3,12 +3,54 @@ import type { CatalogSnapshot } from '../domain/types';
 const DATABASE_NAME = 'jx3-loot-forge';
 const STORE_NAME = 'catalog';
 const KEY = 'std';
+const OFFICIAL_KEY_PREFIX = 'official_catalog_';
 const MAX_DATA_PACK_BYTES = 25 * 1024 * 1024;
 
 export type CatalogSelection = {
   snapshot: CatalogSnapshot;
   usedOverride: boolean;
 };
+
+export async function loadOfficialCatalogCache(client: 'std' | 'origin'): Promise<CatalogSnapshot | null> {
+  if (typeof indexedDB === 'undefined') return null;
+  try {
+    const database = await openDatabase();
+    try {
+      const key = `${OFFICIAL_KEY_PREFIX}${client}`;
+      const value = await runRequest(database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(key));
+      if (!value || typeof value !== 'object') return null;
+      const snapshot = value as CatalogSnapshot;
+      if (
+        snapshot.schemaVersion === 1
+        && (snapshot.client === 'std' || snapshot.client === 'origin')
+        && Array.isArray(snapshot.maps)
+        && Array.isArray(snapshot.items)
+      ) {
+        return snapshot;
+      }
+      return null;
+    } finally {
+      database.close();
+    }
+  } catch {
+    return null;
+  }
+}
+
+export async function saveOfficialCatalogCache(client: 'std' | 'origin', snapshot: CatalogSnapshot): Promise<void> {
+  if (typeof indexedDB === 'undefined') return;
+  try {
+    const database = await openDatabase();
+    try {
+      const key = `${OFFICIAL_KEY_PREFIX}${client}`;
+      await runRequest(database.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).put(snapshot, key));
+    } finally {
+      database.close();
+    }
+  } catch {
+    // 忽略缓存存储异常，不阻塞前台业务
+  }
+}
 
 function parseGeneratedAt(value: string | undefined): number | null {
   if (!value) return null;

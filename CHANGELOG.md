@@ -2,6 +2,27 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循语义化版本规范。
 
+## [1.6.2] - 2026-11-02
+
+全站全链路缓存与性能优化专项：实装 Cloudflare 静态与边缘强缓存规则、官方数据包 IndexedDB 离线秒开架构、轻量 Manifest 静默探针热更新机制。
+
+### Added
+
+- **官方数据包 IndexedDB 本地持久化与秒开体验**：
+  - 新增 `loadOfficialCatalogCache` 与 `saveOfficialCatalogCache`，首次拉取后自动存入浏览器 IndexedDB；
+  - 二次及日常访问 0 毫秒从本地读出 1.8 万件物品数据，彻底消灭首屏白屏等待；
+- **0.6KB Manifest 静默探针热更新机制**：
+  - 首屏空闲时异步比对 695 字节的 `manifest.std.json` 内容哈希（`contentHash`）；
+  - 发现新数据包自动后台静默拉取并写入 IndexedDB，无缝提示用户，不阻断前台操作；
+- **Cloudflare Pages 与 Worker 全链路强缓存规则**：
+  - 新增 `web/public/_headers`，带 Hash 静态资产设为 1 年 `immutable` 强缓存，数据包开启 1 天 `stale-while-revalidate`；
+  - 优化 Cloudflare Worker 代理，开启 `cf: { cacheEverything: true }` 边缘缓存，同地域访客直接命中边缘节点。
+
+### Changed
+
+- **解除前端网络自限**：移除数据包拉取时误设的 `{ cache: 'no-store' }`，允许浏览器遵从 HTTP 强缓存与协商缓存；
+- **单文件离线版同步**：单文件版 HTML 同步更新并保持 100% 离线脱网可用。
+
 ## [1.6.1] - 2026-11-01
 
 重构数据包次级规则，统一归类数值货币道具，新增【侠客养成】独立大类，净化特殊掉落与未分类道具池。

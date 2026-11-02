@@ -297,6 +297,20 @@ export function LootForgeApp() {
   }, [exportMenuOpen]);
 
   useEffect(() => {
+    const handleCatalogUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ client: GameClient; catalogVersion: string; snapshot: CatalogSnapshot }>;
+      if (customEvent.detail?.client === client) {
+        setToast({
+          tone: 'success',
+          message: `官方数据包已静默升级至「${customEvent.detail.catalogVersion}」，刷新页面即可应用最新数据。`,
+        });
+      }
+    };
+    window.addEventListener('jx3-catalog-updated', handleCatalogUpdated);
+    return () => window.removeEventListener('jx3-catalog-updated', handleCatalogUpdated);
+  }, [client]);
+
+  useEffect(() => {
     let cancelled = false;
     let cancelIndexing: () => void = () => undefined;
     const initialize = async () => {
