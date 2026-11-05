@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "client": "origin",
-  "catalogVersion": "data.缘起_剑胆琴心_v2_260928",
-  "generatedAt": "2026-09-17T14:41:59.898Z",
-  "contentHash": "e671d386302da75611f93bc9c1b08ba99c65e50dbd7c7f0520e1314b42daa814",
+  "catalogVersion": "data.缘起_剑胆琴心_v3_261105",
+  "generatedAt": "2026-11-05T13:29:05.076Z",
+  "contentHash": "59644218b853e1bf450889add794e0c46e745ecea20a9e2fe2dbae938b82699a",
   "stats": {
     "maps": 125,
     "bosses": 462,
-    "drops": 46662,
+    "drops": 46672,
     "uniqueItems": 10619
   },
   "completeness": {
     "status": "complete",
     "expectedMapCount": 125,
     "fetchedMapCount": 125,
-    "metadataMissing": 735,
-    "metadataMismatch": 5,
+    "metadataMissing": 2,
+    "metadataMismatch": 2,
     "failures": []
   },
   "source": "https://node.jx3box.com/fb/info?client=origin",

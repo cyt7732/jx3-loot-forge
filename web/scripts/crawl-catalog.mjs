@@ -399,8 +399,10 @@ async function main() {
     const yymmdd = `${parts.year}${parts.month}${parts.day}`;
     const rule = VERSION_RULES[client];
     if (client === 'origin') {
-      const hasFenglei = mapList.some((m) => m.name.includes('风雷刀谷'));
-      const season = hasFenglei ? 'v2' : 'v1';
+      // 大版本探测：v3=风骨霸刀(风雷刀谷/夕颜阁), v2=弈血上阳(上阳宫/归墟), v1=剑胆琴心(永王行宫/仙侣庭园)
+      const hasFenggu = mapList.some((m) => m.name.includes('风雷刀谷') || m.name.includes('夕颜阁'));
+      const hasYixue = mapList.some((m) => m.name.includes('上阳宫') || m.name.includes('归墟'));
+      const season = hasFenggu ? 'v3' : hasYixue ? 'v2' : 'v1';
       return `data.${rule.client}_${rule.expansion}_${season}_${yymmdd}`;
     }
     const hasCangsheng = mapList.some((m) => m.expansion?.includes('苍生铸世') || m.name?.includes('洛阳之战'));

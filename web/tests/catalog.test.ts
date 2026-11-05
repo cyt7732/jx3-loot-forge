@@ -72,7 +72,7 @@ describe('catalog version formatting', () => {
     expect(formatCatalogVersion('legacy-version', 'std', new Date('2026-10-31T00:00:00Z')))
       .toBe('data.旗舰_苍生铸世_v1_261031');
     expect(formatCatalogVersion('legacy-version', 'origin', new Date('2026-10-31T00:00:00Z')))
-      .toBe('data.缘起_剑胆琴心_v1_261031');
+      .toBe('data.缘起_剑胆琴心_v3_261031');
   });
 });
 

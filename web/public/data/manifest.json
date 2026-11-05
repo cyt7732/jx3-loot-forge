@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "client": "std",
-  "catalogVersion": "data.旗舰_苍生铸世_v1_261031",
-  "generatedAt": "2026-10-31T12:15:53.699Z",
-  "contentHash": "81c73246cea4d0920897dc244bdad4d1216b0447600a4c81a6cd95259a1392a1",
+  "catalogVersion": "data.旗舰_苍生铸世_v1_261105",
+  "generatedAt": "2026-11-05T13:29:22.310Z",
+  "contentHash": "0ea8ab254a9209fd4c3a08d1b7baca7a0a9d5ed73428612e7af2a7227531876d",
   "stats": {
     "maps": 265,
     "bosses": 1020,
-    "drops": 52153,
-    "uniqueItems": 17966
+    "drops": 51746,
+    "uniqueItems": 17961
   },
   "completeness": {
     "status": "complete",

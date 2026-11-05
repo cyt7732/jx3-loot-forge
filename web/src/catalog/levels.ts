@@ -8,6 +8,7 @@ import type {
   CatalogLevelGroupId,
   CatalogMap,
 } from '../domain/types';
+import VERSION_RULES from './version-rules.json';
 
 export type LevelGroup = CatalogLevelGroup;
 export type LevelGroupId = CatalogLevelGroupId;
@@ -130,7 +131,7 @@ export const ORIGIN_LEVEL_GROUPS: readonly CatalogLevelGroup[] = [
     name: '剑胆琴心',
     title: '剑胆琴心',
     label: '『剑胆琴心』（Lv.95）',
-    expansions: ['剑胆琴心', '风骨霸刀', '日月凌空', '重制版'],
+    expansions: ['剑胆琴心', '弈血上阳', '风骨霸刀', '日月凌空', '重制版'],
   },
   {
     id: 'lv-90',
@@ -271,7 +272,8 @@ export function formatCatalogVersion(
 
   const current = getCurrentSeasonGroup(client);
   const dateSuffix = shanghaiShortDate(now);
-  const legacySeason = 'v1';
+  const rule = VERSION_RULES[client];
+  const legacySeason = rule?.season ?? 'v1';
   return `data.${client === 'origin' ? '缘起' : '旗舰'}_${current.name}_${legacySeason}_${dateSuffix}`;
 }
 
