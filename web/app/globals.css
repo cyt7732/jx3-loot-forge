@@ -1576,6 +1576,23 @@ html[data-theme='light'][data-client='origin'] .brand-author,
 html[data-theme='light'][data-client='origin'] .brand-en {
   color: #059669;
 }
+/* ===== 物品品质配色：对齐剑网3客户端/茗伊插件色阶 =====
+/* 0 灰 / 1 白 / 2 绿 / 3 蓝 / 4 紫 / 5 橙 */
+.item-name strong.q-0 { color: #a7a7a7; }
+.item-name strong.q-1 { color: #ffffff; }
+.item-name strong.q-2 { color: #00d24b; }
+.item-name strong.q-3 { color: #007eff; }
+.item-name strong.q-4 { color: #ff2dff; }
+.item-name strong.q-5 { color: #ffa500; }
+
+
+html[data-theme='light'] .item-name strong.q-0 { color: #8a8a8a; }
+html[data-theme='light'] .item-name strong.q-1 { color: #475569; }
+html[data-theme='light'] .item-name strong.q-2 { color: #0a8f43; }
+html[data-theme='light'] .item-name strong.q-3 { color: #0063cc; }
+html[data-theme='light'] .item-name strong.q-4 { color: #b31fd6; }
+html[data-theme='light'] .item-name strong.q-5 { color: #b36900; }
+
 
 
 

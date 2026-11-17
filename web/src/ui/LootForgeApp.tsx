@@ -135,6 +135,29 @@ function itemDisposition(state: ItemState): ItemDisposition {
   return 'none';
 }
 
+function itemQualityClass(item: Pick<CatalogItem, 'quality' | 'qualityMin' | 'qualityMax'>): string | undefined {
+  const value = item.qualityMax ?? item.quality ?? item.qualityMin;
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  const quality = Math.min(5, Math.max(0, Math.round(value)));
+  return `q-${quality}`;
+}
+
+function formatItemLevel(item: Pick<CatalogItem, 'itemLevel' | 'itemLevelMin' | 'itemLevelMax'>): string {
+  const min = item.itemLevelMin ?? item.itemLevel;
+  const max = item.itemLevelMax ?? item.itemLevel;
+  if (typeof max !== 'number' || !Number.isFinite(max)) return '';
+  if (typeof min === 'number' && Number.isFinite(min) && min !== max) return `${min}–${max}`;
+  return String(max);
+}
+
+function itemMetaText(item: Pick<CatalogItem, 'subtype' | 'itemLevel' | 'itemLevelMin' | 'itemLevelMax'>): string {
+  const parts: string[] = [];
+  if (item.subtype) parts.push(item.subtype);
+  const level = formatItemLevel(item);
+  if (level) parts.push(`品质等级 ${level}`);
+  return parts.join(' · ');
+}
+
 
 function shanghaiDateStamp(now = new Date()): string {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
@@ -1861,7 +1884,7 @@ export function LootForgeApp() {
 
                             <div className="item-row item-head" role="row">
                               <span>物品与来源</span>
-                              <span>品质 / 装等</span>
+                              <span>类型 / 品质等级</span>
                               <span>跳过拾取</span>
                               <span>出售策略</span>
                             </div>
@@ -1873,10 +1896,11 @@ export function LootForgeApp() {
                               const source = item.sources[0];
                               const isCustomLocked = focusedScope.type !== 'custom' && Boolean(item.customOverride || customOverrides.has(item.id));
                               const lockedTitle = `“${item.name}”已在【用户自定义】中维护（最高优先级），副本内设置不生效。如需修改请前往【用户自定义】。`;
+                              const metaText = itemMetaText(item);
                               return (
                                 <div className={`item-row ${item.customOverride ? 'custom-row' : ''} ${item.historical ? 'historical-row' : ''} ${isCustomLocked ? 'custom-locked' : ''}`} role="row" key={item.id}>
                                   <div className="item-name">
-                                    <strong>
+                                    <strong className={itemQualityClass(item)}>
                                       {item.name}
                                       {item.systemSeed && <span className="seed-badge">推荐保护</span>}
                                       {item.customOverride && (
@@ -1903,9 +1927,9 @@ export function LootForgeApp() {
                                      )}
                                     {item.historical && <button className="text-action" type="button" onClick={() => removeHistoricalState(item.id)}>清除历史状态并停止导出</button>}
                                   </div>
-                                  <span className={`category-pill quality-${item.qualityMax ?? item.quality ?? 0}`}>
-                                    {item.subtype ? `${item.subtype} · ` : ''}{item.itemLevelMax ? `${item.itemLevelMin === item.itemLevelMax ? item.itemLevelMax : `${item.itemLevelMin}–${item.itemLevelMax}`}品` : `品质 ${item.qualityMax ?? item.quality ?? 0}`}
-                                  </span>
+                                  {metaText && (
+                                    <span className="category-pill">{metaText}</span>
+                                  )}
                                   <StateButton state={state} onClick={() => toggleItemState(item, 'skipLoot')} locked={isCustomLocked} lockedTitle={lockedTitle} />
                                   <DispositionSelector disposition={itemDisposition(state)} onChange={(disposition) => setItemDisposition(item, disposition)} locked={isCustomLocked} lockedTitle={lockedTitle} />
                                 </div>

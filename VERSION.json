@@ -1,9 +1,9 @@
 {
   "project": "剑网3掉落工坊",
-  "appVersion": "1.6.2",
-  "catalogVersion": "data.旗舰_苍生铸世_v1_261031",
-  "releasedAt": "2026-11-02",
-  "tag": "v1.6.2",
+  "appVersion": "1.6.3",
+  "catalogVersion": "data.旗舰_苍生铸世_v1_261105",
+  "releasedAt": "2026-11-17",
+  "tag": "v1.6.3",
   "channel": "stable",
   "stability": "stable"
 }
