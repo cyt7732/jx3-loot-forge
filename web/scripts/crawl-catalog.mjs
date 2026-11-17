@@ -14,7 +14,6 @@ const OUTPUT_PATH = resolve(PROJECT_DIR, `src/catalog/catalog.${CLIENT}.json`);
 const TEMP_PATH = resolve(PROJECT_DIR, `src/catalog/catalog.${CLIENT}.json.tmp`);
 const PUBLIC_SNAPSHOT_PATH = resolve(PROJECT_DIR, `public/data/catalog.${CLIENT}.json`);
 const PUBLIC_MANIFEST_PATH = resolve(PROJECT_DIR, `public/data/manifest.${CLIENT}.json`);
-const LEGACY_MANIFEST_PATH = resolve(PROJECT_DIR, 'public/data/manifest.json');
 const TYPE_LABEL_RULES_PATH = resolve(PROJECT_DIR, 'src/catalog/type-label-rules.json');
 const VERSION_RULES_PATH = resolve(PROJECT_DIR, 'src/catalog/version-rules.json');
 const BASE_URL = 'https://node.jx3box.com';
@@ -458,9 +457,6 @@ async function main() {
   }, null, 2)}\n`;
 
   await writeFile(PUBLIC_MANIFEST_PATH, manifestContent, 'utf8');
-  if (CLIENT === 'std') {
-    await writeFile(LEGACY_MANIFEST_PATH, manifestContent, 'utf8');
-  }
   process.stdout.write(`${JSON.stringify(snapshot.stats)} hash=${hash}\n`);
 }
 

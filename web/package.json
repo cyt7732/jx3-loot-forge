@@ -1,17 +1,18 @@
 {
   "name": "jx3-loot-forge",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build --config vite.web.config.ts",
-    "build:web": "vite build --config vite.web.config.ts",
+    "dev": "node scripts/sync-public-data.mjs && vite",
+    "build": "node scripts/sync-public-data.mjs && vite build",
+    "build:web": "node scripts/sync-public-data.mjs && vite build",
     "build:offline": "node scripts/build-offline.mjs",
     "start": "vite preview",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "sync:data": "node scripts/sync-public-data.mjs",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "crawl:catalog": "node scripts/crawl-catalog.mjs --client=std",
@@ -22,29 +23,20 @@
     "check": "npm run typecheck && npm run lint && npm run test && npm run build:web && npm run build:offline"
   },
   "dependencies": {
-    "next": "16.3.2",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.53.1",
-    "@cloudflare/workers-types": "5.20260823.1",
-    "@openai/sites-vite-plugin": "^0.1.0 || ^0.2.0",
-    "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
-    "@vitejs/plugin-rsc": "0.5.34",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.3.2",
-    "react-server-dom-webpack": "19.2.8",
-    "tailwindcss": "4.2.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "typescript": "5.9.3",
-    "vinext": "1.0.0-beta.8",
-    "vite": "8.2.2",
-    "vitest": "^4.1.11",
-    "wrangler": "4.125.0"
+    "typescript-eslint": "^8.46.0",
+    "vite": "8.3.8",
+    "vitest": "^4.1.11"
   },
   "type": "module"
 }

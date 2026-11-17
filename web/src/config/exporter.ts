@@ -21,7 +21,6 @@ const PICKUP_SETTINGS: Array<{ path: string; value: string }> = [
   { path: 'MY_GKPDoodad.bOpenLoot', value: 'true' },
   { path: 'MY_GKPDoodad.fNameScale', value: '1.1' },
   { path: 'MY_GKPDoodad.bReadInscriptionDoodad', value: 'true' },
-  { path: 'MY_GKPLoot.anchor', value: '{y=360.26452636719,x=189.7861328125,s="TOPLEFT",r="TOPCENTER"}' },
   { path: 'MY_GKPDoodad.bOpenLootEvenFight', value: 'true' },
   { path: 'MY_GKPLoot.bAutoPickupFilterBookRead', value: 'false' },
   { path: 'MY_GKPDoodad.bQuestDoodad', value: 'true' },
@@ -40,6 +39,7 @@ const PICKUP_SETTINGS: Array<{ path: string; value: string }> = [
   { path: 'MY_GKPDoodad.bRecent', value: 'true' },
   { path: 'MY_GKPLoot.bAutoPickupQuality', value: 'true' },
   { path: 'MY_GKPLoot.bAutoPickupTaskItem', value: 'true' },
+  // 注意：不导出 MY_GKPLoot.anchor 等纯界面偏好（拾取框锚点坐标），避免覆盖用户自己的界面布局
 ];
 
 function quoteLua(value: string): string {

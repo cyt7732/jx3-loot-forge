@@ -6,8 +6,8 @@
 
 副本掉落配置管理工具，支持旗舰端与缘起端
 
-[![Release](https://img.shields.io/badge/Release-v1.6.0-emerald.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge/releases)
-[![Data Version](https://img.shields.io/badge/Data-苍生铸世__v1__261031-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
+[![Release](https://img.shields.io/github/v/release/cyt7732/jx3-loot-forge?style=flat-square&color=emerald)](https://github.com/cyt7732/jx3-loot-forge/releases)
+[![Data Version](https://img.shields.io/badge/Data-苍生铸世__v1__261105-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![Platform](https://img.shields.io/badge/Platform-JX3%20旗舰端%20%2F%20缘起端-emerald.svg?style=flat-square)](https://jx3.xoyo.com)
 [![Offline Ready](https://img.shields.io/badge/Offline-100%25%20Single--File-blueviolet.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-orange.svg?style=flat-square)](LICENSE)
@@ -36,7 +36,7 @@
 
 ### 单文件离线运行
 
-整个应用打包为独立 HTML 文件（约 26MB），包含完整数据与资源，可在现代浏览器中直接打开使用，无需网络连接或额外依赖。
+整个应用打包为独立 HTML 文件（约 30MB），包含完整数据与资源，可在现代浏览器中直接打开使用，无需网络连接或额外依赖。
 
 ### 数据覆盖
 
@@ -77,7 +77,9 @@
 
 ### 离线版（推荐）
 
-下载根目录的 `剑网3掉落工坊.html` 文件，在浏览器中直接打开即可使用。该文件包含完整数据，无需联网。
+前往 [GitHub Releases](https://github.com/cyt7732/jx3-loot-forge/releases/latest) 下载最新版本的离线压缩包，解压后运行其中的 `剑网3掉落工坊.html`，在浏览器中直接打开即可使用。该文件包含完整数据，无需联网。
+
+> 本地开发时执行 `npm run build:offline` 也会在仓库根目录生成同名单文件（已加入 .gitignore，不入库）。
 
 ### 开发环境
 
@@ -94,14 +96,16 @@ npm run build:offline # 构建单文件离线版
 
 ```
 jx3-loot-forge/
-├── 剑网3掉落工坊.html          # 单文件离线版
+├── VERSION.json               # 版本号唯一权威来源（appVersion + 数据包版本）
 ├── web/                       # 源代码
 │   ├── src/
-│   │   ├── catalog/           # 副本数据与物品分类引擎
+│   │   ├── catalog/           # 副本数据与物品分类引擎（catalog.*.json 为唯一入库数据源）
 │   │   ├── config/            # 配置文件导出与导入模块
 │   │   ├── domain/            # 核心业务逻辑与类型定义
 │   │   ├── storage/           # 本地存储管理
+│   │   ├── styles/            # 全局样式
 │   │   └── ui/                # 用户界面组件
+│   ├── public/data/           # 在线版数据包（构建前由 sync-public-data.mjs 生成，不入库）
 │   ├── scripts/               # 构建与数据维护脚本
 │   └── tests/                 # 自动化测试
 ├── docs/                      # 开发文档
@@ -124,8 +128,8 @@ jx3-loot-forge/
 
 ### 数据版本
 
-- 旗舰端：`data.旗舰_苍生铸世_v1_261031`
-- 缘起端：`data.缘起_剑胆琴心_v3_260928`
+- 旗舰端：`data.旗舰_苍生铸世_v1_261105`
+- 缘起端：`data.缘起_剑胆琴心_v3_261105`
 
 ### 隐私与安全
 

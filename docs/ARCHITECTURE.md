@@ -7,9 +7,9 @@
 ## 技术栈
 
 - **框架**: React 19.2.8
-- **构建工具**: Vite 8.2.2
+- **构建工具**: Vite 8.3.8
 - **语言**: TypeScript 5.9.3
-- **样式**: Tailwind CSS 4.2.1
+- **样式**: 手写 CSS（CSS 自定义属性 + `data-theme` 主题变量，见 `web/src/styles/globals.css`）
 - **测试**: Vitest 4.1.11
 - **编码处理**: 自研 GBK 编解码器
 
@@ -60,7 +60,7 @@ export function assertValidState(state: ItemState): void {
 - 嵌入完整副本数据包
 - GBK编码表内置
 
-最终产物：`剑网3掉落工坊.html`（约26MB）
+最终产物：`剑网3掉落工坊.html`（约30MB，构建产物不入库，经 GitHub Release 分发）
 
 ---
 
@@ -543,9 +543,9 @@ type Workspace = {
 
 ### 短期优化（3-6个月）
 
-1. **组件拆分**: 将 `LootForgeApp.tsx` 拆分成10-15个小组件
-2. **状态管理升级**: 迁移到 useReducer 或 Zustand
-3. **依赖清理**: 移除不需要的 Next.js 相关依赖
+1. **状态管理升级**: 迁移到 useReducer 或 Zustand
+2. ~~**组件拆分**: 将 `LootForgeApp.tsx` 拆分成10-15个小组件~~（v1.6.4 已完成首轮拆分）
+3. ~~**依赖清理**: 移除不需要的 Next.js 相关依赖~~（v1.6.4 已完成）
 
 ### 中期增强（6-12个月）
 
@@ -565,10 +565,8 @@ type Workspace = {
 
 当前已知技术债务（优先级：低）：
 
-1. **LootForgeApp.tsx 过大**: 2096行单组件，可维护性受影响
-2. **状态管理复杂**: 20+个useState，逻辑分散
-3. **依赖冗余**: package.json 中包含未使用的 Next.js 依赖
-4. **缺少性能优化**: 大列表未虚拟化，组件未memo
+1. **状态管理复杂**: 20+个useState，逻辑分散
+2. **缺少性能优化**: 大列表未虚拟化，组件未memo
 
 **决策**: 这些债务不影响当前使用，按需偿还，不追求完美主义。
 

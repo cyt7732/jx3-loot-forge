@@ -2,16 +2,19 @@ import type { CatalogSnapshot } from '../domain/types';
 
 const DATABASE_NAME = 'jx3-loot-forge';
 const STORE_NAME = 'catalog';
-const KEY = 'std';
+const LEGACY_OVERRIDE_KEY = 'std';
+const OVERRIDE_KEY_PREFIX = 'catalog_override_';
 const OFFICIAL_KEY_PREFIX = 'official_catalog_';
 const MAX_DATA_PACK_BYTES = 25 * 1024 * 1024;
+
+type CatalogClient = 'std' | 'origin';
 
 export type CatalogSelection = {
   snapshot: CatalogSnapshot;
   usedOverride: boolean;
 };
 
-export async function loadOfficialCatalogCache(client: 'std' | 'origin'): Promise<CatalogSnapshot | null> {
+export async function loadOfficialCatalogCache(client: CatalogClient): Promise<CatalogSnapshot | null> {
   if (typeof indexedDB === 'undefined') return null;
   try {
     const database = await openDatabase();
@@ -22,7 +25,7 @@ export async function loadOfficialCatalogCache(client: 'std' | 'origin'): Promis
       const snapshot = value as CatalogSnapshot;
       if (
         snapshot.schemaVersion === 1
-        && (snapshot.client === 'std' || snapshot.client === 'origin')
+        && snapshot.client === client
         && Array.isArray(snapshot.maps)
         && Array.isArray(snapshot.items)
       ) {
@@ -37,7 +40,7 @@ export async function loadOfficialCatalogCache(client: 'std' | 'origin'): Promis
   }
 }
 
-export async function saveOfficialCatalogCache(client: 'std' | 'origin', snapshot: CatalogSnapshot): Promise<void> {
+export async function saveOfficialCatalogCache(client: CatalogClient, snapshot: CatalogSnapshot): Promise<void> {
   if (typeof indexedDB === 'undefined') return;
   try {
     const database = await openDatabase();
@@ -72,6 +75,7 @@ export function selectCatalogSnapshot(
   override: CatalogSnapshot | null,
 ): CatalogSelection {
   if (!override) return { snapshot: embedded, usedOverride: false };
+  if (override.client !== embedded.client) return { snapshot: embedded, usedOverride: false };
   if (override.contentHash === embedded.contentHash) return { snapshot: override, usedOverride: true };
 
   const embeddedGeneratedAt = parseGeneratedAt(embedded.generatedAt);
@@ -105,46 +109,65 @@ function runRequest<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
-export async function loadCatalogOverride(): Promise<CatalogSnapshot | null> {
+export async function loadCatalogOverride(client: CatalogClient): Promise<CatalogSnapshot | null> {
   if (typeof indexedDB === 'undefined') return null;
   const database = await openDatabase();
   try {
-    const value = await runRequest(database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(KEY));
-    return value ? await validateCatalogSnapshot(value) : null;
+    const store = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME);
+    let value = await runRequest(store.get(`${OVERRIDE_KEY_PREFIX}${client}`));
+    // 兼容 v1.6.3 及之前的单一槽位：旧键只可能存放旗舰端数据包
+    if (!value && client === 'std') value = await runRequest(store.get(LEGACY_OVERRIDE_KEY));
+    return value ? await validateCatalogSnapshot(value, client) : null;
   } finally {
     database.close();
   }
 }
 
-export async function saveCatalogOverride(snapshot: CatalogSnapshot): Promise<void> {
-  const validated = await validateCatalogSnapshot(snapshot);
+export async function saveCatalogOverride(client: CatalogClient, snapshot: CatalogSnapshot): Promise<void> {
+  const validated = await validateCatalogSnapshot(snapshot, client);
   const database = await openDatabase();
   try {
-    await runRequest(database.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).put(validated, KEY));
+    const store = database.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME);
+    await runRequest(store.put(validated, `${OVERRIDE_KEY_PREFIX}${client}`));
+    if (client === 'std') await runRequest(store.delete(LEGACY_OVERRIDE_KEY));
   } finally {
     database.close();
   }
 }
 
-export async function clearCatalogOverride(): Promise<void> {
+export async function clearCatalogOverride(client: CatalogClient): Promise<void> {
   if (typeof indexedDB === 'undefined') return;
   const database = await openDatabase();
   try {
-    await runRequest(database.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).delete(KEY));
+    const store = database.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME);
+    await runRequest(store.delete(`${OVERRIDE_KEY_PREFIX}${client}`));
+    if (client === 'std') await runRequest(store.delete(LEGACY_OVERRIDE_KEY));
   } finally {
     database.close();
   }
 }
 
-export async function parseCatalogDataPack(text: string): Promise<CatalogSnapshot> {
+export async function parseCatalogDataPack(text: string, client: CatalogClient): Promise<CatalogSnapshot> {
   if (new TextEncoder().encode(text).byteLength > MAX_DATA_PACK_BYTES) throw new Error('数据包超过 25 MiB 限制。');
-  return validateCatalogSnapshot(JSON.parse(text));
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('数据包不是有效的 JSON 文件。');
+  }
+  const declared = (parsed as Partial<CatalogSnapshot> | null)?.client;
+  if (declared === 'std' || declared === 'origin') {
+    if (declared !== client) {
+      throw new Error(`该数据包属于「${declared === 'std' ? '旗舰正式服' : '缘起怀旧服'}」，请先切换到对应客户端再导入。`);
+    }
+  }
+  return validateCatalogSnapshot(parsed, client);
 }
 
-export async function validateCatalogSnapshot(value: unknown): Promise<CatalogSnapshot> {
+export async function validateCatalogSnapshot(value: unknown, client: CatalogClient = 'std'): Promise<CatalogSnapshot> {
   if (!value || typeof value !== 'object') throw new Error('数据包结构无效。');
   const snapshot = value as CatalogSnapshot;
-  if (snapshot.schemaVersion !== 1 || snapshot.client !== 'std' || !Array.isArray(snapshot.maps) || !Array.isArray(snapshot.items)) throw new Error('不支持的数据包版本。');
+  if (snapshot.schemaVersion !== 1 || snapshot.client !== client || !Array.isArray(snapshot.maps) || !Array.isArray(snapshot.items)) throw new Error('不支持的数据包版本。');
   if (
     snapshot.completeness?.status !== 'complete'
     || snapshot.completeness.expectedMapCount !== snapshot.maps.length

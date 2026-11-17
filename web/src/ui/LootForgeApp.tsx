@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   buildCatalogItems,
   catalogSnapshot,
-  formatCatalogVersion,
   getCurrentSeasonGroup,
   getLegacyEquipment,
   getLegacyMaps,
@@ -15,10 +14,6 @@ import {
 import { buildExportBatch } from '../config/exporter';
 import { parseManagedConfig, previewImport, validateItemName } from '../config/importer';
 import {
-  APP_NAME,
-  APP_NAME_EN,
-  APP_VERSION,
-  AUTHOR,
   CATEGORY_LABELS,
   CATEGORY_ORDER,
   CLIENT_STORAGE_KEY,
@@ -44,14 +39,10 @@ import {
 import type {
   BatchActionType,
   BulkRuleSet,
-  CatalogItem,
   CatalogMap,
   CatalogSnapshot,
-  ImportMode,
-  ImportPreview,
   ItemCategory,
   ItemState,
-  ParsedManagedConfig,
   StateField,
   Workspace,
 } from '../domain/types';
@@ -73,130 +64,28 @@ import {
   readWorkspaceBackupFile,
   resetWorkspace,
 } from '../storage/workspace';
-import { downloadBytes, downloadText } from '../utils/download';
+import { downloadText } from '../utils/download';
+import { CategoryTable } from './CategoryTable';
+import { CustomItemsDialog, EmptyExportWarningDialog, ImportConfigDialog, WorkspaceDialog } from './Dialogs';
+import { downloadBatchFile, shanghaiDateStamp } from './display';
+import { ScopeTree } from './ScopeTree';
+import { ToastCard } from './primitives';
+import { TopBar } from './TopBar';
+import type {
+  DialogName,
+  DrawerStateView,
+  ExportKind,
+  FocusedScope,
+  ImportDraft,
+  ItemDisposition,
+  ScopeLevelGroup,
+  ThemeMode,
+  Toast,
+  ViewItem,
+} from './types';
 
-export type ThemeMode = 'light' | 'dark';
-
-type ViewItem = CatalogItem & {
-  isCustom: boolean;
-  customOverride: boolean;
-  systemSeed: boolean;
-  historical: boolean;
-};
-
-type ImportDraft = {
-  filename: string;
-  parsed: ParsedManagedConfig;
-  mode: ImportMode;
-  preview: ImportPreview;
-};
-
-type DialogName = 'custom' | 'workspace' | 'import' | 'emptyExportWarning' | null;
-type Toast = { tone: 'success' | 'warning' | 'error'; message: string; id?: number } | null;
-type ItemDisposition = 'none' | 'autoSell' | 'protect';
-
-const CATEGORY_ICONS: Record<ItemCategory, string> = {
-  equipment: '⚔️',
-  equipmentExchange: '🎫',
-  specialWeapon: '🗡️',
-  material: '🪵',
-  specialDrop: '💎',
-  recipe: '📜',
-  furniture: '🪑',
-  smallIron: '⛏️',
-  bigIron: '🔥',
-  smallEnchant: '✨',
-  bigEnchant: '🌟',
-  pet: '🐾',
-  unknown: '📦',
-  consumable: '🧪',
-  task: '📜',
-  currency: '🪙',
-  companion: '🥋',
-  other: '📦',
-};
-const STATE_LABELS: Record<StateField, string> = {
-  skipLoot: '跳过拾取',
-  autoSell: '自动出售',
-  protect: '保护不出售',
-};
-export function sourceKey(mapId: number, bossName: string): string {
-  return `${mapId}:${encodeURIComponent(bossName)}`;
-}
-
-function stateSummary(state: ItemState): string {
-  const labels = [state.skipLoot && '跳过拾取', state.autoSell && '自动出售', state.protect && '保护不出售'].filter(Boolean);
-  return labels.length ? labels.join('、') : '未配置';
-}
-
-function itemDisposition(state: ItemState): ItemDisposition {
-  if (state.autoSell) return 'autoSell';
-  if (state.protect) return 'protect';
-  return 'none';
-}
-
-function itemQualityClass(item: Pick<CatalogItem, 'quality' | 'qualityMin' | 'qualityMax'>): string | undefined {
-  const value = item.qualityMax ?? item.quality ?? item.qualityMin;
-  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
-  const quality = Math.min(5, Math.max(0, Math.round(value)));
-  return `q-${quality}`;
-}
-
-function formatItemLevel(item: Pick<CatalogItem, 'itemLevel' | 'itemLevelMin' | 'itemLevelMax'>): string {
-  const min = item.itemLevelMin ?? item.itemLevel;
-  const max = item.itemLevelMax ?? item.itemLevel;
-  if (typeof max !== 'number' || !Number.isFinite(max)) return '';
-  if (typeof min === 'number' && Number.isFinite(min) && min !== max) return `${min}–${max}`;
-  return String(max);
-}
-
-function itemMetaText(item: Pick<CatalogItem, 'subtype' | 'itemLevel' | 'itemLevelMin' | 'itemLevelMax'>): string {
-  const parts: string[] = [];
-  if (item.subtype) parts.push(item.subtype);
-  const level = formatItemLevel(item);
-  if (level) parts.push(`品质等级 ${level}`);
-  return parts.join(' · ');
-}
-
-
-function shanghaiDateStamp(now = new Date()): string {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(now).map((part) => [part.type, part.value]));
-  return `${parts.year}-${parts.month}-${parts.day}`;
-}
-
-
-function downloadBatchFile(file: { filename: string; bytes: Uint8Array }): void {
-  downloadBytes(file.filename, file.bytes);
-}
-
-export type FocusedScope =
-  | { type: 'all' }
-  | { type: 'custom' }
-  | { type: 'level'; id: string; name: string; era?: string; eraName?: string; level: number | null; mapIds: number[] }
-  | { type: 'difficulty'; levelName: string; label: string; mapIds: number[] }
-  | { type: 'map'; mapId: number; name: string; difficulty: string; levelName?: string }
-  | { type: 'boss'; mapId: number; mapName: string; bossName: string; levelName?: string };
-
-function ChevronIcon({ className = '' }: { className?: string }) {
-  return (
-    <svg
-      className={`tree-chevron-icon ${className}`}
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <polyline points="2 4 6 8 10 4" />
-    </svg>
-  );
-}
+// 兼容历史导入路径：sourceKey 此前直接从本模块导出
+export { sourceKey } from './display';
 
 export function LootForgeApp() {
   const [activeSnapshot, setActiveSnapshot] = useState(catalogSnapshot);
@@ -213,10 +102,10 @@ export function LootForgeApp() {
   const [undoWorkspace, setUndoWorkspace] = useState<Workspace | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<ItemCategory | null>(null);
   const [drawerQuery, setDrawerQuery] = useState('');
-  const [drawerStateView, setDrawerStateView] = useState<'all' | 'configured' | 'unconfigured' | 'protected'>('all');
+  const [drawerStateView, setDrawerStateView] = useState<DrawerStateView>('all');
   const [drawerPage, setDrawerPage] = useState(1);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
-  const [pendingExportKind, setPendingExportKind] = useState<'combined' | 'pickup' | 'sell'>('combined');
+  const [pendingExportKind, setPendingExportKind] = useState<ExportKind>('combined');
   const [focusedScope, setFocusedScope] = useState<FocusedScope>({ type: 'all' });
   const [theme, setTheme] = useState<ThemeMode>(() => {
     if (typeof window === 'undefined') return 'dark';
@@ -284,12 +173,17 @@ export function LootForgeApp() {
       localStorage.setItem(CLIENT_STORAGE_KEY, targetClient);
       document.documentElement.setAttribute('data-client', targetClient);
 
-      const nextSnapshot = await loadCatalogSnapshot(targetClient);
-      setEmbeddedSnapshot(nextSnapshot);
-      setActiveSnapshot(nextSnapshot);
+      const [nextEmbedded, nextOverride] = await Promise.all([
+        loadCatalogSnapshot(targetClient),
+        loadCatalogOverride(targetClient).catch(() => null),
+      ]);
+      // 与启动路径保持一致：导入的数据包若比内置数据新，同样优先生效
+      const selection = selectCatalogSnapshot(nextEmbedded, nextOverride);
+      setEmbeddedSnapshot(nextEmbedded);
+      setActiveSnapshot(selection.snapshot);
 
       const { workspace: restoredWorkspace, persistenceEnabled: isPersistent } = handleWorkspaceInitialization(
-        nextSnapshot.catalogVersion,
+        selection.snapshot.catalogVersion,
         (notif) => setToast(notif),
         targetClient,
       );
@@ -341,7 +235,7 @@ export function LootForgeApp() {
         const initialClient = client;
         const [embedded, override] = await Promise.all([
           loadCatalogSnapshot(initialClient),
-          loadCatalogOverride().catch(() => null),
+          loadCatalogOverride(initialClient).catch(() => null),
         ]);
         if (cancelled) return;
         const selection = selectCatalogSnapshot(embedded, override);
@@ -492,27 +386,7 @@ export function LootForgeApp() {
   const hasScope = selectedMaps.size > 0 || selectedBosses.size > 0;
   const hasDungeonScope = useMemo(() => [...selectedMaps].some((id) => id !== CUSTOM_SCOPE_ID) || selectedBosses.size > 0, [selectedMaps, selectedBosses]);
 
-  const mapSelection = (map: CatalogMap) => {
-    if (selectedMaps.has(map.mapId)) return { full: true, partial: false };
-    const selectedBossCount = map.bossNames.reduce((count, boss) => count + (selectedBosses.has(sourceKey(map.mapId, boss)) ? 1 : 0), 0);
-    return {
-      full: map.bossNames.length > 0 && selectedBossCount === map.bossNames.length,
-      partial: selectedBossCount > 0 && selectedBossCount < map.bossNames.length,
-    };
-  };
-
-  const mapsSelection = (maps: CatalogMap[]) => {
-    const selectedMapCount = maps.filter((map) => selectedMaps.has(map.mapId)).length;
-    const fullCount = maps.filter((map) => mapSelection(map).full).length;
-    const partial = maps.some((map) => mapSelection(map).partial);
-    return {
-      selectedMapCount,
-      full: maps.length > 0 && fullCount === maps.length,
-      partial: partial || (fullCount > 0 && fullCount < maps.length),
-    };
-  };
-
-  const levelGroups = useMemo(() => {
+  const levelGroups = useMemo<ScopeLevelGroup[]>(() => {
     const query = scopeQuery.trim();
     return groupMapsByLevel(activeSnapshot.maps, client)
       .map((levelGroup) => {
@@ -550,7 +424,7 @@ export function LootForgeApp() {
     const isCustomItem = Boolean(item.isCustom || item.customOverride || item.historical);
     if (!hasScope) return isCustomItem;
     const matchesCustom = selectedMaps.has(CUSTOM_SCOPE_ID) && isCustomItem;
-    const matchesSource = item.sources.some((source) => selectedMaps.has(source.mapId) || selectedBosses.has(sourceKey(source.mapId, source.bossName)));
+    const matchesSource = item.sources.some((source) => selectedMaps.has(source.mapId) || selectedBosses.has(`${source.mapId}:${encodeURIComponent(source.bossName)}`));
     return matchesCustom || matchesSource;
   };
 
@@ -610,8 +484,6 @@ export function LootForgeApp() {
     return { skipLoot, autoSell, protect, sourceLinks, repeatedNames };
   }, [scopedItems, stateMap]);
 
-  const DRAWER_PAGE_SIZE = 20;
-
   const drawerItems = useMemo(() => {
     if (!expandedCategory) return [];
     const query = drawerQuery.trim().normalize('NFC');
@@ -628,9 +500,9 @@ export function LootForgeApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expandedCategory, drawerQuery, drawerStateView, allItems, stateMap, hasScope, selectedMaps, selectedBosses, focusedScope]);
 
-  const drawerTotalPages = Math.max(1, Math.ceil(drawerItems.length / DRAWER_PAGE_SIZE));
+  const drawerTotalPages = Math.max(1, Math.ceil(drawerItems.length / 20));
   const currentDrawerPage = Math.min(drawerPage, drawerTotalPages);
-  const visibleDrawerItems = drawerItems.slice((currentDrawerPage - 1) * DRAWER_PAGE_SIZE, currentDrawerPage * DRAWER_PAGE_SIZE);
+  const visibleDrawerItems = drawerItems.slice((currentDrawerPage - 1) * 20, currentDrawerPage * 20);
 
   const commitStateMap = (nextMap: Map<string, ItemState>, keepUndo = true) => {
     if (keepUndo) setUndoWorkspace(workspace);
@@ -689,7 +561,7 @@ export function LootForgeApp() {
   };
 
   const toggleBoss = (mapId: number, bossName: string, mapBossNames?: string[]) => {
-    const key = sourceKey(mapId, bossName);
+    const key = `${mapId}:${encodeURIComponent(bossName)}`;
     setWorkspace((current) => {
       const isMapSelected = current.selectedMapIds.includes(mapId);
       const bosses = new Set(current.selectedBossKeys);
@@ -699,7 +571,7 @@ export function LootForgeApp() {
         const mapBosses = mapBossNames ?? activeSnapshot.maps.find((m) => m.mapId === mapId)?.bossNames ?? [];
         for (const b of mapBosses) {
           if (b !== bossName) {
-            bosses.add(sourceKey(mapId, b));
+            bosses.add(`${mapId}:${encodeURIComponent(b)}`);
           }
         }
         bosses.delete(key);
@@ -729,7 +601,7 @@ export function LootForgeApp() {
       const selected = new Set(current.selectedMapIds);
       const bosses = new Set(current.selectedBossKeys);
       const allSelected = maps.length > 0 && maps.every((map) => selected.has(map.mapId)
-        || (map.bossNames.length > 0 && map.bossNames.every((boss) => bosses.has(sourceKey(map.mapId, boss)))));
+        || (map.bossNames.length > 0 && map.bossNames.every((boss) => bosses.has(`${map.mapId}:${encodeURIComponent(boss)}`))));
       for (const map of maps) {
         if (allSelected) selected.delete(map.mapId);
         else selected.add(map.mapId);
@@ -770,7 +642,7 @@ export function LootForgeApp() {
       return focusedScope.mapIds.length > 0 && focusedScope.mapIds.every((id) => selectedMaps.has(id));
     }
     if (focusedScope.type === 'map') return selectedMaps.has(focusedScope.mapId);
-    if (focusedScope.type === 'boss') return selectedBosses.has(sourceKey(focusedScope.mapId, focusedScope.bossName)) || selectedMaps.has(focusedScope.mapId);
+    if (focusedScope.type === 'boss') return selectedBosses.has(`${focusedScope.mapId}:${encodeURIComponent(focusedScope.bossName)}`) || selectedMaps.has(focusedScope.mapId);
     return false;
   }, [focusedScope, selectedMaps, selectedBosses]);
 
@@ -796,7 +668,7 @@ export function LootForgeApp() {
       return;
     }
     if (focusedScope.type === 'boss') {
-      if (!selectedBosses.has(sourceKey(focusedScope.mapId, focusedScope.bossName)) && !selectedMaps.has(focusedScope.mapId)) {
+      if (!selectedBosses.has(`${focusedScope.mapId}:${encodeURIComponent(focusedScope.bossName)}`) && !selectedMaps.has(focusedScope.mapId)) {
         toggleBoss(focusedScope.mapId, focusedScope.bossName);
       }
       setToast({ tone: 'success', message: `已勾选【${focusedScope.bossName}】用于导出` });
@@ -1038,7 +910,7 @@ export function LootForgeApp() {
       .map(([id, state]) => ({ name: names.get(id) ?? id, state }));
   };
 
-  const executeExport = (kind: 'combined' | 'pickup' | 'sell' = 'combined', force = false) => {
+  const executeExport = (kind: ExportKind = 'combined', force = false) => {
     try {
       if (!catalogIndexed) throw new Error('数据目录仍在建立索引，请稍候再导出。');
       const hasExportSelection = selectedMaps.size > 0 || selectedBosses.size > 0;
@@ -1061,8 +933,13 @@ export function LootForgeApp() {
     }
   };
 
-  const exportFiles = (kind: 'combined' | 'pickup' | 'sell' = 'combined') => {
+  const exportFiles = (kind: ExportKind = 'combined') => {
     executeExport(kind, false);
+  };
+
+  const exportFromMenu = (kind: ExportKind) => {
+    exportFiles(kind);
+    setExportMenuOpen(false);
   };
 
   const handleConfigFile = async (file: File) => {
@@ -1071,7 +948,7 @@ export function LootForgeApp() {
       if (file.size > 5 * 1024 * 1024) throw new Error('配置文件超过 5 MiB 限制。');
       const source = decodeGbk(new Uint8Array(await file.arrayBuffer()));
       const parsed = parseManagedConfig(source);
-      const mode: ImportMode = 'merge';
+      const mode: ImportDraft['mode'] = 'merge';
       const preview = previewImport(parsed, mode, stateMap, activeCatalogItems);
       setImportDraft({ filename: file.name, parsed, mode, preview });
       setDialog('import');
@@ -1082,7 +959,7 @@ export function LootForgeApp() {
     }
   };
 
-  const changeImportMode = (mode: ImportMode) => {
+  const changeImportMode = (mode: ImportDraft['mode']) => {
     if (!importDraft) return;
     setImportDraft({ ...importDraft, mode, preview: previewImport(importDraft.parsed, mode, stateMap, activeCatalogItems) });
   };
@@ -1124,7 +1001,7 @@ export function LootForgeApp() {
   };
 
   const activateCatalog = async (snapshot: CatalogSnapshot, message: string) => {
-    await saveCatalogOverride(snapshot);
+    await saveCatalogOverride(client, snapshot);
     setActiveSnapshot(snapshot);
     setCatalogIndexed(true);
     setWorkspace((current) => ({ ...current, catalogVersion: snapshot.catalogVersion, updatedAt: new Date().toISOString() }));
@@ -1135,7 +1012,7 @@ export function LootForgeApp() {
   const importDataPackFile = async (file: File) => {
     try {
       assertFileSizeWithinLimit(file, MAX_DATA_PACK_BYTES, '数据包');
-      const snapshot = await parseCatalogDataPack(await file.text());
+      const snapshot = await parseCatalogDataPack(await file.text(), client);
       await activateCatalog(snapshot, `数据目录已更新到 ${snapshot.catalogVersion}。`);
     } catch (error) {
       setToast({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
@@ -1149,7 +1026,7 @@ export function LootForgeApp() {
       if (window.location.protocol === 'file:') {
         throw new Error('离线版默认不联网；请下载数据包后使用“导入数据包”。');
       }
-      const manifestUrl = new URL('./data/manifest.json', window.location.href);
+      const manifestUrl = new URL(`./data/manifest.${client}.json`, window.location.href);
       const manifestResponse = await fetch(manifestUrl, { cache: 'no-store' });
       if (!manifestResponse.ok) throw new Error(`更新清单请求失败（HTTP ${manifestResponse.status}）。`);
       const manifest = await manifestResponse.json() as { contentHash?: string; catalogVersion?: string; snapshotUrl?: string };
@@ -1160,7 +1037,7 @@ export function LootForgeApp() {
       if (!manifest.snapshotUrl || !window.confirm(`发现数据目录 ${manifest.catalogVersion ?? '新版本'}，现在下载并校验吗？`)) return;
       const snapshotResponse = await fetch(new URL(manifest.snapshotUrl, manifestUrl), { cache: 'no-store' });
       if (!snapshotResponse.ok) throw new Error(`数据包请求失败（HTTP ${snapshotResponse.status}）。`);
-      const snapshot = await parseCatalogDataPack(await snapshotResponse.text());
+      const snapshot = await parseCatalogDataPack(await snapshotResponse.text(), client);
       await activateCatalog(snapshot, `数据目录已更新到 ${snapshot.catalogVersion}。`);
     } catch (error) {
       setToast({ tone: 'warning', message: error instanceof Error ? error.message : String(error) });
@@ -1169,7 +1046,7 @@ export function LootForgeApp() {
 
   const restoreEmbeddedCatalog = async () => {
     if (!embeddedSnapshot) return;
-    await clearCatalogOverride();
+    await clearCatalogOverride(client);
     setActiveSnapshot(embeddedSnapshot);
     setCatalogIndexed(true);
     setWorkspace((current) => ({ ...current, catalogVersion: embeddedSnapshot.catalogVersion, updatedAt: new Date().toISOString() }));
@@ -1184,180 +1061,42 @@ export function LootForgeApp() {
     setToast({ tone: 'warning', message: '工作区已恢复首次启动状态。' });
   };
 
-  /* 收藏组合功能暂时注释
-  const saveFavoriteScope = () => {
-    if (!hasScope) {
-      setToast({ tone: 'warning', message: '当前是全部范围，请先选择副本或 Boss。' });
-      return;
-    }
-    const name = window.prompt('给当前副本组合起个名字：');
-    if (!name?.trim()) return;
-    setWorkspace((current) => ({
-      ...current,
-      favoriteScopes: [...current.favoriteScopes, { id: crypto.randomUUID(), name: name.trim(), mapIds: [...current.selectedMapIds], bossKeys: [...current.selectedBossKeys] }],
-      updatedAt: new Date().toISOString(),
-    }));
-  };
-
-  const restoreFavorite = (id: string) => {
-    const favorite = workspace.favoriteScopes.find((entry) => entry.id === id);
-    if (!favorite) return;
-    setWorkspace((current) => ({ ...current, selectedMapIds: [...favorite.mapIds], selectedBossKeys: [...(favorite.bossKeys ?? [])], updatedAt: new Date().toISOString() }));
-  };
-  */
-
   return (
     <main className="app-shell">
       <input ref={configInputRef} hidden type="file" accept=".us.jx3dat" onChange={(event) => event.target.files?.[0] && void handleConfigFile(event.target.files[0])} />
       <input ref={backupInputRef} hidden type="file" accept="application/json,.json" onChange={(event) => event.target.files?.[0] && void importBackupFile(event.target.files[0])} />
       <input ref={dataPackInputRef} hidden type="file" accept="application/json,.json" onChange={(event) => event.target.files?.[0] && void importDataPackFile(event.target.files[0])} />
 
-      <header className="topbar">
-        <div className="brand-block">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="brand-logo" src="./logo.jpg" alt={APP_NAME} />
-          <div className="brand-meta">
-            <div className="brand-line">
-              <h1>{APP_NAME}</h1>
-              <span className="version-pill" title={`工坊软件版本：v${APP_VERSION}`}>v{APP_VERSION}</span>
-              <span className="data-version-pill" title={`副本数据库版本：${activeSnapshot.catalogVersion}（共 ${activeSnapshot.stats.maps} 个副本 · ${activeSnapshot.stats.uniqueItems.toLocaleString('zh-CN')} 件物品）`}>
-                {formatCatalogVersion(activeSnapshot.catalogVersion, client)}
-              </span>
-            </div>
-            <div className="brand-sub">
-              <span className="brand-en">{APP_NAME_EN}</span>
-              <span className="brand-dot">·</span>
-              <span className="brand-author" title={`开发者/作者：${AUTHOR}`}>by {AUTHOR}</span>
-              <span className="brand-dot">·</span>
-              <span className="brand-tagline">全副本掉落智能管理与配置工坊</span>
-            </div>
-          </div>
-        </div>
-        <div className="header-actions">
-          <div className="client-switcher" role="group" aria-label="客户端版本切换">
-            <button
-              type="button"
-              className={`client-tab ${client === 'std' ? 'active' : ''}`}
-              title="切换至 剑网3 旗舰正式服 数据与工作区"
-              onClick={() => void switchClient('std')}
-            >
-              旗舰版
-            </button>
-            <button
-              type="button"
-              className={`client-tab ${client === 'origin' ? 'active' : ''}`}
-              title="切换至 剑网3 缘起怀旧服 数据与工作区"
-              onClick={() => void switchClient('origin')}
-            >
-              缘起版
-            </button>
-          </div>
-          <span className="data-badge" title={activeSnapshot.contentHash}><i /> {catalogIndexed ? `${client === 'origin' ? '缘起端' : '旗舰端'} · ${activeSnapshot.stats.uniqueItems.toLocaleString('zh-CN')} 项` : '目录载入中…'}</span>
-          {undoWorkspace && (
-            <button
-              className="button ghost undo-btn"
-              type="button"
-              title="撤销最近一次批量或单项变更"
-              onClick={() => {
-                setWorkspace(undoWorkspace);
-                setUndoWorkspace(null);
-                setToast({ tone: 'success', message: '已撤销最近一次变更。' });
-              }}
-            >
-              ↶ 撤销变更
-            </button>
-          )}
-          <button
-            className="button ghost theme-toggle-btn"
-            type="button"
-            title={theme === 'dark' ? '当前为深色模式（点击切换为浅色模式）' : '当前为浅色模式（点击切换为深色模式）'}
-            onClick={toggleTheme}
-          >
-            {theme === 'dark' ? '🌙 深色' : '☀️ 浅色'}
-          </button>
-          <button className="button ghost" type="button" onClick={() => setDialog('custom')}>＋ 自定义物品</button>
-          <button className="button ghost" type="button" onClick={() => setDialog('workspace')}>工作区</button>
-          <button className="button ghost" type="button" onClick={() => configInputRef.current?.click()}>导入配置</button>
-
-          <div className="export-split-group" ref={exportMenuRef}>
-            <button
-              className="button primary export-main-btn"
-              type="button"
-              disabled={!catalogIndexed}
-              title={`导出当前所选范围（${hasScope ? currentScopeLabel : '全部有效物品'}）的综合配置；未勾选的副本与年代不包含在导出文件中。`}
-              onClick={() => exportFiles('combined')}
-            >
-              ⚡ 导出综合配置
-            </button>
-            <button
-              className={`button primary export-dropdown-btn ${exportMenuOpen ? 'open' : ''}`}
-              type="button"
-              disabled={!catalogIndexed}
-              aria-label="展开更多导出选项"
-              title="更多导出选项"
-              onClick={() => setExportMenuOpen((open) => !open)}
-            >
-              ▾
-            </button>
-            {exportMenuOpen && (
-              <div className="export-menu-popover" role="menu">
-                <button
-                  type="button"
-                  className="export-menu-item featured"
-                  onClick={() => { exportFiles('combined'); setExportMenuOpen(false); }}
-                >
-                  <span className="menu-icon">⚡</span>
-                  <div>
-                    <strong>导出综合配置 (推荐)</strong>
-                    <small>同时包含所选范围内的拾取过滤与自动出售策略，未选副本自动忽略</small>
-                  </div>
-                </button>
-                <div className="export-menu-divider" />
-                <button
-                  type="button"
-                  className="export-menu-item"
-                  onClick={() => { exportFiles('pickup'); setExportMenuOpen(false); }}
-                >
-                  <span className="menu-icon">📥</span>
-                  <div>
-                    <strong>仅导出拾取过滤</strong>
-                    <small>仅生成已勾选范围的 MY_GKPLoot 插件配置</small>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  className="export-menu-item"
-                  onClick={() => { exportFiles('sell'); setExportMenuOpen(false); }}
-                >
-                  <span className="menu-icon">💰</span>
-                  <div>
-                    <strong>仅导出自动出售</strong>
-                    <small>仅生成已勾选范围的 MY_AutoSell 插件配置</small>
-                  </div>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+      <TopBar
+        client={client}
+        activeSnapshot={activeSnapshot}
+        catalogIndexed={catalogIndexed}
+        theme={theme}
+        undoAvailable={Boolean(undoWorkspace)}
+        hasScope={hasScope}
+        currentScopeLabel={currentScopeLabel}
+        exportMenuOpen={exportMenuOpen}
+        exportMenuRef={exportMenuRef}
+        onSwitchClient={(target) => void switchClient(target)}
+        onUndo={() => {
+          if (!undoWorkspace) return;
+          setWorkspace(undoWorkspace);
+          setUndoWorkspace(null);
+          setToast({ tone: 'success', message: '已撤销最近一次变更。' });
+        }}
+        onToggleTheme={toggleTheme}
+        onOpenDialog={setDialog}
+        onImportConfig={() => configInputRef.current?.click()}
+        onExport={exportFromMenu}
+        onToggleExportMenu={() => setExportMenuOpen((open) => !open)}
+      />
 
       <div className="workspace">
         <aside className="sidebar glass-panel">
           <div className="panel-heading">
             <div><span className="eyebrow">DROP SCOPE</span><h2>选择副本范围</h2></div>
-            {/* 收藏组合功能暂时注释
-            <button className="icon-button" type="button" aria-label="保存当前副本组合" onClick={saveFavoriteScope}>☆</button>
-            */}
           </div>
           <label className="search-box"><span aria-hidden="true">⌕</span><input value={scopeQuery} onChange={(event) => setScopeQuery(event.target.value)} placeholder="搜索版本、副本或 Boss" /></label>
-          {/* 收藏组合功能暂时注释
-          {workspace.favoriteScopes.length > 0 && (
-            <select className="favorite-select" defaultValue="" onChange={(event) => { restoreFavorite(event.target.value); event.currentTarget.value = ''; }} aria-label="载入收藏组合">
-              <option value="" disabled>载入收藏组合…</option>
-              {workspace.favoriteScopes.map((favorite) => <option value={favorite.id} key={favorite.id}>{favorite.name}</option>)}
-            </select>
-          )}
-          */}
           <div className="scope-actions">
             <button
               type="button"
@@ -1405,214 +1144,19 @@ export function LootForgeApp() {
             <span className="hint-badge">💡 导出规则</span>
             <span>仅<strong>勾选（✓）</strong>的副本与物品会写入配置文件；未勾选内容即使已配置策略也不会导出。</span>
           </div>
-          <nav className="dungeon-tree" aria-label="副本范围">
-            <div className={`tree-group custom-scope-group ${selectedMaps.has(CUSTOM_SCOPE_ID) ? 'active' : ''} ${focusedScope.type === 'custom' ? 'is-focused' : ''}`}>
-              <div
-                className={`custom-scope-row ${focusedScope.type === 'custom' ? 'focused-row' : ''}`}
-                onClick={() => setFocusedScope((curr) => (curr.type === 'custom' ? { type: 'all' } : { type: 'custom' }))}
-                role="button"
-                tabIndex={0}
-                title="点击单选聚焦：只看并管理用户自定义物品"
-              >
-                <button
-                  className={`tree-check ${selectedMaps.has(CUSTOM_SCOPE_ID) ? 'checked' : ''}`}
-                  type="button"
-                  aria-pressed={selectedMaps.has(CUSTOM_SCOPE_ID)}
-                  aria-label="切换用户自定义范围勾选"
-                  title="勾选自定义物品用于导出"
-                  onClick={(e) => { e.stopPropagation(); toggleMap(CUSTOM_SCOPE_ID); }}
-                >
-                  {selectedMaps.has(CUSTOM_SCOPE_ID) ? '✓' : ''}
-                </button>
-                <div className="custom-scope-meta">
-                  <strong>
-                    ✨ 用户自定义
-                    {focusedScope.type === 'custom' && <span className="focus-pill">正在编辑</span>}
-                  </strong>
-                  <small>手动添加 / 外部导入 / 历史条目</small>
-                </div>
-                <span className="custom-scope-badge">{customCount} 项</span>
-              </div>
-            </div>
-
-            {levelGroups.map((levelGroup) => {
-              const levelSelection = mapsSelection(levelGroup.maps);
-              const isLevelFocused = focusedScope.type === 'level' && focusedScope.id === levelGroup.id;
-              const eraBadgeClass = levelGroup.era === 'yu' ? 'era-badge-yu' : levelGroup.era === 'wei' ? 'era-badge-wei' : 'era-badge-unknown';
-              return (
-                <details className={`tree-group level-group ${isLevelFocused ? 'is-focused' : ''}`} key={levelGroup.id} open={scopeQuery ? true : undefined}>
-                  <summary className={`${levelSelection.full || levelSelection.partial ? 'active' : ''} ${isLevelFocused ? 'focused-summary' : ''}`}>
-                    <button
-                      className={`tree-check ${levelSelection.full ? 'checked' : levelSelection.partial ? 'partial' : ''}`}
-                      type="button"
-                      aria-pressed={levelSelection.full}
-                      aria-label={`切换${levelGroup.label}全部副本勾选`}
-                      title={levelSelection.full ? '取消勾选该年代所有副本（不影响视图）' : '勾选该年代所有副本用于导出'}
-                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMapGroup(levelGroup.maps); }}
-                    >
-                      {levelSelection.full ? '✓' : levelSelection.partial ? '−' : ''}
-                    </button>
-                    <span
-                      className="level-title-clickable"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        setFocusedScope((curr) => (curr.type === 'level' && curr.id === levelGroup.id ? { type: 'all' } : {
-                          type: 'level',
-                          id: levelGroup.id,
-                          name: levelGroup.name,
-                          era: levelGroup.era,
-                          eraName: levelGroup.eraName,
-                          level: levelGroup.level,
-                          mapIds: levelGroup.maps.map((m) => m.mapId),
-                        }));
-                      }}
-                      title={`点击单选聚焦：只看并配置『${levelGroup.name}』(${levelGroup.maps.length}个副本)的策略`}
-                    >
-                      <strong>
-                        『{levelGroup.name}』
-                        {isLevelFocused && <span className="focus-pill">正在编辑</span>}
-                      </strong>
-                      <em>
-                        {client === 'std' && levelGroup.eraName && (
-                          <span className={`era-badge ${eraBadgeClass}`}>{levelGroup.eraName}</span>
-                        )}
-                        {levelGroup.level !== null ? `Lv.${levelGroup.level}` : '未知等级'}
-                      </em>
-                    </span>
-                    <small>{levelSelection.selectedMapCount}/{levelGroup.maps.length}</small>
-                    <span className="tree-arrow-indicator" title="展开/收起年代详情"><ChevronIcon /></span>
-                  </summary>
-                  <div className="tree-children difficulty-children">
-                    {levelGroup.difficultyGroups.length === 0 ? (
-                      <div className="tree-empty-hint">✨ 鱼历新时代秘境待上线，敬请期待</div>
-                    ) : (
-                      levelGroup.difficultyGroups.map((difficultyGroup) => {
-                      const difficultySelection = mapsSelection(difficultyGroup.maps);
-                      const isDiffFocused = focusedScope.type === 'difficulty' && focusedScope.label === difficultyGroup.label && focusedScope.levelName === levelGroup.name;
-                      return (
-                        <details className={`difficulty-node ${isDiffFocused ? 'is-focused' : ''}`} key={difficultyGroup.id} open={scopeQuery ? true : undefined}>
-                          <summary className={`tree-parent ${difficultySelection.full || difficultySelection.partial ? 'active' : ''} ${isDiffFocused ? 'focused-summary' : ''}`}>
-                            <button
-                              className={`tree-check ${difficultySelection.full ? 'checked' : difficultySelection.partial ? 'partial' : ''}`}
-                              type="button"
-                              aria-pressed={difficultySelection.full}
-                              aria-label={`切换${levelGroup.label}${difficultyGroup.label}全部副本勾选`}
-                              title="勾选/取消勾选该难度所有副本用于导出"
-                              onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMapGroup(difficultyGroup.maps); }}
-                            >
-                              {difficultySelection.full ? '✓' : difficultySelection.partial ? '−' : ''}
-                            </button>
-                            <span
-                              className="diff-title-clickable"
-                              onClick={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                setFocusedScope((curr) => (curr.type === 'difficulty' && curr.label === difficultyGroup.label && curr.levelName === levelGroup.name ? { type: 'all' } : {
-                                  type: 'difficulty',
-                                  levelName: levelGroup.name,
-                                  label: difficultyGroup.label,
-                                  mapIds: difficultyGroup.maps.map((m) => m.mapId),
-                                }));
-                              }}
-                              title={`点击单选聚焦：只看并配置【${levelGroup.name} · ${difficultyGroup.label}】的策略`}
-                            >
-                              <span>
-                                {difficultyGroup.label}
-                                {isDiffFocused && <span className="focus-pill">正在编辑</span>}
-                              </span>
-                            </span>
-                            <small>{difficultySelection.selectedMapCount}/{difficultyGroup.maps.length}</small>
-                            <span className="tree-arrow-indicator" title="展开/收起难度分组"><ChevronIcon /></span>
-                          </summary>
-                          <div className="tree-children map-children">
-                            {difficultyGroup.maps.map((map) => {
-                              const mapState = mapSelection(map);
-                              const isMapFocused = focusedScope.type === 'map' && focusedScope.mapId === map.mapId;
-                              return (
-                                <details className={`map-node ${isMapFocused ? 'is-focused' : ''}`} key={map.mapId}>
-                                  <summary className={`${mapState.full || mapState.partial ? 'active' : ''} ${isMapFocused ? 'focused-summary' : ''}`}>
-                                    <button
-                                      className={`tree-check ${mapState.full ? 'checked' : mapState.partial ? 'partial' : ''}`}
-                                      type="button"
-                                      aria-pressed={mapState.full}
-                                      aria-label={`切换${map.name}${map.difficulty}勾选`}
-                                      title="勾选/取消勾选该副本用于导出"
-                                      onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMap(map.mapId); }}
-                                    >
-                                      {mapState.full ? '✓' : mapState.partial ? '−' : ''}
-                                    </button>
-                                    <span
-                                      className="map-title-clickable"
-                                      onClick={(event) => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        setFocusedScope((curr) => (curr.type === 'map' && curr.mapId === map.mapId ? { type: 'all' } : {
-                                          type: 'map',
-                                          mapId: map.mapId,
-                                          name: map.name,
-                                          difficulty: map.difficulty,
-                                          levelName: levelGroup.name,
-                                        }));
-                                      }}
-                                      title={`点击单选聚焦：只看并配置【${map.name} (${map.difficulty})】的策略`}
-                                    >
-                                      <strong>
-                                        {map.name}
-                                        {isMapFocused && <span className="focus-pill">正在编辑</span>}
-                                      </strong>
-                                      <em>{map.difficulty}</em>
-                                    </span>
-                                    <small>{map.bossNames.length} Boss</small>
-                                    <span className="tree-arrow-indicator" title="展开/收起Boss列表"><ChevronIcon /></span>
-                                  </summary>
-                                  <div className="boss-list">
-                                    {map.bossNames.map((boss) => {
-                                      const isBossChecked = selectedBosses.has(sourceKey(map.mapId, boss)) || selectedMaps.has(map.mapId);
-                                      const isBossFocused = focusedScope.type === 'boss' && focusedScope.mapId === map.mapId && focusedScope.bossName === boss;
-                                      return (
-                                        <button
-                                          className={`boss-badge-btn ${isBossChecked ? 'checked' : ''} ${isBossFocused ? 'is-focused' : ''}`}
-                                          type="button"
-                                          key={boss}
-                                          aria-pressed={isBossChecked}
-                                          onClick={() => {
-                                            setFocusedScope((curr) => (curr.type === 'boss' && curr.mapId === map.mapId && curr.bossName === boss ? { type: 'all' } : {
-                                              type: 'boss',
-                                              mapId: map.mapId,
-                                              mapName: map.name,
-                                              bossName: boss,
-                                              levelName: levelGroup.name,
-                                            }));
-                                          }}
-                                          onDoubleClick={(event) => {
-                                            event.preventDefault();
-                                            toggleBoss(map.mapId, boss, map.bossNames);
-                                          }}
-                                          onContextMenu={(event) => {
-                                            event.preventDefault();
-                                            toggleBoss(map.mapId, boss, map.bossNames);
-                                          }}
-                                          title={`点击单选聚焦【${boss}】的掉落；双击或右键可切换导出勾选`}
-                                        >
-                                          <span>{boss}</span>
-                                          {isBossFocused && <i className="boss-focus-dot" />}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </details>
-                              );
-                            })}
-                          </div>
-                        </details>
-                      );
-                    }))}
-                  </div>
-                </details>
-              );
-            })}
-          </nav>
+          <ScopeTree
+            levelGroups={levelGroups}
+            client={client}
+            searchActive={Boolean(scopeQuery.trim())}
+            selectedMaps={selectedMaps}
+            selectedBosses={selectedBosses}
+            focusedScope={focusedScope}
+            customCount={customCount}
+            setFocusedScope={setFocusedScope}
+            onToggleMap={toggleMap}
+            onToggleBoss={toggleBoss}
+            onToggleMapGroup={toggleMapGroup}
+          />
         </aside>
 
         <section className="main-column">
@@ -1729,233 +1273,40 @@ export function LootForgeApp() {
                 </div>
               </div>
             ) : (
-              <div className="category-strategy-table" role="table" aria-label="分类策略控制列表">
-                <div className="cat-strat-row cat-strat-head" role="row">
-                  <div className="col-cat">物品分类</div>
-                  <div className="col-skip">拾取过滤</div>
-                  <div className="col-sell">出售策略</div>
-                </div>
-                {categoryWorkbenchSummaries.map((catSummary) => {
-                  const { category, total, skipLootCount, autoSellCount, protectCount, noneCount } = catSummary;
-                  const allAutoSell = total > 0 && autoSellCount === total;
-                  const allProtect = total > 0 && protectCount === total;
-                  const allNone = total > 0 && noneCount === total;
-                  const allSkip = total > 0 && skipLootCount === total;
-                  const allUnskip = total > 0 && skipLootCount === 0;
-                  const isExpanded = expandedCategory === category;
-                  return (
-                    <div className={`cat-strat-group ${isExpanded ? 'is-expanded' : ''}`} key={category}>
-                      <div className="cat-strat-row" role="row">
-                        <div
-                          className="col-cat cat-info-cell"
-                          onClick={() => {
-                            setExpandedCategory((curr) => (curr === category ? null : category));
-                            setDrawerQuery('');
-                            setDrawerPage(1);
-                          }}
-                          role="button"
-                          tabIndex={0}
-                          title="点击展开/收起该分类下的物品明细"
-                        >
-                          <span className="cat-icon">{CATEGORY_ICONS[category]}</span>
-                          <div className="cat-name-box">
-                            <div className="cat-name-row">
-                              <strong>{CATEGORY_LABELS[category]}</strong>
-                              <span className="cat-count-badge" title={`共 ${total} 项`}>{total}</span>
-                            </div>
-                            {(skipLootCount > 0 || autoSellCount > 0 || protectCount > 0) && (
-                              <div className="cat-status-pills">
-                                {skipLootCount > 0 && (
-                                  <span className="status-pill pill-skip" title={`当前范围有 ${skipLootCount} 项已设为跳过拾取`}>
-                                    <i className="pill-dot dot-blue" />
-                                    {skipLootCount}
-                                  </span>
-                                )}
-                                {autoSellCount > 0 && (
-                                  <span className="status-pill pill-sell" title={`当前范围有 ${autoSellCount} 项已设为自动出售`}>
-                                    <i className="pill-dot dot-orange" />
-                                    {autoSellCount}
-                                  </span>
-                                )}
-                                {protectCount > 0 && (
-                                  <span className="status-pill pill-protect" title={`当前范围有 ${protectCount} 项已设为保护不出售`}>
-                                    <i className="pill-dot dot-green" />
-                                    {protectCount}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          <span className={`drawer-toggle-arrow ${isExpanded ? 'open' : ''}`}>
-                            {isExpanded ? '▴ 收起' : '▾ 明细'}
-                          </span>
-                        </div>
-
-                        <div className="col-skip">
-                          <div className="seg-control skip-seg" role="group" aria-label="拾取策略">
-                            <button
-                              type="button"
-                              className={`seg-btn skipLoot ${allSkip ? 'active' : ''}`}
-                              onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'skipLoot'); }}
-                              title={`一键将当前范围全部 ${total} 项【${CATEGORY_LABELS[category]}】设为跳过拾取`}
-                            >
-                              跳过拾取
-                            </button>
-                            <button
-                              type="button"
-                              className={`seg-btn unskip ${allUnskip ? 'active' : ''}`}
-                              onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'unskipLoot'); }}
-                              title={`清除当前范围【${CATEGORY_LABELS[category]}】的跳过标记，恢复正常拾取`}
-                            >
-                              正常拾取
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="col-sell">
-                          <div className="seg-control sell-seg" role="group" aria-label="出售策略">
-                            <button
-                              type="button"
-                              className={`seg-btn autoSell ${allAutoSell ? 'active' : ''}`}
-                              onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'autoSell'); }}
-                              title={`一键将当前范围全部 ${total} 项【${CATEGORY_LABELS[category]}】设为自动出售`}
-                            >
-                              自动出售
-                            </button>
-                            <button
-                              type="button"
-                              className={`seg-btn protect ${allProtect ? 'active' : ''}`}
-                              onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'protect'); }}
-                              title={`一键将当前范围全部 ${total} 项【${CATEGORY_LABELS[category]}】设为保护不出售`}
-                            >
-                              保护不出售
-                            </button>
-                            <button
-                              type="button"
-                              className={`seg-btn none ${allNone ? 'active' : ''}`}
-                              onClick={(e) => { e.stopPropagation(); applyCategoryDirectAction(category, 'none'); }}
-                              title={`清除当前范围【${CATEGORY_LABELS[category]}】的出售/保护策略`}
-                            >
-                              未处理
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {isExpanded && (
-                        <div className="cat-drawer-container">
-                          <div className="cat-drawer-sticky-header">
-                            {((autoSellCount > 0 && autoSellCount < total) || (skipLootCount > 0 && skipLootCount < total)) && (
-                              <div className="drawer-cross-scope-tip">
-                                💡 当前分类包含跨副本通用掉落配置（{autoSellCount > 0 ? `${autoSellCount} 项自动出售` : ''}{autoSellCount > 0 && skipLootCount > 0 ? '、' : ''}{skipLootCount > 0 ? `${skipLootCount} 项跳过拾取` : ''}），如需统一策略可点击上方分类直选按钮。
-                              </div>
-                            )}
-                            <div className="cat-drawer-toolbar">
-                              <label className="drawer-search-box">
-                                <span>⌕</span>
-                                <input
-                                  value={drawerQuery}
-                                  onChange={(e) => { setDrawerQuery(e.target.value); setDrawerPage(1); }}
-                                  placeholder={`在【${CATEGORY_LABELS[category]}】中搜索物品名称或 Boss...`}
-                                />
-                                {drawerQuery && <button type="button" className="drawer-clear-btn" onClick={() => { setDrawerQuery(''); setDrawerPage(1); }}>×</button>}
-                              </label>
-                              <select
-                                className="drawer-select"
-                                value={drawerStateView}
-                                onChange={(e) => { setDrawerStateView(e.target.value as 'all' | 'configured' | 'unconfigured' | 'protected'); setDrawerPage(1); }}
-                              >
-                                <option value="all">全部状态</option>
-                                <option value="configured">只看已配置</option>
-                                <option value="unconfigured">只看未配置</option>
-                                <option value="protected">只看已保护</option>
-                              </select>
-                              <span className="drawer-count-info">
-                                {drawerItems.length > 0 ? `${(currentDrawerPage - 1) * DRAWER_PAGE_SIZE + 1}–${Math.min(currentDrawerPage * DRAWER_PAGE_SIZE, drawerItems.length)} / 共 ${drawerItems.length} 项` : '0 项'}
-                              </span>
-                              <button
-                                type="button"
-                                className="button ghost compact"
-                                onClick={() => setExpandedCategory(null)}
-                              >
-                                收起 ▴
-                              </button>
-                            </div>
-
-                            <div className="item-row item-head" role="row">
-                              <span>物品与来源</span>
-                              <span>类型 / 品质等级</span>
-                              <span>跳过拾取</span>
-                              <span>出售策略</span>
-                            </div>
-                          </div>
-
-                          <div className="drawer-item-list" role="table" aria-label={`${CATEGORY_LABELS[category]}物品列表`}>
-                            {visibleDrawerItems.map((item) => {
-                              const state = cloneState(stateMap.get(item.id));
-                              const source = item.sources[0];
-                              const isCustomLocked = focusedScope.type !== 'custom' && Boolean(item.customOverride || customOverrides.has(item.id));
-                              const lockedTitle = `“${item.name}”已在【用户自定义】中维护（最高优先级），副本内设置不生效。如需修改请前往【用户自定义】。`;
-                              const metaText = itemMetaText(item);
-                              return (
-                                <div className={`item-row ${item.customOverride ? 'custom-row' : ''} ${item.historical ? 'historical-row' : ''} ${isCustomLocked ? 'custom-locked' : ''}`} role="row" key={item.id}>
-                                  <div className="item-name">
-                                    <strong className={itemQualityClass(item)}>
-                                      {item.name}
-                                      {item.systemSeed && <span className="seed-badge">推荐保护</span>}
-                                      {item.customOverride && (
-                                        isCustomLocked ? (
-                                          <span className="custom-badge priority-badge" title="已在【用户自定义】中维护（最高优先级），副本内设置不生效">🔒 自定义优先</span>
-                                        ) : (
-                                          <span className="custom-badge">自定义</span>
-                                        )
-                                      )}
-                                      {item.historical && <span className="history-badge">历史</span>}
-                                    </strong>
-                                    <small title={item.sources.map((entry) => `${entry.expansion} / ${entry.mapName} / ${entry.bossName}`).join('\n')}>
-                                      {source ? `${source.expansion} · ${source.mapName} · ${source.bossName}${item.sources.length > 1 ? ` 等 ${item.sources.length} 个来源` : ''}` : item.subtype ?? '手动维护'}
-                                    </small>
-                                    {item.customOverride && (
-                                       <button
-                                         className="text-action"
-                                         type="button"
-                                         onClick={() => removeCustomOverride(item.id)}
-                                         title={catalogIdSet.has(item.id) ? '从自定义库移除（后续可继续随所属副本批量规则管理）' : '从自定义库移除'}
-                                       >
-                                         移除
-                                       </button>
-                                     )}
-                                    {item.historical && <button className="text-action" type="button" onClick={() => removeHistoricalState(item.id)}>清除历史状态并停止导出</button>}
-                                  </div>
-                                  {metaText && (
-                                    <span className="category-pill">{metaText}</span>
-                                  )}
-                                  <StateButton state={state} onClick={() => toggleItemState(item, 'skipLoot')} locked={isCustomLocked} lockedTitle={lockedTitle} />
-                                  <DispositionSelector disposition={itemDisposition(state)} onChange={(disposition) => setItemDisposition(item, disposition)} locked={isCustomLocked} lockedTitle={lockedTitle} />
-                                </div>
-                              );
-                            })}
-                            {visibleDrawerItems.length === 0 && (
-                              <div className="empty-state compact">
-                                <strong>没有匹配的物品</strong>
-                                <p>请尝试调整搜索关键词或状态筛选。</p>
-                              </div>
-                            )}
-                          </div>
-
-                          {drawerTotalPages > 1 && (
-                            <div className="pagination">
-                              <button type="button" disabled={currentDrawerPage <= 1} onClick={() => setDrawerPage((v) => Math.max(1, v - 1))}>上一页</button>
-                              <span>第 {currentDrawerPage} / {drawerTotalPages} 页</span>
-                              <button type="button" disabled={currentDrawerPage >= drawerTotalPages} onClick={() => setDrawerPage((v) => Math.min(drawerTotalPages, v + 1))}>下一页</button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <CategoryTable
+                summaries={categoryWorkbenchSummaries}
+                expandedCategory={expandedCategory}
+                onExpandCategory={(category) => {
+                  setExpandedCategory((curr) => (curr === category ? null : category));
+                  setDrawerQuery('');
+                  setDrawerPage(1);
+                }}
+                onApplyAction={applyCategoryDirectAction}
+                drawerQuery={drawerQuery}
+                drawerStateView={drawerStateView}
+                drawerItems={drawerItems}
+                visibleDrawerItems={visibleDrawerItems}
+                currentDrawerPage={currentDrawerPage}
+                drawerTotalPages={drawerTotalPages}
+                stateMap={stateMap}
+                customOverrides={customOverrides}
+                catalogIdSet={catalogIdSet}
+                customScopeActive={focusedScope.type === 'custom'}
+                onDrawerQueryChange={(query) => {
+                  setDrawerQuery(query);
+                  setDrawerPage(1);
+                }}
+                onDrawerStateViewChange={(view) => {
+                  setDrawerStateView(view);
+                  setDrawerPage(1);
+                }}
+                onCollapse={() => setExpandedCategory(null)}
+                onPageChange={setDrawerPage}
+                onToggleItem={toggleItemState}
+                onSetDisposition={setItemDisposition}
+                onRemoveCustomOverride={removeCustomOverride}
+                onRemoveHistoricalState={removeHistoricalState}
+              />
             )}
           </section>
         </section>
@@ -1963,163 +1314,48 @@ export function LootForgeApp() {
 
       {dialog && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDialog(null); }}>
         {dialog === 'emptyExportWarning' && (
-          <Modal title="未选择导出范围" eyebrow="导出确认" onClose={() => setDialog(null)}>
-            <p className="modal-copy">当前未在左侧勾选任何副本、Boss 或自定义条目。</p>
-            <div className="empty-warning-box" role="alert">
-              <div className="warning-icon">⚠️</div>
-              <div className="warning-text">
-                <strong>将导出空规则配置文件</strong>
-                <p>若继续操作，生成的文件将不包含任何策略规则。导入游戏后不会产生任何自动拾取过滤或自动出售效果。</p>
-              </div>
-            </div>
-            <p className="storage-note">💡 如需导出对应策略，请先在左侧目录中勾选需要导出的副本，或点击【全选老本】一键圈选。</p>
-            <div className="modal-actions">
-              <button className="button primary" type="button" autoFocus onClick={() => setDialog(null)}>返回勾选范围</button>
-              <button
-                className="button ghost danger-text"
-                type="button"
-                onClick={() => {
-                  setDialog(null);
-                  executeExport(pendingExportKind ?? 'combined', true);
-                }}
-              >
-                仍要导出空白文件
-              </button>
-            </div>
-          </Modal>
+          <EmptyExportWarningDialog
+            onClose={() => setDialog(null)}
+            onConfirm={() => {
+              setDialog(null);
+              executeExport(pendingExportKind ?? 'combined', true);
+            }}
+          />
         )}
 
-        {dialog === 'custom' && <Modal title="添加自定义物品" eyebrow="自定义物品库" onClose={() => setDialog(null)}>
-          <p className="modal-copy">输入您想自定义管理的物品名称（每行一个）。添加后可在左侧【✨ 用户自定义】范围中单独配置其拾取与出售策略。</p>
-          <textarea className="custom-textarea" value={customInput} onChange={(event) => setCustomInput(event.target.value)} rows={9} placeholder={'例如：\n水长生 ·雪银莲\n特殊装备\n金缕衣'} autoFocus />
-          <div className="modal-actions"><button className="button ghost" type="button" onClick={() => setDialog(null)}>取消</button><button className="button primary" type="button" onClick={addCustomItems}>添加到物品库</button></div>
-        </Modal>}
+        {dialog === 'custom' && (
+          <CustomItemsDialog
+            onClose={() => setDialog(null)}
+            customInput={customInput}
+            onCustomInputChange={setCustomInput}
+            onAdd={addCustomItems}
+          />
+        )}
 
-        {dialog === 'workspace' && <Modal title="本地设置与数据" eyebrow="设置与数据管理" onClose={() => setDialog(null)}>
-          <div className="workspace-actions-list">
-            <button type="button" onClick={() => downloadText(`剑网3掉落工坊-设置备份_${shanghaiDateStamp()}.json`, exportWorkspaceBackup(workspace))}>
-              <strong>导出全部设置备份</strong>
-              <small>将当前的拾取/出售策略、自定义物品及副本收藏保存为本地备份文件 (.json)</small>
-            </button>
-            <button type="button" onClick={() => backupInputRef.current?.click()}>
-              <strong>导入设置备份</strong>
-              <small>换电脑、换浏览器或移动文件后，一键还原之前的全部设置与自定义库</small>
-            </button>
-            <button type="button" onClick={() => void checkCatalogUpdate()}>
-              <strong>检查副本掉落库更新</strong>
-              <small>连接网络检查是否有最新版本的官方副本掉落数据</small>
-            </button>
-            <button type="button" onClick={() => dataPackInputRef.current?.click()}>
-              <strong>导入离线数据包</strong>
-              <small>手动载入官方最新的副本掉落数据库文件（适合无网络环境）</small>
-            </button>
-            {embeddedSnapshot && activeSnapshot.contentHash !== embeddedSnapshot.contentHash && (
-              <button type="button" onClick={() => void restoreEmbeddedCatalog()}>
-                <strong>恢复初始副本数据</strong>
-                <small>保留当前个性化设置，仅将副本掉落库还原为本程序自带的默认版本</small>
-              </button>
-            )}
-            <button className="danger-row" type="button" onClick={doResetWorkspace}>
-              <strong>清空并恢复默认设置</strong>
-              <small>清除所有个性化配置与自选记录，恢复系统推荐的默认珍品保护规则</small>
-            </button>
-          </div>
+        {dialog === 'workspace' && (
+          <WorkspaceDialog
+            onClose={() => setDialog(null)}
+            onExportBackup={() => downloadText(`剑网3掉落工坊-设置备份_${shanghaiDateStamp()}.json`, exportWorkspaceBackup(workspace))}
+            onImportBackup={() => backupInputRef.current?.click()}
+            onCheckUpdate={() => void checkCatalogUpdate()}
+            onImportDataPack={() => dataPackInputRef.current?.click()}
+            showRestoreEmbedded={Boolean(embeddedSnapshot) && activeSnapshot.contentHash !== embeddedSnapshot?.contentHash}
+            onRestoreEmbedded={() => void restoreEmbeddedCatalog()}
+            onReset={doResetWorkspace}
+          />
+        )}
 
-          <p className="storage-note">💡 提示：您的所有设置都会实时自动保存在当前浏览器中，关闭页面不会丢失。建议在配置满意后导出备份文件，方便随时在其他设备一键恢复。</p>
-        </Modal>}
-
-        {dialog === 'import' && importDraft && <Modal title="导入游戏配置文件" eyebrow="配置导入" onClose={() => setDialog(null)}>
-          <p className="modal-copy"><strong>{importDraft.filename}</strong> · 已识别策略：{importDraft.preview.declared.map((field) => STATE_LABELS[field]).join('、')}</p>
-          <div className="mode-switch">
-            <button className={importDraft.mode === 'merge' ? 'active' : ''} type="button" onClick={() => changeImportMode('merge')}>
-              <strong>合并模式 (推荐)</strong>
-              <small>保留现有设置，仅叠加导入文件中的新规则</small>
-            </button>
-            <button className={importDraft.mode === 'replace' ? 'active' : ''} type="button" onClick={() => changeImportMode('replace')}>
-              <strong>覆盖模式</strong>
-              <small>清空现有的拾取/出售规则，完全以该文件为准</small>
-            </button>
-          </div>
-          <div className="preview-stats">
-            <span><strong>{importDraft.preview.changes.length}</strong> 项规则变更</span>
-            <span><strong>{importDraft.preview.unknownNames.length}</strong> 项加入自定义库</span>
-            <span><strong>{importDraft.preview.conflictsResolved}</strong> 项自动处理保护冲突</span>
-          </div>
-          <div className="diff-list">{importDraft.preview.changes.slice(0, 100).map((change) => <div key={change.id}><strong>{change.name}</strong><span>{stateSummary(change.before)} → {stateSummary(change.after)}</span></div>)}</div>
-          <div className="modal-actions"><button className="button ghost" type="button" onClick={() => setDialog(null)}>取消</button><button className="button primary" type="button" onClick={applyImport}>确认应用到工坊</button></div>
-        </Modal>}
+        {dialog === 'import' && importDraft && (
+          <ImportConfigDialog
+            draft={importDraft}
+            onClose={() => setDialog(null)}
+            onChangeMode={changeImportMode}
+            onApply={applyImport}
+          />
+        )}
       </div>}
 
-      {toast && (
-        <div className="toast-container" key={toast.id ?? toast.message}>
-          <div className={`toast-card ${toast.tone}`} role="status" aria-live="polite">
-            <div className={`toast-icon-badge ${toast.tone}`}>
-              {toast.tone === 'success' ? '✓' : toast.tone === 'warning' ? '⚡' : '✕'}
-            </div>
-            <div className="toast-content">
-              <span className="toast-text">{toast.message}</span>
-            </div>
-            <button
-              type="button"
-              className="toast-close-btn"
-              aria-label="关闭提示"
-              onClick={() => setToast(null)}
-            >
-              ✕
-            </button>
-            <div className={`toast-progress-bar ${toast.tone}`} />
-          </div>
-        </div>
-      )}
+      {toast && <ToastCard toast={toast} onClose={() => setToast(null)} />}
     </main>
   );
-}
-
-function StateButton({ state, onClick, locked, lockedTitle }: { state: ItemState; onClick: () => void; locked?: boolean; lockedTitle?: string }) {
-  const enabled = state.skipLoot;
-  return (
-    <button
-      className={`state-toggle skipLoot ${enabled ? 'checked' : ''} ${locked ? 'is-locked' : ''}`}
-      aria-pressed={enabled}
-      aria-label={`跳过拾取：${enabled ? '已开启' : '未开启'}`}
-      onClick={onClick}
-      type="button"
-      title={locked ? lockedTitle : (enabled ? '已加入跳过拾取名单（掉落时不拾取）' : '未跳过（掉落时正常拾取）')}
-    >
-      <i />
-      <span>{enabled ? '已跳过' : '正常拾取'}</span>
-      {locked && <span className="lock-indicator" title="自定义最高优先级">🔒</span>}
-    </button>
-  );
-}
-
-function DispositionSelector({ disposition, onChange, locked, lockedTitle }: { disposition: ItemDisposition; onChange: (disposition: ItemDisposition) => void; locked?: boolean; lockedTitle?: string }) {
-  const options: Array<[ItemDisposition, string, string]> = [
-    ['none', '未处理', '不自动出售，也不加入保护名单'],
-    ['autoSell', '自动出售', '加入自动出售名单 (MY_AutoSell.tSellItem)'],
-    ['protect', '保护不出售', '加入保护名单，防止被误卖 (MY_AutoSell.tProtectItem)'],
-  ];
-  return (
-    <div className={`segmented disposition-selector ${locked ? 'is-locked' : ''}`} role="group" aria-label="出售策略">
-      {options.map(([value, label, desc]) => (
-        <button
-          className={`disposition-option ${value} ${disposition === value ? 'on' : ''}`}
-          type="button"
-          key={value}
-          aria-pressed={disposition === value}
-          title={locked ? lockedTitle : `出售策略：${label}（${desc}）`}
-          onClick={() => onChange(value)}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Modal({ title, eyebrow, onClose, children }: { title: string; eyebrow: string; onClose: () => void; children: React.ReactNode }) {
-  return <section className="modal-card glass-panel" role="dialog" aria-modal="true" aria-labelledby={`dialog-${eyebrow}`}>
-    <header><div><span className="eyebrow">{eyebrow}</span><h2 id={`dialog-${eyebrow}`}>{title}</h2></div><button className="modal-close" type="button" onClick={onClose} aria-label="关闭">×</button></header>
-    {children}
-  </section>;
 }

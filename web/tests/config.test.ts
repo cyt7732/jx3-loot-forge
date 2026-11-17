@@ -14,7 +14,7 @@ const EXPECTED_PROTECTED_ITEMS = [
 
 const EXPECTED_PICKUP_PATHS = [
   'MY_GKPLoot.tAutoPickupFilters', 'MY_GKPDoodad.bCustom', 'MY_GKPDoodad.bOpenLoot', 'MY_GKPDoodad.fNameScale',
-  'MY_GKPDoodad.bReadInscriptionDoodad', 'MY_GKPLoot.anchor', 'MY_GKPDoodad.bOpenLootEvenFight',
+  'MY_GKPDoodad.bReadInscriptionDoodad', 'MY_GKPDoodad.bOpenLootEvenFight',
   'MY_GKPLoot.bAutoPickupFilterBookRead', 'MY_GKPDoodad.bQuestDoodad',
   'MY_GKPDoodad.bShowName', 'MY_GKPLoot.bOn', 'MY_GKPLoot.bAutoPickupBook', 'MY_GKPLoot.bInBattlefield',
   'MY_GKPLoot.bAutoPickupFilterBookHave', 'MY_GKPLoot.bInRaidDungeon', 'MY_GKPDoodad.bUnreadInscriptionDoodad',
@@ -48,11 +48,14 @@ describe('GBK config export', () => {
     expect(Array.from(batch.sell.bytes.slice(0, 3))).not.toEqual([0xef, 0xbb, 0xbf]);
   });
 
-  it('preserves the complete 24-setting pickup shell and target position', () => {
+  it('preserves the complete 23-setting pickup shell without touching UI preferences', () => {
     const batch = buildExportBatch([], new Date('2026-08-23T12:15:42Z'));
     const table = parseLuaChunk(batch.pickup.text);
     expect(table.fields.map((field) => field.key)).toEqual(EXPECTED_PICKUP_PATHS);
     expect(table.fields[0].key).toBe('MY_GKPLoot.tAutoPickupFilters');
+    // 拾取框锚点等纯界面偏好不随配置导出，避免覆盖用户自己的界面布局
+    expect(batch.pickup.text.includes('MY_GKPLoot.anchor')).toBe(false);
+    expect(batch.combined.text.includes('MY_GKPLoot.anchor')).toBe(false);
   });
 
   it('emits marker-only main tables and an explicit empty protection table', () => {

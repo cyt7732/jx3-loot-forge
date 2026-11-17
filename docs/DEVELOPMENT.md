@@ -85,15 +85,23 @@ npm run check
 ### 构建命令
 
 ```bash
-# 构建在线版（输出到 dist/）
+# 构建在线版（输出到 dist/web/）
+# 会自动先执行 sync:data，把 src/catalog 的目录数据同步到 public/data
 npm run build:web
 
 # 构建单文件离线版（输出到 ../剑网3掉落工坊.html）
 npm run build:offline
 
+# 仅同步目录数据到 public/data（开发调试用）
+npm run sync:data
+
 # 本地预览生产构建
 npm run start
 ```
+
+> **数据文件只入库一份**：`web/src/catalog/catalog.*.json` 是唯一入库的目录数据源；
+> `web/public/data/catalog.*.json` 是构建/开发前由 `scripts/sync-public-data.mjs` 生成的副本（已加入 .gitignore）。
+> 离线版构建直接从 `src/catalog/` 内联数据，不依赖 `public/`。
 
 ### 数据维护命令
 
@@ -466,6 +474,8 @@ npm test
 **⑤ 更新版本号**
 
 数据包版本不再需要手工修改 `web/src/domain/constants.ts`。抓取脚本会按 `data.<客户端>_<资料片名>_v<赛季序号>_<YYMMDD>` 自动写入快照与 manifest；若只重分类已有数据，`npm run reclassify:catalog` 会沿用标准化版本并刷新日期后缀。
+
+**应用版本号只需改一处**：仓库根目录的 `VERSION.json` 中的 `appVersion`。构建期由 vite / vitest 的 `define` 注入到 `__APP_VERSION__`，前端界面徽章、导出配置指纹、制品包名全部自动跟随，无需再同步 `package.json` 与 `constants.ts`。
 
 **⑥ 重新构建**
 

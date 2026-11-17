@@ -415,25 +415,41 @@ const text = decodeGbk(new Uint8Array([209, 215, 199, 185, 214, 216, 192, 232]))
 
 ### catalog.ts
 
-#### `selectCatalogSnapshot(client: GameClient): CatalogSnapshot`
+#### `selectCatalogSnapshot(embedded: CatalogSnapshot, override: CatalogSnapshot | null): CatalogSelection`
 
-选择指定客户端的副本数据快照。
+裁决启动时应激活哪份数据：默认使用内置数据；仅当导入的数据包与内置数据属同一客户端、且 `generatedAt` 严格更新（或内容哈希一致）时才优先生效。跨客户端的数据包永远不会被选中。
 
-**参数**: `'std'` 或 `'origin'`
+**参数**:
+- `embedded`: 随程序发布的内置数据快照
+- `override`: 用户导入的数据包快照，可为 `null`
 
-**返回值**: 对应的数据快照
+**返回值**: `{ snapshot, usedOverride }`
 
-#### `saveCatalogOverride(client: GameClient, data: unknown): void`
+#### `validateCatalogSnapshot(value: unknown, client: 'std' | 'origin' = 'std'): Promise<CatalogSnapshot>`
 
-保存自定义副本数据覆盖。
+校验数据包结构与完整性（版本号、客户端归属、统计一致性、MapID / 物品引用闭合、SHA-256 内容哈希）。
 
-#### `loadCatalogOverride(client: GameClient): unknown | null`
+**抛出异常**: 结构不符、归属客户端不匹配、或哈希校验失败
 
-加载自定义副本数据覆盖。
+#### `parseCatalogDataPack(text: string, client: 'std' | 'origin'): Promise<CatalogSnapshot>`
 
-#### `clearCatalogOverride(client: GameClient): void`
+解析 JSON 文本数据包并校验，超过 25 MiB 或客户端归属不符时抛出可读错误。
 
-清除自定义副本数据覆盖。
+#### `saveCatalogOverride(client: 'std' | 'origin', snapshot: CatalogSnapshot): Promise<void>`
+
+将数据包写入该客户端专属的 IndexedDB 槽位（`catalog_override_std` / `catalog_override_origin`），并清理 v1.6.3 及之前的旧共享槽位。
+
+#### `loadCatalogOverride(client: 'std' | 'origin'): Promise<CatalogSnapshot | null>`
+
+读取该客户端槽位的数据包；旗舰端会兼容读取旧版共享槽位，缘起端不会读取到旗舰数据。
+
+#### `clearCatalogOverride(client: 'std' | 'origin'): Promise<void>`
+
+清除该客户端的数据包覆盖，恢复随程序发布的内置数据。
+
+#### `loadOfficialCatalogCache(client: 'std' | 'origin'): Promise<CatalogSnapshot | null>`
+
+读取官方数据包的 IndexedDB 离线缓存（缓存内容的 `client` 必须与请求一致，否则视为未命中）。
 
 ---
 

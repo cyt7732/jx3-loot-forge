@@ -6,7 +6,6 @@ import { formatCatalogVersion } from '../src/catalog/levels.ts';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = resolve(SCRIPT_DIR, '..');
-const PUBLIC_MANIFEST_PATH = resolve(PROJECT_DIR, 'public/data/manifest.json');
 const TYPE_LABEL_RULES_PATH = resolve(PROJECT_DIR, 'src/catalog/type-label-rules.json');
 
 const rules = JSON.parse(await readFile(TYPE_LABEL_RULES_PATH, 'utf8'));
@@ -206,9 +205,6 @@ async function reclassifyClient(client) {
   };
   const manifestSerialized = `${JSON.stringify(manifest, null, 2)}\n`;
   await writeFile(publicManifestPath, manifestSerialized, 'utf8');
-  if (client === 'std') {
-    await writeFile(PUBLIC_MANIFEST_PATH, manifestSerialized, 'utf8');
-  }
 
   const categoryCounts = Object.fromEntries(
     [...currentSnapshot.items.reduce((counts, item) => counts.set(item.category, (counts.get(item.category) ?? 0) + 1), new Map())]

@@ -1,4 +1,4 @@
-import { readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { cp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Script } from 'node:vm';
@@ -58,8 +58,30 @@ if (!html.includes('<div id="root"></div>')) throw new Error('Offline HTML is mi
 
 const ROOT_HTML = resolve(PROJECT_DIR, '../剑网3掉落工坊.html');
 
+/**
+ * Windows 上同一进程刚写完目录后 rename 偶尔会因残留句柄 / 杀毒扫描报 EPERM，
+ * 先用短退避重试，仍失败则退化为「拷贝 + 尽力删除」，保证产物一定能落盘。
+ */
+async function moveDirectory(source, target) {
+  const retryableCodes = new Set(['EPERM', 'EBUSY', 'EACCES', 'ENOTEMPTY']);
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await rename(source, target);
+      return 'rename';
+    } catch (error) {
+      if (!retryableCodes.has(error.code)) throw error;
+      if (attempt === 4) break;
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, 120 * (2 ** attempt)));
+    }
+  }
+  await cp(source, target, { recursive: true });
+  await rm(source, { recursive: true, force: true }).catch(() => undefined);
+  return 'copy';
+}
+
 await rm(FINAL_DIR, { recursive: true, force: true });
-await rename(TEMP_DIR, FINAL_DIR);
+const moveMode = await moveDirectory(TEMP_DIR, FINAL_DIR);
+if (moveMode === 'copy') process.stdout.write('Note: offline output moved by copy fallback (Windows rename lock).\n');
 await writeFile(FINAL_HTML, html, 'utf8');
 await writeFile(ROOT_HTML, html, 'utf8');
 await rm(resolve(FINAL_DIR, 'assets'), { recursive: true, force: true });

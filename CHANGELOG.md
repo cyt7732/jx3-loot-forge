@@ -2,6 +2,34 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循语义化版本规范。
 
+## [1.6.4] - 2026-11-17
+
+双端数据链路三项关键缺陷修复 + 仓库与依赖工程治理：导入数据包按客户端隔离存储、缘起端可正常导入数据包、手动检查更新不再跨端串包；单文件离线版与目录数据副本退出 git 跟踪，清除全部 Next.js 迁移残留依赖。
+
+### Fixed
+
+- **缘起端无法导入数据包**：`validateCatalogSnapshot` 此前硬编码 `client === 'std'`，导致缘起端「导入离线数据包」永远报「不支持的数据包版本」。现按目标客户端校验，双端数据包均可导入；
+- **跨端数据污染**：导入的数据包（override）此前在 IndexedDB 中只有一个共享槽位，且启动选择逻辑不校验客户端归属——旗舰数据包比缘起内置数据新时，缘起端启动会直接显示旗舰数据。现改为 `catalog_override_std` / `catalog_override_origin` 分端槽位，`selectCatalogSnapshot` 增加客户端一致性守卫，并兼容读取 v1.6.3 及之前的旧槽位数据；
+- **缘起端「检查副本掉落库更新」会拉到旗舰包**：手动检查更新此前固定拉取仅指向旗舰端的 legacy `manifest.json`。现按当前客户端拉取 `manifest.std.json` / `manifest.origin.json`，并在激活前校验数据包客户端归属；
+- **切换客户端行为与启动不一致**：`switchClient` 此前完全忽略已导入的数据包，现与启动路径一致，经 `selectCatalogSnapshot` 统一裁决；
+- **官方缓存槽位防御**：`loadOfficialCatalogCache` 现要求缓存内容的 `client` 字段与请求的客户端一致，防止错槽数据通过校验；
+- **导出配置不再覆盖用户界面布局**：综合配置中移除 `MY_GKPLoot.anchor`（拾取框锚点坐标）这类纯个人界面偏好项，导入后保留用户自己的界面位置。
+
+### Changed
+
+- **版本号单一来源**：`APP_VERSION` 改为由构建期从根目录 `VERSION.json` 注入（vite / vitest `define`），发版只需修改 VERSION.json 一处，杜绝四处手工同步导致的漏改；
+- **单文件离线版退出 git 跟踪**：根目录 `剑网3掉落工坊.html` 是 `build:offline` 的构建产物，每次发版向仓库历史注入 30MB blob。现加入 .gitignore，统一通过 GitHub Release 分发（CI 每次发版仍自动构建打包）；
+- **目录数据去重**：`web/public/data/catalog.*.json` 与 `web/src/catalog/catalog.*.json` 此前内容完全相同、双份入库（每次刷数据约 38MB 新 blob）。现以 `src/catalog/` 为唯一入库源，在线版副本由 `scripts/sync-public-data.mjs` 在开发与构建前自动同步生成；
+- **依赖大扫除**：移除全部未使用的 Next.js 迁移残留——`next`、`vinext`、`@vitejs/plugin-rsc`、`react-server-dom-webpack`、`eslint-config-next`、`@cloudflare/vite-plugin`、`@cloudflare/workers-types`、`@openai/sites-vite-plugin`、`tailwindcss`、`@tailwindcss/postcss`、`wrangler`。ESLint 改用 `typescript-eslint` + `eslint-plugin-react-hooks`，依赖树从 300+ 精简至 161 个包；
+- **Vite 升级至 8.3.8**：修复 dev-server 相关的 high 级安全通告（launch-editor 命令注入等），`npm audit` 归零；
+- **组件拆分（首轮）**：`LootForgeApp.tsx` 由 2100+ 行拆分为 `ui/` 下多个模块——通用组件（Modal、Toast、图标）、树形侧栏、物品抽屉、批量规则面板、各设置弹窗及领域 hooks，行为不变；
+- **legacy `manifest.json` 退役**：前端不再读取仅指向旗舰端的旧清单文件，爬虫与重分类脚本同步移除其写入逻辑。
+
+### Build
+
+- 单文件离线版 `剑网3掉落工坊.html` 同步重建，保持 100% 离线可用（本地构建产物，不再入库）；
+- **离线构建在 Windows 上更稳**：`build-offline.mjs` 输出目录改用「短退避重试 + 拷贝兜底」，避免 vite 同进程写目录后 rename 偶发 `EPERM` 导致发版中断。
+
 ## [1.6.3] - 2026-11-17
 
 物品列表品质可视化升级：物品名按剑网3实机品质色阶直接染色，品阶信息改为「类型 · 品质等级」呈现，移除列表中的「品质 N」文字。

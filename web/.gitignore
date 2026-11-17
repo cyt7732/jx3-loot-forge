@@ -2,20 +2,10 @@
 /node_modules
 /.pnp
 .pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
 # testing
 /coverage
 /.playwright-cli/
-
-# next.js
-/.next/
-/.vinext/
-/out/
 
 # misc
 .DS_Store
@@ -31,10 +21,11 @@ yarn-error.log*
 .env*
 
 # deployment and generated files
-.vercel
-next-env.d.ts
 /dist/
-/.wrangler/
 /outputs/
 /work/
 *.tsbuildinfo
+
+# 目录数据副本：src/catalog/catalog.*.json 为唯一入库源，
+# public/data/ 下副本由 scripts/sync-public-data.mjs 在构建/开发前生成
+/public/data/catalog.*.json

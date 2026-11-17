@@ -13,7 +13,7 @@ import {
   formatCatalogVersion,
   isLegacyLevelGroup,
 } from '../src/catalog';
-import { selectCatalogSnapshot, validateCatalogSnapshot } from '../src/storage/catalog';
+import { parseCatalogDataPack, selectCatalogSnapshot, validateCatalogSnapshot } from '../src/storage/catalog';
 import type { CatalogItem, CatalogMap, CatalogSnapshot } from '../src/domain/types';
 
 async function catalogFixture(overrides: Partial<CatalogSnapshot> = {}): Promise<CatalogSnapshot> {
@@ -59,6 +59,24 @@ describe('catalog data-pack validation', () => {
       maps: [{ mapId: 1, name: '副本', expansion: '版本', difficulty: '难度', bossNames: ['首领'], itemIds: ['不存在'] }],
     });
     await expect(validateCatalogSnapshot(dangling)).rejects.toThrow('不存在的物品');
+  });
+
+  it('accepts an origin snapshot when validating for the origin client', async () => {
+    const snapshot = await catalogFixture({ client: 'origin', catalogVersion: 'data.缘起_剑胆琴心_v3_261105' });
+    await expect(validateCatalogSnapshot(snapshot, 'origin')).resolves.toBe(snapshot);
+    await expect(validateCatalogSnapshot(snapshot, 'std')).rejects.toThrow('不支持的数据包版本');
+  });
+
+  it('rejects a std snapshot when the origin client is expected', async () => {
+    const snapshot = await catalogFixture();
+    await expect(validateCatalogSnapshot(snapshot, 'origin')).rejects.toThrow('不支持的数据包版本');
+  });
+
+  it('rejects a data pack that belongs to the other client with a switch hint', async () => {
+    const snapshot = await catalogFixture();
+    const text = JSON.stringify(snapshot);
+    await expect(parseCatalogDataPack(text, 'origin')).rejects.toThrow('请先切换到对应客户端再导入');
+    await expect(parseCatalogDataPack(text, 'std')).resolves.toEqual(snapshot);
   });
 });
 
@@ -111,6 +129,13 @@ describe('catalog startup selection', () => {
     const missing = await catalogFixture({ generatedAt: '', items: [{ id: '物品', name: '无时间物品', category: 'equipment', sources: [{ mapId: 1, mapName: '副本', expansion: '版本', difficulty: '难度', bossName: '首领' }] }] });
     expect(selectCatalogSnapshot(embedded, invalid)).toEqual({ snapshot: embedded, usedOverride: false });
     expect(selectCatalogSnapshot(embedded, missing)).toEqual({ snapshot: embedded, usedOverride: false });
+  });
+
+  it('ignores a newer override that belongs to the other client', async () => {
+    const embedded = await catalogFixture({ client: 'origin', generatedAt: '2026-08-24T00:00:00.000Z', catalogVersion: 'data.缘起_剑胆琴心_v3_261105' });
+    const newerStd = await catalogFixture({ client: 'std', generatedAt: '2026-08-25T00:00:00.000Z', items: [{ id: '物品', name: '旗舰新物品', category: 'equipment', sources: [{ mapId: 1, mapName: '副本', expansion: '版本', difficulty: '难度', bossName: '首领' }] }] });
+    expect(newerStd.contentHash).not.toBe(embedded.contentHash);
+    expect(selectCatalogSnapshot(embedded, newerStd)).toEqual({ snapshot: embedded, usedOverride: false });
   });
 });
 

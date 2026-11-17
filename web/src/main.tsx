@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import '../app/globals.css';
+import './styles/globals.css';
 import { LootForgeApp } from './ui/LootForgeApp';
 
 const root = document.getElementById('root');
