@@ -17,7 +17,7 @@ type TopBarProps = {
   onSwitchClient: (client: GameClient) => void;
   onUndo: () => void;
   onToggleTheme: () => void;
-  onOpenDialog: (dialog: 'custom' | 'workspace') => void;
+  onOpenDialog: (dialog: 'custom' | 'workspace' | 'changelog') => void;
   onImportConfig: () => void;
   onExport: (kind: ExportKind) => void;
   onToggleExportMenu: () => void;
@@ -48,7 +48,14 @@ export function TopBar({
         <div className="brand-meta">
           <div className="brand-line">
             <h1>{APP_NAME}</h1>
-            <span className="version-pill" title={`工坊软件版本：v${APP_VERSION}`}>v{APP_VERSION}</span>
+            <button
+              type="button"
+              className="version-pill"
+              title={`工坊软件版本：v${APP_VERSION}（点击查看更新日志）`}
+              onClick={() => onOpenDialog('changelog')}
+            >
+              v{APP_VERSION}
+            </button>
             <span className="data-version-pill" title={`当前数据包版本：${activeSnapshot.catalogVersion}`}>
               {formatCatalogVersion(activeSnapshot.catalogVersion, client)}
             </span>

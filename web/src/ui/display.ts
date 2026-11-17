@@ -67,6 +67,14 @@ export function itemMetaText(item: Pick<CatalogItem, 'subtype' | 'itemLevel' | '
   return parts.join(' · ');
 }
 
+/** 分类明细的两组展示数据：类型（subtype）与品质等级，供物品抽屉拆成两个独立泡泡 */
+export function itemMetaParts(item: Pick<CatalogItem, 'subtype' | 'itemLevel' | 'itemLevelMin' | 'itemLevelMax'>): { type: string; qualityLevel: string } {
+  return {
+    type: item.subtype ?? '',
+    qualityLevel: formatItemLevel(item),
+  };
+}
+
 export function shanghaiDateStamp(now = new Date()): string {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',

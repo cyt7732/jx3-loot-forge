@@ -13,6 +13,7 @@ import {
 } from '../catalog';
 import { buildExportBatch } from '../config/exporter';
 import { parseManagedConfig, previewImport, validateItemName } from '../config/importer';
+import { ChangelogDialog } from './ChangelogDialog';
 import {
   CATEGORY_LABELS,
   CATEGORY_ORDER,
@@ -1343,6 +1344,10 @@ export function LootForgeApp() {
             onRestoreEmbedded={() => void restoreEmbeddedCatalog()}
             onReset={doResetWorkspace}
           />
+        )}
+
+        {dialog === 'changelog' && (
+          <ChangelogDialog onClose={() => setDialog(null)} />
         )}
 
         {dialog === 'import' && importDraft && (

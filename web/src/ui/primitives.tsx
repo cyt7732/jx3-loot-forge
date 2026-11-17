@@ -21,18 +21,22 @@ export function ChevronIcon({ className = '' }: { className?: string }) {
   );
 }
 
-export function Modal({ title, eyebrow, onClose, children }: { title: string; eyebrow: string; onClose: () => void; children: ReactNode }) {
-  return <section className="modal-card glass-panel" role="dialog" aria-modal="true" aria-labelledby={`dialog-${eyebrow}`}>
-    <header><div><span className="eyebrow">{eyebrow}</span><h2 id={`dialog-${eyebrow}`}>{title}</h2></div><button className="modal-close" type="button" onClick={onClose} aria-label="关闭">×</button></header>
+export function Modal({ title, eyebrow, onClose, headerExtra, className, children }: { title: string; eyebrow: string; onClose: () => void; headerExtra?: ReactNode; className?: string; children: ReactNode }) {
+  return <section className={`modal-card glass-panel ${className ?? ''}`} role="dialog" aria-modal="true" aria-labelledby={`dialog-${eyebrow}`}>
+    <header>
+      <div><span className="eyebrow">{eyebrow}</span><h2 id={`dialog-${eyebrow}`}>{title}</h2></div>
+      {headerExtra}
+      <button className="modal-close" type="button" onClick={onClose} aria-label="关闭">×</button>
+    </header>
     {children}
   </section>;
 }
 
-export function StateButton({ state, onClick, locked, lockedTitle }: { state: ItemState; onClick: () => void; locked?: boolean; lockedTitle?: string }) {
+export function StateButton({ state, onClick, locked, lockedTitle, className }: { state: ItemState; onClick: () => void; locked?: boolean; lockedTitle?: string; className?: string }) {
   const enabled = state.skipLoot;
   return (
     <button
-      className={`state-toggle skipLoot ${enabled ? 'checked' : ''} ${locked ? 'is-locked' : ''}`}
+      className={`state-toggle skipLoot ${enabled ? 'checked' : ''} ${locked ? 'is-locked' : ''} ${className ?? ''}`}
       aria-pressed={enabled}
       aria-label={`跳过拾取：${enabled ? '已开启' : '未开启'}`}
       onClick={onClick}
@@ -46,14 +50,14 @@ export function StateButton({ state, onClick, locked, lockedTitle }: { state: It
   );
 }
 
-export function DispositionSelector({ disposition, onChange, locked, lockedTitle }: { disposition: ItemDisposition; onChange: (disposition: ItemDisposition) => void; locked?: boolean; lockedTitle?: string }) {
+export function DispositionSelector({ disposition, onChange, locked, lockedTitle, className }: { disposition: ItemDisposition; onChange: (disposition: ItemDisposition) => void; locked?: boolean; lockedTitle?: string; className?: string }) {
   const options: Array<[ItemDisposition, string, string]> = [
     ['none', '未处理', '不自动出售，也不加入保护名单'],
     ['autoSell', '自动出售', '加入自动出售名单 (MY_AutoSell.tSellItem)'],
     ['protect', '保护不出售', '加入保护名单，防止被误卖 (MY_AutoSell.tProtectItem)'],
   ];
   return (
-    <div className={`segmented disposition-selector ${locked ? 'is-locked' : ''}`} role="group" aria-label="出售策略">
+    <div className={`segmented disposition-selector ${locked ? 'is-locked' : ''} ${className ?? ''}`} role="group" aria-label="出售策略">
       {options.map(([value, label, desc]) => (
         <button
           className={`disposition-option ${value} ${disposition === value ? 'on' : ''}`}

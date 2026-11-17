@@ -25,7 +25,7 @@ export type ImportDraft = {
   preview: ImportPreview;
 };
 
-export type DialogName = 'custom' | 'workspace' | 'import' | 'emptyExportWarning' | null;
+export type DialogName = 'custom' | 'workspace' | 'import' | 'emptyExportWarning' | 'changelog' | null;
 
 export type Toast = { tone: 'success' | 'warning' | 'error'; message: string; id?: number } | null;
 

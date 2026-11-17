@@ -33,3 +33,4 @@ Thumbs.db
 /web/src-tauri/target/
 /dist-exe/
 /*.exe
+.zcode/

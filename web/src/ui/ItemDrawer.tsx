@@ -1,7 +1,7 @@
 import type { ItemState } from '../domain/types';
 import { CATEGORY_LABELS } from '../domain/constants';
 import { cloneState } from '../domain/state';
-import { itemDisposition, itemMetaText, itemQualityClass } from './display';
+import { itemDisposition, itemMetaParts, itemQualityClass } from './display';
 import { DispositionSelector, StateButton } from './primitives';
 import type { CategorySummary, DrawerStateView, ItemDisposition, ViewItem } from './types';
 
@@ -93,9 +93,10 @@ export function ItemDrawer({
 
         <div className="item-row item-head" role="row">
           <span>物品与来源</span>
-          <span>类型 / 品质等级</span>
-          <span>跳过拾取</span>
-          <span>出售策略</span>
+          <span className="head-center">类型</span>
+          <span className="head-center">品质等级</span>
+          <span className="head-center">跳过拾取</span>
+          <span className="head-center">出售策略</span>
         </div>
       </div>
 
@@ -105,7 +106,7 @@ export function ItemDrawer({
           const source = item.sources[0];
           const isCustomLocked = !customScopeActive && Boolean(item.customOverride || customOverrides.has(item.id));
           const lockedTitle = `“${item.name}”已在【用户自定义】中维护（最高优先级），副本内设置不生效。如需修改请前往【用户自定义】。`;
-          const metaText = itemMetaText(item);
+          const metaParts = itemMetaParts(item);
           return (
             <div className={`item-row ${item.customOverride ? 'custom-row' : ''} ${item.historical ? 'historical-row' : ''} ${isCustomLocked ? 'custom-locked' : ''}`} role="row" key={item.id}>
               <div className="item-name">
@@ -136,11 +137,11 @@ export function ItemDrawer({
                  )}
                 {item.historical && <button className="text-action" type="button" onClick={() => onRemoveHistoricalState(item.id)}>清除历史状态并停止导出</button>}
               </div>
-              {metaText && (
-                <span className="category-pill">{metaText}</span>
-              )}
-              <StateButton state={state} onClick={() => onToggleItem(item, 'skipLoot')} locked={isCustomLocked} lockedTitle={lockedTitle} />
-              <DispositionSelector disposition={itemDisposition(state)} onChange={(disposition) => onSetDisposition(item, disposition)} locked={isCustomLocked} lockedTitle={lockedTitle} />
+              {/* 类型与品质等级各自独占一列（第2/3列）；无数据直接留空，控件用显式列号固定在第4/5列 */}
+              {metaParts.type && <span className="category-pill meta-type">{metaParts.type}</span>}
+              {metaParts.qualityLevel && <span className="category-pill meta-quality">{metaParts.qualityLevel} 品</span>}
+              <StateButton className="col-skip-toggle" state={state} onClick={() => onToggleItem(item, 'skipLoot')} locked={isCustomLocked} lockedTitle={lockedTitle} />
+              <DispositionSelector className="col-disposition" disposition={itemDisposition(state)} onChange={(disposition) => onSetDisposition(item, disposition)} locked={isCustomLocked} lockedTitle={lockedTitle} />
             </div>
           );
         })}
