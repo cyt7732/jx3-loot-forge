@@ -69,6 +69,7 @@ import { downloadText } from '../utils/download';
 import { CategoryTable } from './CategoryTable';
 import { CustomItemsDialog, EmptyExportWarningDialog, ImportConfigDialog, WorkspaceDialog } from './Dialogs';
 import { downloadBatchFile, shanghaiDateStamp } from './display';
+import { applyDrawerSort, nextDrawerSort, DRAWER_PAGE_SIZE, type DrawerSort, type DrawerSortKey } from './drawer-sort';
 import { ScopeTree } from './ScopeTree';
 import { ToastCard } from './primitives';
 import { TopBar } from './TopBar';
@@ -105,6 +106,7 @@ export function LootForgeApp() {
   const [drawerQuery, setDrawerQuery] = useState('');
   const [drawerStateView, setDrawerStateView] = useState<DrawerStateView>('all');
   const [drawerPage, setDrawerPage] = useState(1);
+  const [drawerSort, setDrawerSort] = useState<DrawerSort>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [pendingExportKind, setPendingExportKind] = useState<ExportKind>('combined');
   const [focusedScope, setFocusedScope] = useState<FocusedScope>({ type: 'all' });
@@ -488,7 +490,7 @@ export function LootForgeApp() {
   const drawerItems = useMemo(() => {
     if (!expandedCategory) return [];
     const query = drawerQuery.trim().normalize('NFC');
-    return allItems.filter((item) => {
+    const filtered = allItems.filter((item) => {
       if (item.category !== expandedCategory) return false;
       if (!sourceMatchesViewScope(item)) return false;
       if (query && !item.name.normalize('NFC').includes(query) && !item.sources.some((source) => `${source.expansion}${source.mapName}${source.bossName}`.includes(query))) return false;
@@ -498,12 +500,18 @@ export function LootForgeApp() {
       if (drawerStateView === 'protected' && !state.protect) return false;
       return true;
     });
+    return applyDrawerSort(filtered, drawerSort);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expandedCategory, drawerQuery, drawerStateView, allItems, stateMap, hasScope, selectedMaps, selectedBosses, focusedScope]);
+  }, [expandedCategory, drawerQuery, drawerStateView, allItems, stateMap, hasScope, selectedMaps, selectedBosses, focusedScope, drawerSort]);
 
-  const drawerTotalPages = Math.max(1, Math.ceil(drawerItems.length / 20));
+  const drawerTotalPages = Math.max(1, Math.ceil(drawerItems.length / DRAWER_PAGE_SIZE));
   const currentDrawerPage = Math.min(drawerPage, drawerTotalPages);
-  const visibleDrawerItems = drawerItems.slice((currentDrawerPage - 1) * 20, currentDrawerPage * 20);
+  const visibleDrawerItems = drawerItems.slice((currentDrawerPage - 1) * DRAWER_PAGE_SIZE, currentDrawerPage * DRAWER_PAGE_SIZE);
+
+  const handleDrawerSortChange = (key: DrawerSortKey) => {
+    setDrawerSort((current) => nextDrawerSort(current, key));
+    setDrawerPage(1);
+  };
 
   const commitStateMap = (nextMap: Map<string, ItemState>, keepUndo = true) => {
     if (keepUndo) setUndoWorkspace(workspace);
@@ -1289,6 +1297,7 @@ export function LootForgeApp() {
                 visibleDrawerItems={visibleDrawerItems}
                 currentDrawerPage={currentDrawerPage}
                 drawerTotalPages={drawerTotalPages}
+                drawerSort={drawerSort}
                 stateMap={stateMap}
                 customOverrides={customOverrides}
                 catalogIdSet={catalogIdSet}
@@ -1303,6 +1312,7 @@ export function LootForgeApp() {
                 }}
                 onCollapse={() => setExpandedCategory(null)}
                 onPageChange={setDrawerPage}
+                onDrawerSortChange={handleDrawerSortChange}
                 onToggleItem={toggleItemState}
                 onSetDisposition={setItemDisposition}
                 onRemoveCustomOverride={removeCustomOverride}

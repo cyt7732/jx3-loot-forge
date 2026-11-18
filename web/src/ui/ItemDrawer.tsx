@@ -1,11 +1,14 @@
+import { useRef } from 'react';
 import type { ItemState } from '../domain/types';
 import { CATEGORY_LABELS } from '../domain/constants';
 import { cloneState } from '../domain/state';
 import { itemDisposition, itemMetaParts, itemQualityClass } from './display';
 import { DispositionSelector, StateButton } from './primitives';
 import type { CategorySummary, DrawerStateView, ItemDisposition, ViewItem } from './types';
+import type { DrawerSort, DrawerSortKey } from './drawer-sort';
+import { DRAWER_PAGE_SIZE } from './drawer-sort';
 
-export const DRAWER_PAGE_SIZE = 20;
+export { DRAWER_PAGE_SIZE };
 
 type ItemDrawerProps = {
   summary: CategorySummary;
@@ -15,6 +18,7 @@ type ItemDrawerProps = {
   visibleDrawerItems: ViewItem[];
   currentDrawerPage: number;
   drawerTotalPages: number;
+  drawerSort: DrawerSort;
   stateMap: Map<string, ItemState>;
   customOverrides: Set<string>;
   catalogIdSet: Set<string>;
@@ -23,6 +27,7 @@ type ItemDrawerProps = {
   onDrawerStateViewChange: (view: DrawerStateView) => void;
   onCollapse: () => void;
   onPageChange: (page: number) => void;
+  onDrawerSortChange: (key: DrawerSortKey) => void;
   onToggleItem: (item: ViewItem, field: 'skipLoot') => void;
   onSetDisposition: (item: ViewItem, disposition: ItemDisposition) => void;
   onRemoveCustomOverride: (id: string) => void;
@@ -37,6 +42,7 @@ export function ItemDrawer({
   visibleDrawerItems,
   currentDrawerPage,
   drawerTotalPages,
+  drawerSort,
   stateMap,
   customOverrides,
   catalogIdSet,
@@ -45,12 +51,40 @@ export function ItemDrawer({
   onDrawerStateViewChange,
   onCollapse,
   onPageChange,
+  onDrawerSortChange,
   onToggleItem,
   onSetDisposition,
   onRemoveCustomOverride,
   onRemoveHistoricalState,
 }: ItemDrawerProps) {
   const { category, total, autoSellCount, skipLootCount } = summary;
+  const listRef = useRef<HTMLDivElement>(null);
+
+  /** 翻页后若列表顶部已被卷出视口，把它带回（不打断正常阅读位置）。 */
+  const handlePageChange = (page: number) => {
+    onPageChange(page);
+    const list = listRef.current;
+    if (!list) return;
+    const top = list.getBoundingClientRect().top;
+    if (top < 0) list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const sortableHead = (key: DrawerSortKey, label: string) => {
+    const active = drawerSort?.key === key ? drawerSort.dir : null;
+    return (
+      <button
+        type="button"
+        className={`th-sortable head-center ${active ? 'is-active' : ''}`}
+        onClick={() => onDrawerSortChange(key)}
+        aria-sort={active === 'asc' ? 'ascending' : active === 'desc' ? 'descending' : 'none'}
+        title={`点击按${label}排序（升序 → 降序 → 默认顺序）`}
+      >
+        {label}
+        <span className="th-sort-arrow" aria-hidden="true">{active === 'asc' ? '↑' : active === 'desc' ? '↓' : ''}</span>
+      </button>
+    );
+  };
+
   return (
     <div className="cat-drawer-container">
       <div className="cat-drawer-sticky-header">
@@ -92,15 +126,15 @@ export function ItemDrawer({
         </div>
 
         <div className="item-row item-head" role="row">
-          <span>物品与来源</span>
-          <span className="head-center">类型</span>
-          <span className="head-center">品质等级</span>
+          {sortableHead('name', '物品与来源')}
+          {sortableHead('type', '类型')}
+          {sortableHead('quality', '品质等级')}
           <span className="head-center">跳过拾取</span>
           <span className="head-center">出售策略</span>
         </div>
       </div>
 
-      <div className="drawer-item-list" role="table" aria-label={`${CATEGORY_LABELS[category]}物品列表`}>
+      <div className="drawer-item-list" ref={listRef} role="table" aria-label={`${CATEGORY_LABELS[category]}物品列表`}>
         {visibleDrawerItems.map((item) => {
           const state = cloneState(stateMap.get(item.id));
           const source = item.sources[0];
@@ -162,9 +196,9 @@ export function ItemDrawer({
 
       {drawerTotalPages > 1 && (
         <div className="pagination">
-          <button type="button" disabled={currentDrawerPage <= 1} onClick={() => onPageChange(Math.max(1, currentDrawerPage - 1))}>上一页</button>
+          <button type="button" disabled={currentDrawerPage <= 1} onClick={() => handlePageChange(Math.max(1, currentDrawerPage - 1))}>上一页</button>
           <span>第 {currentDrawerPage} / {drawerTotalPages} 页</span>
-          <button type="button" disabled={currentDrawerPage >= drawerTotalPages} onClick={() => onPageChange(Math.min(drawerTotalPages, currentDrawerPage + 1))}>下一页</button>
+          <button type="button" disabled={currentDrawerPage >= drawerTotalPages} onClick={() => handlePageChange(Math.min(drawerTotalPages, currentDrawerPage + 1))}>下一页</button>
         </div>
       )}
     </div>

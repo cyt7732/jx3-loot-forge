@@ -1,6 +1,6 @@
 {
   "name": "jx3-loot-forge",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "private": true,
   "engines": {
     "node": ">=22.13.0"

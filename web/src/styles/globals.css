@@ -386,7 +386,31 @@ details[open] > summary .tree-arrow-indicator { transform: rotate(180deg); color
 .empty-state p { margin: 5px 0 0; font-size: var(--font-meta); }
 .empty-state.compact { padding: 25px; }
 
+/* 物品抽屉：列表容器锚定整页高度（末页条数少时分页条不上跳），
+   分页条 sticky 贴底（长列表滚动时也始终可见可点） */
+.drawer-item-list { min-height: calc(20 * 52px + 20 * 1px); }
+.cat-drawer-container { display: flex; flex-direction: column; }
+.cat-drawer-container .pagination {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: 10px 0 4px;
+  background: linear-gradient(to top, rgba(13, 14, 22, .96) 55%, rgba(13, 14, 22, 0));
+}
+html[data-theme='light'] .cat-drawer-container .pagination {
+  background: linear-gradient(to top, rgba(255, 255, 255, .96) 55%, rgba(255, 255, 255, 0));
+}
 .pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; color: var(--weak); font-size: var(--font-meta); }
+
+/* 可点击排序表头：按钮铺满单元格，内容居中（与下方泡泡的列中心对齐）；
+   箭头绝对定位在文字右侧，不参与居中计算，避免文字被挤偏 */
+.th-sortable { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 100%; padding: 2px 6px; border: 1px solid transparent; border-radius: 6px; color: inherit; background: none; cursor: pointer; font: inherit; transition: all .15s ease; }
+.th-sortable:hover { color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.th-sortable.is-active { color: var(--gold); }
+.th-sortable .th-sort-arrow { position: absolute; right: -12px; min-width: 10px; font-weight: 700; }
+.th-sortable:hover { color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.th-sortable.is-active { color: var(--gold); }
+.th-sortable .th-sort-arrow { min-width: 10px; font-weight: 700; }
 .pagination button { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); background: rgba(255,255,255,.035); cursor: pointer; font-size: var(--font-meta); min-height: 32px; transition: all .15s ease; }
 .pagination button:not(:disabled):hover { background: var(--panel-hover); color: var(--text); border-color: rgba(255,255,255,.2); transform: translateY(-1px); }
 .pagination button:disabled { opacity: .35; cursor: not-allowed; }
@@ -1363,6 +1387,9 @@ html[data-theme='light'] .cl-scope-item.active {
 }
 html[data-theme='light'] .cl-scope-divider {
   background: rgba(0, 0, 0, 0.08);
+}
+html[data-theme='light'] .th-sortable:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
 html[data-theme='light'] .cl-entry {
   border-bottom-color: rgba(0, 0, 0, 0.06);

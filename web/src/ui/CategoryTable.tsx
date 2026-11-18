@@ -2,6 +2,7 @@ import type { BatchActionType, ItemCategory, ItemState } from '../domain/types';
 import { CATEGORY_LABELS } from '../domain/constants';
 import { CATEGORY_ICONS } from './display';
 import { ItemDrawer } from './ItemDrawer';
+import type { DrawerSort, DrawerSortKey } from './drawer-sort';
 import type { CategorySummary, DrawerStateView, ItemDisposition, ViewItem } from './types';
 
 type DrawerPassthroughProps = {
@@ -11,6 +12,7 @@ type DrawerPassthroughProps = {
   visibleDrawerItems: ViewItem[];
   currentDrawerPage: number;
   drawerTotalPages: number;
+  drawerSort: DrawerSort;
   stateMap: Map<string, ItemState>;
   customOverrides: Set<string>;
   catalogIdSet: Set<string>;
@@ -19,6 +21,7 @@ type DrawerPassthroughProps = {
   onDrawerStateViewChange: (view: DrawerStateView) => void;
   onCollapse: () => void;
   onPageChange: (page: number) => void;
+  onDrawerSortChange: (key: DrawerSortKey) => void;
   onToggleItem: (item: ViewItem, field: 'skipLoot') => void;
   onSetDisposition: (item: ViewItem, disposition: ItemDisposition) => void;
   onRemoveCustomOverride: (id: string) => void;
