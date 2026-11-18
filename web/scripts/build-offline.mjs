@@ -2,6 +2,7 @@ import { cp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Script } from 'node:vm';
+import zlib from 'node:zlib';
 import { build } from 'vite';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -37,12 +38,19 @@ html = html.replace(/<link rel="icon"[^>]*>/u, `<link rel="icon" type="image/jpe
 const CATALOG_STD_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.std.json');
 const CATALOG_ORIGIN_PATH = resolve(PROJECT_DIR, 'src/catalog/catalog.origin.json');
 
+// 单文件体积红线：jx3box 上传上限 30MB。gzip+base64 内联可把目录数据压到
+// 原始 JSON 的 10% 左右；应用端 decodeCatalogPayload 按 `gz:` 前缀透明解压。
+// base64 字符集不含 `<`，无需 HTML 转义。
+function toEmbeddedPayload(catalogText) {
+  return `gz:${zlib.gzipSync(Buffer.from(catalogText, 'utf8'), { level: 9 }).toString('base64')}`;
+}
+
 const catalogStd = await readFile(CATALOG_STD_PATH, 'utf8');
-let scriptsToInject = `<script id="jx3-catalog-data" type="application/json">${catalogStd.replace(/</gu, '\\u003c')}</script><script id="jx3-catalog-data-std" type="application/json">${catalogStd.replace(/</gu, '\\u003c')}</script>`;
+let scriptsToInject = `<script id="jx3-catalog-data-std" type="application/json">${toEmbeddedPayload(catalogStd)}</script>`;
 
 try {
   const catalogOrigin = await readFile(CATALOG_ORIGIN_PATH, 'utf8');
-  scriptsToInject += `<script id="jx3-catalog-data-origin" type="application/json">${catalogOrigin.replace(/</gu, '\\u003c')}</script>`;
+  scriptsToInject += `<script id="jx3-catalog-data-origin" type="application/json">${toEmbeddedPayload(catalogOrigin)}</script>`;
 } catch (error) {
   process.stderr.write(`Note: catalog.origin.json omitted from offline bundle: ${error.message}\n`);
 }
@@ -56,7 +64,7 @@ const inlineJavaScript = html.slice(inlineStart + inlineMarker.length, inlineEnd
 new Script(inlineJavaScript, { filename: 'offline-inline.js' });
 if (!html.includes('<div id="root"></div>')) throw new Error('Offline HTML is missing its root element.');
 
-const ROOT_HTML = resolve(PROJECT_DIR, '../剑网3掉落工坊.html');
+const ROOT_HTML = resolve(PROJECT_DIR, '../jx3-loot-forge.html');
 
 /**
  * Windows 上同一进程刚写完目录后 rename 偶尔会因残留句柄 / 杀毒扫描报 EPERM，

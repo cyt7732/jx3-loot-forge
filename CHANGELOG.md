@@ -2,6 +2,22 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 风格，版本号遵循语义化版本规范。
 
+## [1.6.8] - 2026-11-19
+
+单机版体积从 32MB 压缩到 2.6MB，突破魔盒 30MB 上传限制。
+
+### Fixed
+
+- **魔盒上传超限**：单文件离线版此前约 32MB，超过魔盒 30MB 上传上限无法发布；
+
+### Changed
+
+- **离线数据 gzip+base64 内联**：目录数据以 `gz:` 前缀的 gzip+base64 内联（`build-offline.mjs` 的 `toEmbeddedPayload`，level 9），应用端新增 `decodeCatalogPayload` 用浏览器原生 `DecompressionStream` 按 `gz:` 前缀透明解压，解压结果与源 JSON 逐字节一致；
+- **删除 std 双份注入**：旧构建把旗舰端数据注入了 `jx3-catalog-data` 与 `jx3-catalog-data-std` 两个内容相同的 script 节点（白占 11.5MB），现只保留 `-std` / `-origin` 两个节点，加载端回退读取旧节点 ID 的兼容逻辑不变；
+- **明文 JSON 兼容保留**：`decodeCatalogPayload` 对不带前缀的载荷原样通过，历史分发的离线文件不受影响；
+- **产物体积**：`剑网3掉落工坊.html` 32,150,546 → 2,647,491 字节（JS 429KB + CSS 80KB + 双端压缩数据约 2MB）；
+- **产物改名**：单文件离线版更名为 `jx3-loot-forge.html`（纯 ASCII 文件名，避免上传分发环节的中文编码问题），原中文文件名产物删除。
+
 ## [1.6.7] - 2026-11-18
 
 物品抽屉：表头点击排序 + 分页体验稳定化。

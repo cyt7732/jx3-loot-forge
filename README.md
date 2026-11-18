@@ -7,7 +7,7 @@
 副本掉落配置管理工具，支持旗舰端与缘起端
 
 [![Release](https://img.shields.io/github/v/release/cyt7732/jx3-loot-forge?style=flat-square&color=emerald)](https://github.com/cyt7732/jx3-loot-forge/releases)
-[![Data Version](https://img.shields.io/badge/Data-苍生铸世__v1__261105-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
+[![Data Version](https://img.shields.io/badge/Data-苍生铸世__v1__261117-38bdf8.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![Platform](https://img.shields.io/badge/Platform-JX3%20旗舰端%20%2F%20缘起端-emerald.svg?style=flat-square)](https://jx3.xoyo.com)
 [![Offline Ready](https://img.shields.io/badge/Offline-100%25%20Single--File-blueviolet.svg?style=flat-square)](https://github.com/cyt7732/jx3-loot-forge)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-orange.svg?style=flat-square)](LICENSE)
@@ -24,6 +24,14 @@
 
 数据覆盖旗舰端与缘起端全赛季副本，支持按副本、分类、自定义需求进行筛选与配置。
 
+## 在线版与离线分线
+
+- ⚡ 主站：<https://loot.jxpvx.top>
+- 🛡️ 魔盒 CDN 分线：<https://cdn.jx3box.com/upload/post/2026/11/18/20606_6393074.html>
+- 🛡️ GitHub Pages 镜像：<https://cyt7732.github.io/jx3-loot-forge/>
+
+> 在线版受网络波动影响时，可直接在魔盒发布页或 GitHub Releases 下载单文件离线版，纯本地零依赖运行，功能 100% 相同。
+
 ## 核心功能
 
 ### 综合配置导出
@@ -36,7 +44,7 @@
 
 ### 单文件离线运行
 
-整个应用打包为独立 HTML 文件（约 30MB），包含完整数据与资源，可在现代浏览器中直接打开使用，无需网络连接或额外依赖。
+整个应用打包为独立 HTML 文件（约 2.6MB，目录数据以 gzip 压缩内联），包含完整数据与资源，可在现代浏览器中直接打开使用，无需网络连接或额外依赖。
 
 ### 数据覆盖
 
@@ -77,9 +85,9 @@
 
 ### 离线版（推荐）
 
-前往 [GitHub Releases](https://github.com/cyt7732/jx3-loot-forge/releases/latest) 下载最新版本的离线压缩包，解压后运行其中的 `剑网3掉落工坊.html`，在浏览器中直接打开即可使用。该文件包含完整数据，无需联网。
+前往 [GitHub Releases](https://github.com/cyt7732/jx3-loot-forge/releases/latest) 下载最新版本的离线压缩包，解压后运行其中的 `jx3-loot-forge.html`（即单文件离线版），在浏览器中直接打开即可使用。该文件包含完整数据，无需联网。
 
-> 本地开发时执行 `npm run build:offline` 也会在仓库根目录生成同名单文件（已加入 .gitignore，不入库）。
+> 本地开发时执行 `npm run build:offline` 也会在仓库根目录生成同名 `jx3-loot-forge.html` 单文件（已加入 .gitignore，不入库）。
 
 ### 开发环境
 
@@ -128,8 +136,8 @@ jx3-loot-forge/
 
 ### 数据版本
 
-- 旗舰端：`data.旗舰_苍生铸世_v1_261105`
-- 缘起端：`data.缘起_剑胆琴心_v3_261105`
+- 旗舰端：`data.旗舰_苍生铸世_v1_261117`
+- 缘起端：`data.缘起_剑胆琴心_v3_261117`
 
 ### 隐私与安全
 

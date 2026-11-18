@@ -57,10 +57,10 @@ export function assertValidState(state: ItemState): void {
 
 - 内联所有JS/CSS
 - Base64编码小图标
-- 嵌入完整副本数据包
+- 以 `gz:` 前缀的 gzip+base64 内联完整副本数据包（应用端 `decodeCatalogPayload` 透明解压，明文 JSON 兼容保留）
 - GBK编码表内置
 
-最终产物：`剑网3掉落工坊.html`（约30MB，构建产物不入库，经 GitHub Release 分发）
+最终产物：`jx3-loot-forge.html`（约2.6MB，构建产物不入库，经魔盒发布页与 GitHub Release 分发）
 
 ---
 
@@ -508,7 +508,7 @@ npm run dev           # 启动本地开发服务器（http://localhost:5173）
 
 ```bash
 npm run build:web     # 构建在线版（dist/）
-npm run build:offline # 构建单文件离线版（../剑网3掉落工坊.html）
+npm run build:offline # 构建单文件离线版（../jx3-loot-forge.html）
 ```
 
 ### 离线版构建原理
@@ -520,7 +520,7 @@ npm run build:offline # 构建单文件离线版（../剑网3掉落工坊.html�
 3. 内联所有 `<script src>` 和 `<link href>` 引用
 4. Base64编码小图标
 5. 嵌入完整副本数据包（JSON）
-6. 写入根目录 `剑网3掉落工坊.html`
+6. 写入根目录 `jx3-loot-forge.html`
 
 最终产物可直接双击在浏览器中打开，无需Web服务器。
 

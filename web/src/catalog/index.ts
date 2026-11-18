@@ -21,13 +21,34 @@ export const catalogSnapshot: CatalogSnapshot = {
 };
 
 const CATALOG_SCRIPT_ID = 'jx3-catalog-data';
+const GZIP_PAYLOAD_PREFIX = 'gz:';
 const SNAPSHOT_CACHE = new Map<string, CatalogSnapshot>();
 const BACKGROUND_CHECKED = new Set<string>();
 
-function parseCatalogPayload(payload: string): CatalogSnapshot {
+/**
+ * Embedded offline payloads are gzip-compressed base64 (build-offline.mjs);
+ * plain JSON is accepted unchanged so previously distributed files keep working.
+ */
+export async function decodeCatalogPayload(payload: string): Promise<string> {
+  if (!payload.startsWith(GZIP_PAYLOAD_PREFIX)) return payload;
+  try {
+    const binary = Uint8Array.from(atob(payload.slice(GZIP_PAYLOAD_PREFIX.length)), (char) => char.charCodeAt(0));
+    return await new Response(new Blob([binary]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  } catch {
+    throw new Error('内嵌数据目录解压失败。');
+  }
+}
+
+async function parseCatalogPayload(payload: string): Promise<CatalogSnapshot> {
+  let text: string;
+  try {
+    text = await decodeCatalogPayload(payload);
+  } catch (error) {
+    throw error instanceof Error && error.message === '内嵌数据目录解压失败。' ? error : new Error('数据目录 JSON 解析失败。');
+  }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(payload);
+    parsed = JSON.parse(text);
   } catch {
     throw new Error('数据目录 JSON 解析失败。');
   }
@@ -65,7 +86,7 @@ function scheduleCatalogBackgroundCheck(client: 'std' | 'origin', currentSnapsho
       const catalogUrl = new URL(`./data/catalog.${client}.json`, window.location.href);
       const catalogRes = await fetch(catalogUrl);
       if (!catalogRes.ok) return;
-      const newSnapshot = parseCatalogPayload(await catalogRes.text());
+      const newSnapshot = await parseCatalogPayload(await catalogRes.text());
       SNAPSHOT_CACHE.set(client, newSnapshot);
       await saveOfficialCatalogCache(client, newSnapshot);
 
@@ -99,7 +120,7 @@ export async function loadCatalogSnapshot(client: 'std' | 'origin' = 'std'): Pro
     const embedded = document.getElementById(`${CATALOG_SCRIPT_ID}-${client}`)
       ?? (client === 'std' ? document.getElementById(CATALOG_SCRIPT_ID) : null);
     if (embedded?.textContent) {
-      const parsed = parseCatalogPayload(embedded.textContent);
+      const parsed = await parseCatalogPayload(embedded.textContent);
       SNAPSHOT_CACHE.set(client, parsed);
       return parsed;
     }
@@ -119,7 +140,7 @@ export async function loadCatalogSnapshot(client: 'std' | 'origin' = 'std'): Pro
   const url = new URL(`./data/catalog.${client}.json`, window.location.href);
   const response = await fetch(url);
   if (!response.ok) throw new Error(`数据目录请求失败（HTTP ${response.status}）。`);
-  const parsed = parseCatalogPayload(await response.text());
+  const parsed = await parseCatalogPayload(await response.text());
   SNAPSHOT_CACHE.set(client, parsed);
   void saveOfficialCatalogCache(client, parsed);
   return parsed;

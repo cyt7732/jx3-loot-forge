@@ -10,9 +10,9 @@ const VERSION_PATH = resolve(PROJECT_DIR, 'VERSION.json');
 const versionData = JSON.parse(await readFile(VERSION_PATH, 'utf8'));
 const ver = versionData.appVersion;
 
-const artDir = resolve(PROJECT_DIR, `artifacts/剑网3掉落工坊-v${ver}`);
+const artDir = resolve(PROJECT_DIR, `artifacts/jx3-loot-forge-v${ver}`);
 const zipPath = resolve(PROJECT_DIR, `artifacts/jx3-loot-forge-v${ver}-offline.zip`);
-const htmlSource = resolve(PROJECT_DIR, '剑网3掉落工坊.html');
+const htmlSource = resolve(PROJECT_DIR, 'jx3-loot-forge.html');
 
 await rm(artDir, { recursive: true, force: true });
 await mkdir(artDir, { recursive: true });
@@ -43,7 +43,7 @@ try {
 if (process.platform === 'win32') {
   execFileSync('powershell', ['-NoProfile', '-Command', `Compress-Archive -Path '${artDir}' -DestinationPath '${zipPath}' -Force`]);
 } else {
-  execFileSync('zip', ['-r', zipPath, `剑网3掉落工坊-v${ver}`], { cwd: resolve(PROJECT_DIR, 'artifacts') });
+  execFileSync('zip', ['-r', zipPath, `jx3-loot-forge-v${ver}`], { cwd: resolve(PROJECT_DIR, 'artifacts') });
 }
 
 console.log(`[SUCCESS] Generated local artifacts for v${ver} at ${artDir}`);

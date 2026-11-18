@@ -37,7 +37,7 @@ npm run dev
 
 ```
 jx3-loot-forge/
-├── 剑网3掉落工坊.html          # 单文件离线版（构建产物）
+├── jx3-loot-forge.html         # 单文件离线版（构建产物）
 ├── web/                       # 前端源码目录
 │   ├── src/
 │   │   ├── catalog/           # 副本数据与分类引擎
@@ -89,7 +89,7 @@ npm run check
 # 会自动先执行 sync:data，把 src/catalog 的目录数据同步到 public/data
 npm run build:web
 
-# 构建单文件离线版（输出到 ../剑网3掉落工坊.html）
+# 构建单文件离线版（输出到 ../jx3-loot-forge.html）
 npm run build:offline
 
 # 仅同步目录数据到 public/data（开发调试用）
@@ -559,7 +559,7 @@ git tag v1.6.0
 git push origin main --tags
 
 # ✅ 7. 创建GitHub Release
-# 上传 剑网3掉落工坊.html
+# 上传 jx3-loot-forge.html
 # 填写 Release Notes
 ```
 
@@ -569,9 +569,9 @@ git push origin main --tags
 npm run package:artifacts
 ```
 
-会在 `artifacts/剑网3掉落工坊-v1.6.0/` 生成：
+会在 `artifacts/jx3-loot-forge-v1.6.0/` 生成：
 
-- `剑网3掉落工坊.html` - 单文件离线版
+- `index.html` - 单文件离线版
 - `README.md` - 使用说明
 - `CHANGELOG.md` - 变更日志
 - `VERSION.json` - 版本元数据

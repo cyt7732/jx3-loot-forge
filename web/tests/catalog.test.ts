@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { gzipSync } from 'node:zlib';
 import {
   DIFFICULTY_GROUPS,
   ERA_DEFINITIONS,
   LEVEL_GROUPS,
   classifyMapDifficulty,
+  decodeCatalogPayload,
   findLevelGroup,
   getCurrentSeasonGroup,
   getLegacyEquipment,
@@ -91,6 +93,23 @@ describe('catalog version formatting', () => {
       .toBe('data.旗舰_苍生铸世_v1_261031');
     expect(formatCatalogVersion('legacy-version', 'origin', new Date('2026-10-31T00:00:00Z')))
       .toBe('data.缘起_剑胆琴心_v3_261031');
+  });
+});
+
+describe('embedded catalog payload decoding', () => {
+  it('round-trips the gz+base64 payload emitted by build-offline.mjs', async () => {
+    const json = JSON.stringify({ schemaVersion: 1, client: 'std', maps: [], items: [] });
+    const embedded = `gz:${gzipSync(Buffer.from(json, 'utf8'), { level: 9 }).toString('base64')}`;
+    await expect(decodeCatalogPayload(embedded)).resolves.toBe(json);
+  });
+
+  it('passes plain JSON through unchanged so legacy offline files keep working', async () => {
+    const json = '{"schemaVersion":1}';
+    await expect(decodeCatalogPayload(json)).resolves.toBe(json);
+  });
+
+  it('rejects a gz payload that is not valid base64 gzip', async () => {
+    await expect(decodeCatalogPayload('gz:not-a-gzip-payload')).rejects.toThrow('解压失败');
   });
 });
 

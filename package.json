@@ -1,6 +1,6 @@
 {
   "name": "jx3-loot-forge-root",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "private": true,
   "scripts": {
     "postinstall": "npm --prefix web ci",

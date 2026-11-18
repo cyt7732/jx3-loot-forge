@@ -13,7 +13,7 @@
 
 # 根目录单文件离线版是 build:offline 的构建产物，
 # 改为不入库，统一通过 GitHub Release 分发（CI 每次发版自动打包）
-/剑网3掉落工坊.html
+/jx3-loot-forge.html
 
 # Web build and local tooling
 /dist/
