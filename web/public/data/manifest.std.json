@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "client": "std",
-  "catalogVersion": "data.旗舰_苍生铸世_v1_261105",
-  "generatedAt": "2026-11-05T13:29:22.310Z",
-  "contentHash": "0ea8ab254a9209fd4c3a08d1b7baca7a0a9d5ed73428612e7af2a7227531876d",
+  "catalogVersion": "data.旗舰_苍生铸世_v1_261117",
+  "generatedAt": "2026-11-17T15:49:30.234Z",
+  "contentHash": "762338fe44e2fbb496c58ca934985f2ef89d7593cca800b8fa8f7b86da719721",
   "stats": {
     "maps": 265,
     "bosses": 1020,

@@ -359,28 +359,49 @@ applyChanges() 应用变更
 ### 1. 物品分类算法
 
 ```typescript
-// 优先级：TypeLabel主规则 > 名称辅助规则 > 默认分类
+// 唯一实现：web/src/catalog/classification-core.ts
+// 爬虫 / 重分类脚本 / 前端运行时三方共用，规则由调用方注入（JSON 或磁盘读取）。
+//
+// 优先级：名称白名单 > AucGenre 结构化信号 > TypeLabel 主规则 > 名称辅助规则 > 兜底
 function classifyItem(input: ClassificationInput): ClassificationResult {
-  // 1. 尝试 TypeLabel 主规则
+  // 1. 名称白名单（特效武器 / 侠客秘卷 / 货币，这三类无结构化字段可依）
+  if (specialWeaponNames.includes(input.name)) return { category: 'specialWeapon', ... };
+  if (companionItemNames.includes(input.name)) return { category: 'companion', ... };
+  if (currencyItemNames.includes(input.name)) return { category: 'currency', ... };
+
+  // 2. TypeLabel 主映射（上游权威标签，命中即沿用）
   for (const [category, labels] of primaryTypeLabels) {
-    if (input.typeLabels?.some(label => labels.includes(label))) {
-      return { category, classification: 'type-label' };
-    }
+    if (labels.includes(typeLabel)) return { category, classification: 'type-label', subtype: typeLabel };
   }
-  
-  // 2. 尝试名称辅助规则
+
+  // 3. 次级规则（仅在 TypeLabel 为「其他」或缺失时进入）
+  //    a. AucGenre === 22 → pet（结构化信号，修正无装槽信息的宠物装备/礼盒）
+  //    b. IsEquip 且无可用装槽 → pet（名称启发式）
+  //    c. 名称后缀 玄晶/陨铁 → 大/小铁
+  //    d. 兑换前缀 / 套装+门派 / 部位 token → equipmentExchange
+  //    e. 恰好「其他」→ specialDrop
   const secondary = secondaryCategory(input);
-  if (secondary) {
-    return { category: secondary, classification: 'type-label-other-rule' };
-  }
-  
-  // 3. 默认分类
-  if (input.isEquip) return { category: 'equipment' };
-  return { category: 'unknown' };
+  return secondary ? { category: secondary, classification: '...' } : { category: 'unknown' };
 }
 ```
 
-### 2. 自定义优先级保护
+**类型（subtype）回退链**：显式 TypeLabel → AucGenre + AucSubType 推出的部位名 → 大类默认值（宠物 / 特效武器）。因此兑换牌、宠物等即使没有上游标签，也能给出可读的类型。
+
+> **AucGenre 语义实测**（2026-11 抽样 400 例）：`1` 武器、`2` 投掷、`3` 防具、`4` 首饰、`5` 坐骑、`6` 背包、`10` 材料、`12` 书籍、`13` 附魔、`15` 五行/五彩石、`21` 家具、`22` 宠物、`99` 混合；`20` 是「其他」容器（玄铁/玄晶/宠物/兑换牌都落在这里），**不可**单独作为兑换牌判据。
+
+### 2. 装备兑换牌类型反查
+
+兑换牌的 `Desc` 内含可兑换目标装备的物品链接（`name="iteminfolink"`）。抓取时解析这些链接并回查目标装备的权威 `TypeLabel`，即可得到兑换牌的真实部位（帽子/护腕/戒指…），无需名称正则猜测：
+
+```
+Desc: text="[儒风·荡山帽]" name="iteminfolink" ...
+  → 目标装备「儒风·荡山帽」TypeLabel = 帽子
+  → 兑换牌「儒风帽·蓬莱」subtype = 帽子
+```
+
+多个目标解析出不同部位时视为不一致，省略该物品的 `subtype`（与既有聚合语义一致）。
+
+### 3. 自定义优先级保护
 
 ```typescript
 // 当副本掉落物品与自定义库重复时，自定义优先
@@ -398,7 +419,7 @@ if (isCustomOverride(item.id, workspace)) {
 }
 ```
 
-### 3. 批量规则预览
+### 4. 批量规则预览
 
 ```typescript
 // 用户点击"刷本摸金模式"时预览影响范围

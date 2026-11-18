@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createClassifier, slotFromAucGenre } from '../src/catalog/classification-core.ts';
+import { extractExchangeTargets } from './exchange-targets.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PROJECT_DIR = resolve(SCRIPT_DIR, '..');
@@ -22,15 +24,8 @@ const CONCURRENCY = 4;
 const TYPE_LABEL_RULES = JSON.parse(await readFile(TYPE_LABEL_RULES_PATH, 'utf8'));
 const VERSION_RULES = JSON.parse(await readFile(VERSION_RULES_PATH, 'utf8'));
 
-const SLOT_LABELS = new Map([
-  ['上衣', 'chest'], ['帽子', 'head'], ['腰带', 'belt'], ['下装', 'legs'], ['鞋子', 'feet'], ['护腕', 'wrists'],
-  ['项链', 'necklace'], ['戒指', 'ring'], ['腰坠', 'pendant'], ['腰部挂件', 'waist_ornament'],
-  ['背部挂件', 'back_ornament'], ['披风', 'cloak'], ['投掷', 'ranged'], ['弓弦', 'ranged'], ['弹药', 'ranged'],
-]);
-const WEAPON_LABELS = new Set([
-  '兵刃', '武器', '棍类', '长兵类', '短兵类', '双兵类', '笔类', '重兵类', '虫笛类', '千机匣',
-  '弯刀', '棒', '盾刀', '琴', '傲霜刀', '伞', '链刃', '魂灯', '百草卷', '横刀', '弓箭', '扇',
-]);
+// 分类逻辑只有一份：与前端 / 重分类脚本共用 classification-core。
+const classifyItem = createClassifier(TYPE_LABEL_RULES);
 
 function normalizeLabel(value, fallback = '') {
   return typeof value === 'string' ? value.normalize('NFC').trim() : fallback;
@@ -101,120 +96,17 @@ function variantKey(drop) {
   return drop.ItemExtID ? `${drop.ItemType}_${drop.ItemID}_${drop.ItemExtID}` : `${drop.ItemType}_${drop.ItemID}`;
 }
 
-function hasExplicitSlot(slot) {
-  if (typeof slot !== 'string') return false;
-  const normalized = slot.trim().toLocaleLowerCase();
-  const unknownValues = new Set((TYPE_LABEL_RULES.secondaryRules.unknownSlotValues ?? []).map((value) => String(value).toLocaleLowerCase()));
-  return normalized.length > 0 && !unknownValues.has(normalized);
-}
+const WEAPON_TYPE_LABELS = new Set(TYPE_LABEL_RULES.weaponTypeLabels ?? []);
+const TYPE_LABEL_SLOTS = new Map(Object.entries(TYPE_LABEL_RULES.typeLabelSlots ?? {}));
 
-function endsWithEquipmentPart(value) {
-  const tokens = [...TYPE_LABEL_RULES.secondaryRules.equipmentPartTokens]
-    .sort((left, right) => right.length - left.length);
-  return tokens.find((token) => value.endsWith(token));
-}
-
-function isSetAndSchoolName(name) {
-  const parts = name.split('·');
-  if (parts.length < 2) return false;
-  const school = parts.at(-1);
-  if (!school || !TYPE_LABEL_RULES.secondaryRules.schools.includes(school)) return false;
-  const setAndPart = parts.slice(0, -1).join('·');
-  return setAndPart.length > 0 && endsWithEquipmentPart(setAndPart) !== undefined;
-}
-
-function hasEquipmentPartSegment(name) {
-  return name.split('·').some((part) => endsWithEquipmentPart(part) !== undefined);
-}
-
-const SPECIAL_WEAPON_SET = new Set((TYPE_LABEL_RULES.secondaryRules.specialWeaponNames ?? []).map((value) => normalizeLabel(value)));
-const COMPANION_ITEM_SET = new Set((TYPE_LABEL_RULES.secondaryRules.companionItemNames ?? []).map((value) => normalizeLabel(value)));
-const CURRENCY_ITEM_SET = new Set((TYPE_LABEL_RULES.secondaryRules.currencyItemNames ?? []).map((value) => normalizeLabel(value)));
-
-function classifyFromTypeLabel(meta, retrieval = 'metadata', itemName = '') {
-  const metadata = meta && typeof meta === 'object' ? meta : {};
-  const typeLabel = normalizeLabel(metadata.TypeLabel);
-  const typeLabels = typeLabel ? [typeLabel] : [];
-  const name = normalizeLabel(metadata.Name, itemName);
-
-  if (SPECIAL_WEAPON_SET.has(name)) {
-    const isExactlyOther = typeLabels.length === 1 && typeLabel === TYPE_LABEL_RULES.otherTypeLabel;
-    const isMissingTypeLabel = typeLabel.length === 0;
-    const classification = !isExactlyOther && !isMissingTypeLabel
-      ? 'type-label'
-      : isExactlyOther
-        ? 'type-label-other-rule'
-        : 'type-label-missing-fallback';
-    return { category: 'specialWeapon', classification, typeLabels };
-  }
-
-  if (COMPANION_ITEM_SET.has(name)) {
-    const isExactlyOther = typeLabels.length === 1 && typeLabel === TYPE_LABEL_RULES.otherTypeLabel;
-    const isMissingTypeLabel = typeLabel.length === 0;
-    const classification = !isExactlyOther && !isMissingTypeLabel
-      ? 'type-label'
-      : isExactlyOther
-        ? 'type-label-other-rule'
-        : 'type-label-missing-fallback';
-    return { category: 'companion', classification, typeLabels };
-  }
-
-  if (CURRENCY_ITEM_SET.has(name)) {
-    const isExactlyOther = typeLabels.length === 1 && typeLabel === TYPE_LABEL_RULES.otherTypeLabel;
-    const isMissingTypeLabel = typeLabel.length === 0;
-    const classification = !isExactlyOther && !isMissingTypeLabel
-      ? 'type-label'
-      : isExactlyOther
-        ? 'type-label-other-rule'
-        : 'type-label-missing-fallback';
-    return { category: 'currency', classification, typeLabels };
-  }
-
-  for (const [category, labels] of Object.entries(TYPE_LABEL_RULES.primaryTypeLabels)) {
-    if (typeLabel && labels?.includes(typeLabel)) {
-      return { category, classification: 'type-label', typeLabels };
-    }
-  }
-
-  const isExactlyOther = typeLabels.length === 1 && typeLabel === TYPE_LABEL_RULES.otherTypeLabel;
-  const isMissingTypeLabel = typeLabel.length === 0;
-  if (isExactlyOther || isMissingTypeLabel) {
-    const rules = TYPE_LABEL_RULES.secondaryRules;
-    const classification = isExactlyOther ? 'type-label-other-rule' : 'type-label-missing-fallback';
-    // Keep this priority aligned with web/src/catalog/classification.ts.
-    if (rules.petWhenEquipWithoutExplicitSlot && metadata.IsEquip === true && !hasExplicitSlot(slotFor(metadata))) {
-      return { category: 'pet', classification, typeLabels };
-    }
-    if (name.endsWith(rules.nameSuffixes.bigIron)) {
-      return { category: 'bigIron', classification, typeLabels };
-    }
-    if (name.endsWith(rules.nameSuffixes.smallIron)) {
-      return { category: 'smallIron', classification, typeLabels };
-    }
-    if (rules.equipmentExchangePrefixes.some((prefix) => name.startsWith(prefix))) {
-      return { category: 'equipmentExchange', classification, typeLabels };
-    }
-    if (isSetAndSchoolName(name) || hasEquipmentPartSegment(name)) {
-      return { category: 'equipmentExchange', classification, typeLabels };
-    }
-    if (isExactlyOther) return { category: 'specialDrop', classification, typeLabels };
-    return { category: 'unknown', classification, typeLabels };
-  }
-
-  return { category: 'unknown', classification: retrieval === 'name-fallback' ? 'name-fallback' : 'unknown', typeLabels };
-}
-
+/** 结构化字段优先，TypeLabel 回退；非装备返回 undefined。 */
 function slotFor(meta) {
   if (!meta || meta.IsEquip !== true) return undefined;
-  const genre = meta.AucGenre;
-  const subtype = meta.AucSubType;
-  if (genre === 1) return 'weapon';
-  if (genre === 2) return 'ranged';
-  if (genre === 3) return ({ 1: 'chest', 2: 'head', 3: 'belt', 4: 'legs', 5: 'feet', 6: 'wrists' })[subtype] ?? 'unknown';
-  if (genre === 4) return ({ 1: 'necklace', 2: 'ring', 3: 'pendant', 4: 'waist_ornament', 5: 'back_ornament', 6: 'cloak' })[subtype] ?? 'unknown';
+  const fromGenre = slotFromAucGenre(TYPE_LABEL_RULES, meta.AucGenre, meta.AucSubType);
+  if (fromGenre) return fromGenre;
   const label = normalizeLabel(meta.TypeLabel);
-  if (WEAPON_LABELS.has(label)) return 'weapon';
-  return SLOT_LABELS.get(label) ?? 'unknown';
+  if (WEAPON_TYPE_LABELS.has(label)) return 'weapon';
+  return TYPE_LABEL_SLOTS.get(label) ?? 'unknown';
 }
 
 function metadataSignature(meta) {
@@ -330,9 +222,17 @@ async function main() {
       const directMeta = metadata.byKey.get(key);
       const fallbackMeta = !directMeta ? metadata.fallbackByName.get(name) : undefined;
       const meta = directMeta ?? fallbackMeta;
-      const classificationResult = classifyFromTypeLabel(meta, fallbackMeta ? 'name-fallback' : 'metadata', name);
-      const category = classificationResult.category;
       const slot = slotFor(meta);
+      const classificationResult = classifyItem({
+        name,
+        typeLabels: meta?.TypeLabel ? [normalizeLabel(meta.TypeLabel)] : [],
+        isEquip: meta?.IsEquip === true,
+        slot,
+        slots: slot ? [slot] : [],
+        aucGenre: Number.isFinite(meta?.AucGenre) ? meta.AucGenre : undefined,
+        aucSubType: Number.isFinite(meta?.AucSubType) ? meta.AucSubType : undefined,
+      });
+      const category = classificationResult.category;
       const quality = Number.isFinite(drop.ItemQuality) ? drop.ItemQuality : Number.isFinite(meta?.Quality) ? meta.Quality : undefined;
       const level = (category === 'equipment' || category === 'specialWeapon') && Number.isFinite(meta?.Level) ? meta.Level : undefined;
       const source = {
@@ -343,17 +243,28 @@ async function main() {
         bossName: normalizeLabel(drop.BossName, '未知 Boss'),
       };
       const current = itemsById.get(id) ?? {
-        id, name, categories: new Set(), subtypes: new Set(), typeLabels: new Set(), qualities: [], levels: [], slots: new Set(), classifications: new Set(), sources: new Map(),
+        id, name, categories: new Set(), subtypes: new Set(), typeLabels: new Set(), qualities: [], levels: [], slots: new Set(),
+        classifications: new Set(), aucGenres: new Set(), aucSubTypes: new Set(), isEquips: new Set(),
+        exchangeTargets: [], descHasLinks: false, sources: new Map(),
       };
       current.categories.add(category);
       for (const typeLabel of classificationResult.typeLabels) {
         current.typeLabels.add(typeLabel);
-        current.subtypes.add(typeLabel);
       }
+      if (classificationResult.subtype) current.subtypes.add(classificationResult.subtype);
       if (quality !== undefined) current.qualities.push(quality);
       if (level !== undefined) current.levels.push(level);
       if (slot) current.slots.add(slot);
       current.classifications.add(classificationResult.classification);
+      if (Number.isFinite(meta?.AucGenre)) current.aucGenres.add(meta.AucGenre);
+      if (Number.isFinite(meta?.AucSubType)) current.aucSubTypes.add(meta.AucSubType);
+      if (typeof meta?.IsEquip === 'boolean') current.isEquips.add(meta.IsEquip);
+      // 兑换牌反查素材：Desc 中的可兑换目标装备名（后续统一批量解析类型）
+      const targets = extractExchangeTargets(meta?.Desc);
+      if (targets.length > 0) {
+        current.descHasLinks = true;
+        for (const target of targets) if (!current.exchangeTargets.includes(target)) current.exchangeTargets.push(target);
+      }
       current.sources.set(`${source.mapId}\u0000${source.bossName}`, source);
       itemsById.set(id, current);
       itemIds.add(id);
@@ -361,6 +272,30 @@ async function main() {
 
     maps.push({ mapId: mapRow.MapID, name: mapName, expansion, difficulty, bossNames, itemIds: [...itemIds].sort(compareText) });
   }
+
+  // ---- 兑换牌类型反查：用 Desc 里的目标装备 TypeLabel 推导真实部位 ----
+  const exchangeItems = [...itemsById.values()].filter((item) => item.categories.size === 1 && item.categories.has('equipmentExchange'));
+  const targetNames = [...new Set(exchangeItems.flatMap((item) => item.exchangeTargets))];
+  process.stdout.write(`兑换牌 ${exchangeItems.length} 个，待反查目标装备 ${targetNames.length} 个\n`);
+
+  const targetTypeByName = new Map();
+  let resolvedTargets = 0;
+  await mapPool(targetNames, async (targetName) => {
+    try {
+      const value = await fetchJson(`/item_merged/name/${encodeURIComponent(targetName)}?client=${CLIENT}&strict=1&per=5`);
+      const list = value && Array.isArray(value.list) ? value.list.filter((meta) => meta.Name === targetName) : [];
+      if (list.length === 0) return;
+      const signatures = new Set(list.map((meta) => normalizeLabel(meta.TypeLabel)));
+      if (signatures.size !== 1) return; // 同名目标类型不一致，放弃
+      const label = normalizeLabel(list[0].TypeLabel);
+      if (!label || label === TYPE_LABEL_RULES.otherTypeLabel) return;
+      targetTypeByName.set(targetName, label);
+      resolvedTargets += 1;
+    } catch {
+      // 单个目标解析失败不影响整体抓取
+    }
+  }, CONCURRENCY);
+  process.stdout.write(`兑换牌目标反查成功 ${resolvedTargets}/${targetNames.length}\n`);
 
   const items = [...itemsById.values()].map((item) => {
     const categories = [...item.categories];
@@ -375,15 +310,26 @@ async function main() {
       || compareText(left.mapName, right.mapName)
       || compareText(left.difficulty, right.difficulty)
     ));
+
+    // 兑换牌类型：优先目标装备的权威 TypeLabel；多个目标解析出不同部位时视为不一致，不写
+    let subtypeValue = item.subtypes.size === 1 ? [...item.subtypes][0] : undefined;
+    if (category === 'equipmentExchange' && item.exchangeTargets.length > 0) {
+      const targetTypes = new Set(item.exchangeTargets.map((target) => targetTypeByName.get(target)).filter(Boolean));
+      if (targetTypes.size === 1) subtypeValue = [...targetTypes][0];
+    }
+
     return {
       id: item.id,
       name: item.name,
       category,
       typeLabels,
-      ...(item.subtypes.size === 1 ? { subtype: [...item.subtypes][0] } : {}),
+      ...(subtypeValue ? { subtype: subtypeValue } : {}),
       ...(qualities.length ? { qualityMin: Math.min(...qualities), qualityMax: Math.max(...qualities) } : {}),
       ...(levels.length ? { itemLevelMin: Math.min(...levels), itemLevelMax: Math.max(...levels) } : {}),
       ...(slots.length ? { slots } : {}),
+      ...(item.aucGenres.size === 1 ? { aucGenre: [...item.aucGenres][0] } : {}),
+      ...(item.aucSubTypes.size === 1 ? { aucSubType: [...item.aucSubTypes][0] } : {}),
+      ...(item.isEquips.size === 1 ? { isEquip: [...item.isEquips][0] } : {}),
       classification: item.classifications.size === 1 ? [...item.classifications][0] : 'unknown',
       sources,
     };

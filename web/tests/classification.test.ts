@@ -251,3 +251,55 @@ describe('specialWeapon classification (特效武器/胚子/升级道具)', () =
   });
 });
 
+
+describe('AucGenre structured signals', () => {
+  it('classifies AucGenre=22 as pet even without IsEquip or slot evidence', () => {
+    // 上游把宠物装备/礼盒也归在 22，这些物品缺少 IsEquip 与装槽信息，旧规则会漏判成 unknown
+    expect(classify('如愿', [], { aucGenre: 22, aucSubType: 4 })).toMatchObject({
+      category: 'pet',
+      classification: 'type-label-missing-fallback',
+      subtype: '宠物',
+    });
+    expect(classify('帝煞玄甲', [], { aucGenre: 22, aucSubType: 5 })).toMatchObject({ category: 'pet' });
+  });
+
+  it('keeps the IsEquip fallback for pets whose AucGenre is null', () => {
+    expect(classify('三相枢', [], { isEquip: true, slots: ['unknown'] })).toMatchObject({ category: 'pet' });
+    expect(classify('三相枢', [], { isEquip: true })).toMatchObject({ category: 'pet' });
+  });
+
+  it('does not treat AucGenre=20 as an exchange signal', () => {
+    // 实测 genre 20 是「其他」容器：玄铁/玄晶/宠物/特效武器都落在 20，
+    // 兑换牌判定必须继续依赖名称规则。
+    expect(classify('乌金陨铁', ['其他'], { aucGenre: 20, aucSubType: 2 })).toMatchObject({ category: 'smallIron' });
+    expect(classify('大眼崽', ['其他'], { aucGenre: 20, aucSubType: 2, isEquip: true })).toMatchObject({ category: 'pet' });
+    // 无名称证据时必须回落到「其他」兜底，而不是被 genre 20 误判成兑换牌
+    expect(classify('某个普通杂项', ['其他'], { aucGenre: 20, aucSubType: 2 }).category).not.toBe('equipmentExchange');
+  });
+
+  it('derives an armor subtype from AucGenre when TypeLabel is missing', () => {
+    expect(classify('某件无标签护腕', [], { aucGenre: 3, aucSubType: 6 })).toMatchObject({
+      category: 'equipmentExchange',
+      subtype: '护腕',
+    });
+    expect(classify('某件无标签戒指', [], { aucGenre: 4, aucSubType: 2 })).toMatchObject({ subtype: '戒指' });
+  });
+
+  it('prefers the authoritative TypeLabel over the genre-derived part name', () => {
+    expect(classify('万槊枪', ['长兵类'], { aucGenre: 1, aucSubType: 2 })).toMatchObject({
+      category: 'equipment',
+      subtype: '长兵类',
+    });
+  });
+
+  it('falls back to a category default subtype when no label or genre is available', () => {
+    expect(classify('炎枪重黎', ['其他'])).toMatchObject({ category: 'specialWeapon', subtype: '特效武器' });
+    expect(classify('七煞', [], { isEquip: true })).toMatchObject({ category: 'pet', subtype: '宠物' });
+  });
+
+  it('never writes the sentinel 其他 as subtype', () => {
+    const result = classify('某件兑换牌·戒指', ['其他'], { aucGenre: 20 });
+    expect(result.subtype).not.toBe('其他');
+  });
+});
+

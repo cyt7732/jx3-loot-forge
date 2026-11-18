@@ -282,7 +282,7 @@ details[open] > summary .tree-arrow-indicator { transform: rotate(180deg); color
 .cat-strat-group.is-expanded .cat-strat-row { position: sticky; top: 0; z-index: 30; background: rgba(18, 20, 32, .98); backdrop-filter: blur(14px); box-shadow: 0 4px 16px rgba(0, 0, 0, .5); border-bottom: 1px solid color-mix(in srgb, var(--gold) 35%, transparent); }
 
 .cat-info-cell { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
-.cat-icon { font-size: 19px; flex-shrink: 0; }
+.cat-icon { width: 22px; height: 22px; flex-shrink: 0; object-fit: contain; border-radius: 4px; }
 .cat-name-box { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .cat-name-row { display: flex; align-items: center; gap: 6px; }
 .cat-info-cell strong { font-size: 14.5px; font-weight: 600; color: var(--text); }
@@ -339,7 +339,7 @@ details[open] > summary .tree-arrow-indicator { transform: rotate(180deg); color
 .drawer-count-info { color: var(--weak); font-size: var(--font-meta); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 .drawer-item-list { border: 1px solid var(--border); border-top: 0; border-radius: 0 0 8px 8px; background: rgba(20, 22, 34, .65); }
-.drawer-item-list .item-row, .cat-drawer-sticky-header .item-head { display: grid; grid-template-columns: minmax(200px, 1.3fr) minmax(72px, .5fr) minmax(96px, .62fr) minmax(120px, .68fr) minmax(230px, 1.3fr); gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,.035); font-size: var(--font-table); }
+.drawer-item-list .item-row, .cat-drawer-sticky-header .item-head { display: grid; grid-template-columns: minmax(178px, 1.15fr) minmax(96px, .6fr) minmax(98px, .58fr) minmax(112px, .62fr) minmax(244px, 1.35fr); gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,.035); font-size: var(--font-table); }
 .cat-drawer-sticky-header .item-head { min-height: 36px; color: var(--muted); background: rgba(22, 24, 38, .9); font-size: var(--font-meta); border-top: 1px solid rgba(255, 255, 255, .06); border-bottom: 0; }
 .drawer-item-list .item-row { min-height: 52px; transition: background .15s ease; }
 .drawer-item-list .item-row:last-child { border-bottom: 0; }
@@ -362,6 +362,8 @@ details[open] > summary .tree-arrow-indicator { transform: rotate(180deg); color
 .item-row > .meta-quality { grid-column: 3; justify-self: center; color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); border-color: color-mix(in srgb, var(--gold) 30%, transparent); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .item-row > .col-skip-toggle { grid-column: 4; justify-self: center; }
 .item-row > .col-disposition { grid-column: 5; }
+/* 特效武器本体：类型与兵器类型合并为一个高亮标签，避免窄列内换行 */
+.item-row > .meta-special { color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, transparent); border-color: color-mix(in srgb, var(--gold) 30%, transparent); white-space: nowrap; }
 
 .state-toggle { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid transparent; border-radius: 6px; color: var(--weak); background: transparent; cursor: pointer; font-size: var(--font-meta); min-height: 34px; transition: all .15s ease; }
 .state-toggle:hover { background: rgba(255,255,255,.03); }

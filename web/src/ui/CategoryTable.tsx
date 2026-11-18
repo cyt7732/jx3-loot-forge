@@ -64,7 +64,7 @@ export function CategoryTable({
                 tabIndex={0}
                 title="点击展开/收起该分类下的物品明细"
               >
-                <span className="cat-icon">{CATEGORY_ICONS[category]}</span>
+                <img className="cat-icon" src={CATEGORY_ICONS[category]} alt="" aria-hidden="true" />
                 <div className="cat-name-box">
                   <div className="cat-name-row">
                     <strong>{CATEGORY_LABELS[category]}</strong>

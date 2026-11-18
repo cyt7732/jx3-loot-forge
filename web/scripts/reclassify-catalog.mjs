@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createClassifier } from '../src/catalog/classification-core.ts';
 import { formatCatalogVersion } from '../src/catalog/levels.ts';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -10,126 +11,11 @@ const TYPE_LABEL_RULES_PATH = resolve(PROJECT_DIR, 'src/catalog/type-label-rules
 
 const rules = JSON.parse(await readFile(TYPE_LABEL_RULES_PATH, 'utf8'));
 
+// 与爬虫、前端共用同一份分类实现；规则从磁盘注入，避免 Node 对 JSON import 的限制。
+const classifyItem = createClassifier(rules);
+
 function normalizeText(value) {
   return typeof value === 'string' ? value.normalize('NFC').trim() : '';
-}
-
-function hasExplicitSlot(item) {
-  const unknownValues = new Set((rules.secondaryRules.unknownSlotValues ?? []).map((value) => String(value).toLocaleLowerCase()));
-  return [item.slot, ...(item.slots ?? [])].some((value) => {
-    const normalized = normalizeText(value).toLocaleLowerCase();
-    return normalized.length > 0 && !unknownValues.has(normalized);
-  });
-}
-
-function endsWithEquipmentPart(value) {
-  const tokens = [...rules.secondaryRules.equipmentPartTokens]
-    .sort((left, right) => right.length - left.length);
-  return tokens.find((token) => value.endsWith(token));
-}
-
-function isSetAndSchoolName(name) {
-  const parts = name.split('·');
-  if (parts.length < 2) return false;
-  const school = parts.at(-1);
-  if (!school || !rules.secondaryRules.schools.includes(school)) return false;
-  const setAndPart = parts.slice(0, -1).join('·');
-  return setAndPart.length > 0 && endsWithEquipmentPart(setAndPart) !== undefined;
-}
-
-function hasEquipmentPartSegment(name) {
-  return name.split('·').some((part) => endsWithEquipmentPart(part) !== undefined);
-}
-
-const SPECIAL_WEAPON_SET = new Set((rules.secondaryRules.specialWeaponNames ?? []).map(normalizeText));
-const COMPANION_ITEM_SET = new Set((rules.secondaryRules.companionItemNames ?? []).map(normalizeText));
-const CURRENCY_ITEM_SET = new Set((rules.secondaryRules.currencyItemNames ?? []).map(normalizeText));
-
-function classifyByRules(item, typeLabels) {
-  const typeLabel = typeLabels.length === 1 ? typeLabels[0] : '';
-  const normalizedName = normalizeText(item.name);
-
-  if (SPECIAL_WEAPON_SET.has(normalizedName)) {
-    const isExactlyOther = typeLabels.length === 1 && typeLabel === rules.otherTypeLabel;
-    const isMissingTypeLabel = typeLabels.length === 0;
-    const primarySubtype = typeLabels.find((label) => label && label !== rules.otherTypeLabel);
-    return {
-      category: 'specialWeapon',
-      classification: primarySubtype
-        ? 'type-label'
-        : isExactlyOther
-          ? 'type-label-other-rule'
-          : isMissingTypeLabel
-            ? 'type-label-missing-fallback'
-            : 'type-label',
-    };
-  }
-
-  if (COMPANION_ITEM_SET.has(normalizedName)) {
-    const isExactlyOther = typeLabels.length === 1 && typeLabel === rules.otherTypeLabel;
-    const isMissingTypeLabel = typeLabels.length === 0;
-    const primarySubtype = typeLabels.find((label) => label && label !== rules.otherTypeLabel);
-    return {
-      category: 'companion',
-      classification: primarySubtype
-        ? 'type-label'
-        : isExactlyOther
-          ? 'type-label-other-rule'
-          : isMissingTypeLabel
-            ? 'type-label-missing-fallback'
-            : 'type-label',
-    };
-  }
-
-  if (CURRENCY_ITEM_SET.has(normalizedName)) {
-    const isExactlyOther = typeLabels.length === 1 && typeLabel === rules.otherTypeLabel;
-    const isMissingTypeLabel = typeLabels.length === 0;
-    const primarySubtype = typeLabels.find((label) => label && label !== rules.otherTypeLabel);
-    return {
-      category: 'currency',
-      classification: primarySubtype
-        ? 'type-label'
-        : isExactlyOther
-          ? 'type-label-other-rule'
-          : isMissingTypeLabel
-            ? 'type-label-missing-fallback'
-            : 'type-label',
-    };
-  }
-
-  for (const [category, labels] of Object.entries(rules.primaryTypeLabels)) {
-    if (typeLabel && labels?.includes(typeLabel)) {
-      return { category, classification: 'type-label' };
-    }
-  }
-
-  const isExactlyOther = typeLabels.length === 1 && typeLabel === rules.otherTypeLabel;
-  const isMissingTypeLabel = typeLabels.length === 0;
-  if (!isExactlyOther && !isMissingTypeLabel) return null;
-
-  const secondary = rules.secondaryRules;
-  const classification = isExactlyOther ? 'type-label-other-rule' : 'type-label-missing-fallback';
-  // This order is part of the user-confirmed rule contract.
-  // `pet` is the migrated representation of an equipment row with no usable
-  // slot. Treat it as the same evidence on a second run so the migration is
-  // idempotent after the first pass.
-  if (secondary.petWhenEquipWithoutExplicitSlot && (item.category === 'equipment' || item.category === 'pet') && !hasExplicitSlot(item)) {
-    return { category: 'pet', classification };
-  }
-  if (item.name.endsWith(secondary.nameSuffixes.bigIron)) {
-    return { category: 'bigIron', classification };
-  }
-  if (item.name.endsWith(secondary.nameSuffixes.smallIron)) {
-    return { category: 'smallIron', classification };
-  }
-  if (secondary.equipmentExchangePrefixes.some((prefix) => item.name.startsWith(prefix))) {
-    return { category: 'equipmentExchange', classification };
-  }
-  if (isSetAndSchoolName(item.name) || hasEquipmentPartSegment(item.name)) {
-    return { category: 'equipmentExchange', classification };
-  }
-  if (isExactlyOther) return { category: 'specialDrop', classification };
-  return { category: 'unknown', classification };
 }
 
 function uniqueSorted(values) {
@@ -138,19 +24,34 @@ function uniqueSorted(values) {
   ));
 }
 
+/**
+ * 纯离线重算一个物品的分类与展示类型。
+ * 依赖快照中已持久化的原始信号（typeLabels / aucGenre / aucSubType / isEquip / slots），
+ * 因此与爬虫的判定完全等价，不再需要「旧 category 是不是 equipment」这类间接证据。
+ */
 function reclassifyItem(item) {
   const typeLabels = uniqueSorted(Array.isArray(item.typeLabels) ? item.typeLabels : item.subtype ? [item.subtype] : []);
-  const result = classifyByRules(item, typeLabels);
-
-  const category = result?.category ?? item.category;
-  const classification = result?.classification ?? 'unknown';
-
-  return {
-    ...item,
-    category,
+  const result = classifyItem({
+    name: item.name,
     typeLabels,
-    classification,
+    isEquip: item.isEquip,
+    slot: item.slot,
+    slots: item.slots,
+    aucGenre: item.aucGenre,
+    aucSubType: item.aucSubType,
+  });
+
+  const next = {
+    ...item,
+    category: result.category,
+    typeLabels: result.typeLabels,
+    classification: result.classification,
   };
+  // 分类器给出的类型优先；否则保留既有类型（兑换牌的目标反查结果属于上游信息，离线无法重算），
+  // 但「其他」哨兵一律清除。
+  if (result.subtype) next.subtype = result.subtype;
+  else if (next.subtype === rules.otherTypeLabel) delete next.subtype;
+  return next;
 }
 
 function validateSnapshot(value, expectedClient) {
@@ -210,7 +111,8 @@ async function reclassifyClient(client) {
     [...currentSnapshot.items.reduce((counts, item) => counts.set(item.category, (counts.get(item.category) ?? 0) + 1), new Map())]
       .sort(([left], [right]) => left.localeCompare(right)),
   );
-  process.stdout.write(`[${client}] ${JSON.stringify({ ...currentSnapshot.stats, categoryCounts })} hash=${contentHash} catalogVersion=${currentSnapshot.catalogVersion}\n`);
+  const withSubtype = currentSnapshot.items.filter((item) => item.subtype).length;
+  process.stdout.write(`[${client}] ${JSON.stringify({ ...currentSnapshot.stats, withSubtype, categoryCounts })} hash=${contentHash} catalogVersion=${currentSnapshot.catalogVersion}\n`);
 }
 
 await reclassifyClient('std');

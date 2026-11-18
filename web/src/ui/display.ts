@@ -1,26 +1,52 @@
 import type { CatalogItem, ItemCategory, ItemState, StateField } from '../domain/types';
 import { downloadBytes } from '../utils/download';
 import type { ItemDisposition } from './types';
+import equipmentIcon from '../assets/category-icons/equipment.png';
+import equipmentExchangeIcon from '../assets/category-icons/equipmentExchange.png';
+import specialWeaponIcon from '../assets/category-icons/specialWeapon.png';
+import materialIcon from '../assets/category-icons/material.png';
+import specialDropIcon from '../assets/category-icons/specialDrop.png';
+import recipeIcon from '../assets/category-icons/recipe.png';
+import furnitureIcon from '../assets/category-icons/furniture.png';
+import smallIronIcon from '../assets/category-icons/smallIron.png';
+import bigIronIcon from '../assets/category-icons/bigIron.png';
+import smallEnchantIcon from '../assets/category-icons/smallEnchant.png';
+import bigEnchantIcon from '../assets/category-icons/bigEnchant.png';
+import petIcon from '../assets/category-icons/pet.png';
+import unknownIcon from '../assets/category-icons/unknown.png';
+import consumableIcon from '../assets/category-icons/consumable.png';
+import taskIcon from '../assets/category-icons/task.png';
+import currencyIcon from '../assets/category-icons/currency.png';
+import companionIcon from '../assets/category-icons/companion.png';
+import otherIcon from '../assets/category-icons/other.png';
 
+/**
+ * 分类图标取自剑网3官方图标库（https://icon.jx3box.com/icon/<IconID>.png），
+ * 多为对应分类的代表性物品图标，已固化为本地资源以保证离线单文件版可用：
+ * 装备=i7884、兑换牌=元元帽、特效武器=炎枪重黎、材料=i7530、特殊掉落=星云踏月骓、
+ * 书籍=剑舞诀、家具=九天阖闾、小铁=天外陨铁、大铁=醉月玄晶、宠物=兔每每、
+ * 消耗品=下品长生丸、货币=金叶子、侠客养成=冰心诀秘卷、小/大附魔=磨石与附魔道具、
+ * 任务物品=任务卷轴、其他=背包、未分类=杂艺卷轴。
+ */
 export const CATEGORY_ICONS: Record<ItemCategory, string> = {
-  equipment: '⚔️',
-  equipmentExchange: '🎫',
-  specialWeapon: '🗡️',
-  material: '🪵',
-  specialDrop: '💎',
-  recipe: '📜',
-  furniture: '🪑',
-  smallIron: '⛏️',
-  bigIron: '🔥',
-  smallEnchant: '✨',
-  bigEnchant: '🌟',
-  pet: '🐾',
-  unknown: '📦',
-  consumable: '🧪',
-  task: '📜',
-  currency: '🪙',
-  companion: '🥋',
-  other: '📦',
+  equipment: equipmentIcon,
+  equipmentExchange: equipmentExchangeIcon,
+  specialWeapon: specialWeaponIcon,
+  material: materialIcon,
+  specialDrop: specialDropIcon,
+  recipe: recipeIcon,
+  furniture: furnitureIcon,
+  smallIron: smallIronIcon,
+  bigIron: bigIronIcon,
+  smallEnchant: smallEnchantIcon,
+  bigEnchant: bigEnchantIcon,
+  pet: petIcon,
+  unknown: unknownIcon,
+  consumable: consumableIcon,
+  task: taskIcon,
+  currency: currencyIcon,
+  companion: companionIcon,
+  other: otherIcon,
 };
 
 export const STATE_LABELS: Record<StateField, string> = {

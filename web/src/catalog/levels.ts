@@ -8,7 +8,8 @@ import type {
   CatalogLevelGroupId,
   CatalogMap,
 } from '../domain/types';
-import VERSION_RULES from './version-rules.json';
+// `with { type: 'json' }` 让 Node ESM 也能直接加载本模块（重分类脚本依赖）。
+import VERSION_RULES from './version-rules.json' with { type: 'json' };
 
 export type LevelGroup = CatalogLevelGroup;
 export type LevelGroupId = CatalogLevelGroupId;

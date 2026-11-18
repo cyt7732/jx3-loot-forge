@@ -51,6 +51,12 @@ export type CatalogItem = {
   itemLevelMax?: number;
   slot?: string;
   slots?: string[];
+  /** 上游结构化字段：装备/拍卖大类（1 武器、2 投掷、3 防具、4 首饰、20 其他、22 宠物…）。 */
+  aucGenre?: number;
+  /** 上游结构化字段：AucGenre 下的子类序数。 */
+  aucSubType?: number;
+  /** 上游结构化字段：是否可装备。 */
+  isEquip?: boolean;
   classification?: 'metadata' | 'name-fallback' | 'type-label' | 'type-label-other-rule' | 'type-label-missing-fallback' | 'unknown';
   sources: CatalogSource[];
 };

@@ -138,7 +138,14 @@ export function ItemDrawer({
                 {item.historical && <button className="text-action" type="button" onClick={() => onRemoveHistoricalState(item.id)}>清除历史状态并停止导出</button>}
               </div>
               {/* 类型与品质等级各自独占一列（第2/3列）；无数据直接留空，控件用显式列号固定在第4/5列 */}
-              {metaParts.type && <span className="category-pill meta-type">{metaParts.type}</span>}
+              {metaParts.type ? (
+                item.category === 'specialWeapon' && metaParts.type !== '特效武器' ? (
+                  // 特效武器本体：保留兵器类型，但标注「特效·」，避免看着像普通装备
+                  <span className="category-pill meta-type meta-special">{`特效·${metaParts.type}`}</span>
+                ) : (
+                  <span className="category-pill meta-type">{metaParts.type}</span>
+                )
+              ) : null}
               {metaParts.qualityLevel && <span className="category-pill meta-quality">{metaParts.qualityLevel} 品</span>}
               <StateButton className="col-skip-toggle" state={state} onClick={() => onToggleItem(item, 'skipLoot')} locked={isCustomLocked} lockedTitle={lockedTitle} />
               <DispositionSelector className="col-disposition" disposition={itemDisposition(state)} onChange={(disposition) => onSetDisposition(item, disposition)} locked={isCustomLocked} lockedTitle={lockedTitle} />
